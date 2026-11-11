@@ -1,0 +1,110 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta name="theme-color" content="#14283f">
+
+    <title>Météo La Rochelle</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Bibliothèque pour les graphiques -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+    <!-- En-tête -->
+    <header>
+        <h1>Météo La Rochelle</h1>
+        <p>Station météo 17300009</p>
+        <span id="miseAJour">Chargement des données...</span>
+    </header>
+
+    <main>
+
+        <!-- Dernières valeurs mesurées -->
+        <section class="cartes">
+
+            <div class="carte">
+                <h3>Vent moyen (kt)</h3>
+                <div class="valeur" id="ventActuel">-- kt</div>
+            </div>
+
+            <div class="carte">
+                <h3>Rafales (kt)</h3>
+                <div class="valeur" id="rafaleActuelle">-- kt</div>
+            </div>
+
+            <div class="carte">
+                <h3>Direction</h3>
+                <div class="valeur" id="directionActuelle">-- °</div>
+            </div>
+
+        </section>
+
+        <!-- Graphique vitesse du vent -->
+        <section class="graphique">
+
+            <h2>Vitesse du vent - dernières 24 h</h2>
+
+            <div class="zone-graphique">
+                <canvas id="graphVent"></canvas>
+            </div>
+
+        </section>
+
+        <!-- Graphique direction -->
+        <section class="graphique">
+
+            <h2>Direction du vent - dernières 24 h</h2>
+
+            <div class="zone-graphique">
+                <canvas id="graphDirection"></canvas>
+            </div>
+
+        </section>
+
+        <!-- Tableau des relevés -->
+        <section class="graphique">
+
+            <h2>Derniers relevés</h2>
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+                        <tr>
+                            <th>Date / Heure</th>
+                            <th>Vent (kt)</th>
+                            <th>Rafales (kt)</th>
+                            <th>Direction</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="tableau">
+                        <tr>
+                            <td colspan="4">Chargement...</td>
+                        </tr>
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Script de gestion des données et graphiques -->
+    <script src="app.js"></script>
+
+</body>
+</html>
+
