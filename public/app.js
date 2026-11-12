@@ -12,12 +12,42 @@ let carteRadar = null;
 let coucheRadar = null;
 let urlImageRadar = null;
 
+function destinationGeographique(lat, lon, distance, azimut) {
+
+    const R = 6371000;
+    const angle = azimut * Math.PI / 180;
+    const lat1 = lat * Math.PI / 180;
+    const lon1 = lon * Math.PI / 180;
+
+    const lat2 = Math.asin(
+        Math.sin(lat1) * Math.cos(distance / R) +
+        Math.cos(lat1) * Math.sin(distance / R) * Math.cos(angle)
+    );
+
+    const lon2 = lon1 + Math.atan2(
+        Math.sin(angle) * Math.sin(distance / R) * Math.cos(lat1),
+        Math.cos(distance / R) - Math.sin(lat1) * Math.sin(lat2)
+    );
+
+    return [
+        lat2 * 180 / Math.PI,
+        lon2 * 180 / Math.PI
+    ];
+    }
+
 function initialiserCarteRadar() {
 
+    const centreLat = 46.178;
+    const centreLon = -1.193167;
+
     carteRadar = L.map("carteRadar").setView(
-        [46.178, -1.193167],
+        [centreLat, centreLon],
         9
     );
+
+    // Couche réservée à l'image radar
+    carteRadar.createPane("radarImagePane");
+    carteRadar.getPane("radarImagePane").style.zIndex = 350;
 
     // Fond de carte actuel
     L.tileLayer("https://basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png?key=cb1_57wq_1_07826fc0a0495a659d44fac5", {
@@ -25,15 +55,127 @@ function initialiserCarteRadar() {
         maxZoom: 19
     }).addTo(carteRadar);
 
-    // Cercle de référence : rayon de 25 km
-    L.circle([46.178, -1.193167], {
-        radius: 25000,
-        color: "#14283f",
-        weight: 1,
+    // --------------------------------------------------
+    // CERCLE 10 KM
+    // --------------------------------------------------
+
+    L.circle([centreLat, centreLon], {
+        radius: 10000,
+        color: "#00e5ff",
+        weight: 2,
+        opacity: 0.95,
         fill: false,
-        dashArray: "5, 5"
+        dashArray: "8, 7"
     }).addTo(carteRadar);
 
+    // --------------------------------------------------
+    // CERCLE 25 KM
+    // --------------------------------------------------
+
+    L.circle([centreLat, centreLon], {
+        radius: 25000,
+        color: "#7cff6b",
+        weight: 2,
+        opacity: 0.95,
+        fill: false,
+        dashArray: "8, 7"
+    }).addTo(carteRadar);
+
+    // --------------------------------------------------
+    // ETIQUETTES DES DISTANCES
+    // --------------------------------------------------
+
+    function ajouterEtiquette(distance, texte, couleur) {
+
+        const position = destinationGeographique(
+            centreLat,
+            centreLon,
+            distance,
+            0
+        );
+
+        const icone = L.divIcon({
+            className: "",
+            html: `
+                <div style="
+                    background: rgba(15, 30, 45, 0.90);
+                    color: ${couleur};
+                    border: 1px solid ${couleur};
+                    border-radius: 4px;
+                    padding: 3px 7px;
+                    font-family: Arial, sans-serif;
+                    font-size: 12px;
+                    font-weight: bold;
+                    white-space: nowrap;
+                    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+                ">
+                    ${texte}
+                </div>
+            `,
+            iconSize: [55, 22],
+            iconAnchor: [-5, 11]
+        });
+
+        L.marker(position, {
+            icon: icone,
+            interactive: false
+        }).addTo(carteRadar);
+    }
+
+    ajouterEtiquette(10000, "10 km", "#00e5ff");
+    ajouterEtiquette(25000, "25 km", "#7cff6b");
+
+    // --------------------------------------------------
+    // AXE VERTICAL NORD-SUD
+    // --------------------------------------------------
+
+    const nord = destinationGeographique(
+        centreLat, centreLon, 25000, 0
+    );
+
+    const sud = destinationGeographique(
+        centreLat, centreLon, 25000, 180
+    );
+
+    L.polyline([nord, sud], {
+        color: "#00e5ff",
+        weight: 1.5,
+        opacity: 0.75,
+        dashArray: "5, 8"
+    }).addTo(carteRadar);
+
+    // --------------------------------------------------
+    // AXE HORIZONTAL EST-OUEST
+    // --------------------------------------------------
+
+    const est = destinationGeographique(
+        centreLat, centreLon, 25000, 90
+    );
+
+    const ouest = destinationGeographique(
+        centreLat, centreLon, 25000, 270
+    );
+
+    L.polyline([est, ouest], {
+        color: "#00e5ff",
+        weight: 1.5,
+        opacity: 0.75,
+        dashArray: "5, 8"
+    }).addTo(carteRadar);
+
+    // --------------------------------------------------
+    // REPERE CENTRAL
+    // --------------------------------------------------
+
+    L.circleMarker([centreLat, centreLon], {
+        radius: 5,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: "#ff5252",
+        fillOpacity: 1
+    }).addTo(carteRadar);
+
+    // Chargement radar
     chargerRadar();
 
     // Actualisation toutes les 5 minutes
@@ -94,7 +236,8 @@ async function chargerRadar() {
             limites,
             {
                 opacity: 0.95,
-                interactive: false
+                interactive: false,
+                pane: "radarImagePane"
             }
         );
 
