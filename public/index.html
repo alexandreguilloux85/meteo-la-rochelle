@@ -10,14 +10,11 @@
     <title>Météo La Rochelle</title>
 
     <link rel="stylesheet" href="style.css">
-
-    <!-- Bibliothèque pour les graphiques -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
 
-    <!-- En-tête -->
     <header>
         <h1>Météo La Rochelle</h1>
         <p>Station météo 17300009</p>
@@ -26,19 +23,19 @@
 
     <main>
 
-        <!-- Dernières valeurs mesurées -->
+        <!-- Cartes météo -->
         <section class="cartes">
 
             <div class="carte">
                 <h3>Vent moyen</h3>
                 <div class="valeur" id="ventActuel">-- kt</div>
             </div>
-            
+
             <div class="carte">
                 <h3>Rafales</h3>
-                <div class="valeur" id="rafaleActuelle">-- kt</div>
+                <div class="valeur valeur-rafale" id="rafaleActuelle">-- kt</div>
             </div>
-            
+
             <div class="carte carte-direction">
                 <h3>Direction du vent</h3>
 
@@ -47,13 +44,12 @@
                 </div>
 
                 <div class="valeur" id="directionActuelle">-- °</div>
-
                 <div id="texteDirection">--</div>
             </div>
 
         </section>
 
-        <!-- Graphique vitesse du vent -->
+        <!-- Graphique du vent -->
         <section class="graphique">
 
             <h2>Vitesse du vent - dernières 24 h</h2>
@@ -64,7 +60,7 @@
 
         </section>
 
-        <!-- Graphique direction -->
+        <!-- Graphique de direction -->
         <section class="graphique">
 
             <h2>Direction du vent - dernières 24 h</h2>
@@ -83,7 +79,6 @@
             <div class="table-container">
 
                 <table>
-
                     <thead>
                         <tr>
                             <th>Date / Heure</th>
@@ -98,7 +93,6 @@
                             <td colspan="4">Chargement...</td>
                         </tr>
                     </tbody>
-
                 </table>
 
             </div>
@@ -107,7 +101,6 @@
 
     </main>
 
-    <!-- Script de gestion des données et graphiques -->
     <script src="app.js"></script>
 
 </body>
