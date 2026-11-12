@@ -1,13 +1,14 @@
 
 let graphiqueVent = null;
 let graphiqueDirection = null;
+let graphiquePression = null;
 
 // Conversion m/s vers noeuds
 function noeuds(valeur) {
     return valeur * 1.94384;
 }
 
-// Conversion degrés vers points cardinaux
+// Conversion de la direction en points cardinaux
 function directionTexte(degres) {
     const directions = [
         "N", "NE", "E", "SE",
@@ -17,7 +18,75 @@ function directionTexte(degres) {
     return directions[Math.round(degres / 45) % 8];
 }
 
-// Création des graphiques
+// Options communes des graphiques
+function optionsGraphique(titreAxe, unite) {
+
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+
+        interaction: {
+            mode: "index",
+            intersect: false
+        },
+
+        plugins: {
+            legend: {
+                position: "top"
+            },
+
+            tooltip: {
+                enabled: true,
+                backgroundColor: "#14283f",
+                titleColor: "#ffffff",
+                bodyColor: "#ffffff",
+                borderColor: "#49627d",
+                borderWidth: 1,
+                padding: 12,
+                displayColors: true,
+
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + " : " +
+                            context.parsed.y.toFixed(1) + " " + unite;
+                    }
+                }
+            }
+        },
+
+        scales: {
+            x: {
+                grid: {
+                    color: "#edf1f5"
+                },
+
+                ticks: {
+                    maxTicksLimit: 8
+                },
+
+                title: {
+                    display: true,
+                    text: "Heure"
+                }
+            },
+
+            y: {
+                beginAtZero: titreAxe !== "Pression",
+
+                title: {
+                    display: true,
+                    text: titreAxe
+                },
+
+                grid: {
+                    color: "#edf1f5"
+                }
+            }
+        }
+    };
+}
+
+// Création des trois graphiques
 function creerGraphiques(donnees) {
 
     const labels = donnees.map(d =>
@@ -35,11 +104,14 @@ function creerGraphiques(donnees) {
 
     const direction = donnees.map(d => d.dd);
 
-    // Suppression des anciens graphiques
+    const pression = donnees.map(d => d.pmer);
+
+    // Détruire les anciens graphiques
     if (graphiqueVent) graphiqueVent.destroy();
     if (graphiqueDirection) graphiqueDirection.destroy();
+    if (graphiquePression) graphiquePression.destroy();
 
-    // Graphique vitesse du vent et rafales
+    // Graphique vent moyen et rafales
     graphiqueVent = new Chart(
         document.getElementById("graphVent"),
         {
@@ -52,80 +124,34 @@ function creerGraphiques(donnees) {
                     {
                         label: "Vent moyen",
                         data: vent,
-                        borderColor: "#1677b8",
-                        backgroundColor: "#1677b820",
+                        borderColor: "#1685c8",
+                        backgroundColor: "#1685c820",
                         fill: true,
-                        tension: 0.3,
-                        pointRadius: 2,
-                        pointHoverRadius: 6
+                        tension: 0.25,
+                        pointRadius: 1,
+                        pointHoverRadius: 6,
+                        pointHitRadius: 12
                     },
+
                     {
                         label: "Rafales",
                         data: rafales,
                         borderColor: "#e67e22",
                         backgroundColor: "#e67e2220",
                         fill: false,
-                        tension: 0.3,
-                        pointRadius: 2,
+                        tension: 0.25,
+                        pointRadius: 1,
                         pointHoverRadius: 6,
-                        spanGaps: false
+                        pointHitRadius: 12
                     }
                 ]
             },
 
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-
-                interaction: {
-                    mode: "index",
-                    intersect: false
-                },
-
-                plugins: {
-                    tooltip: {
-                        enabled: true,
-                        callbacks: {
-                            title: function(items) {
-                                return "Heure : " + items[0].label;
-                            },
-                            label: function(item) {
-                                if (item.parsed.y === null) {
-                                    return item.dataset.label + " : --";
-                                }
-
-                                return item.dataset.label + " : " +
-                                    item.parsed.y.toFixed(1) + " kt";
-                            }
-                        }
-                    },
-                    legend: {
-                        display: true,
-                        position: "top"
-                    }
-                },
-
-                scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: "Heure"
-                        }
-                    },
-
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: "Vitesse (nœuds)"
-                        }
-                    }
-                }
-            }
+            options: optionsGraphique("Vitesse", "kt")
         }
     );
 
-    // Graphique direction du vent
+    // Graphique direction
     graphiqueDirection = new Chart(
         document.getElementById("graphDirection"),
         {
@@ -143,33 +169,23 @@ function creerGraphiques(donnees) {
                         fill: false,
                         tension: 0.2,
                         pointRadius: 2,
-                        pointHoverRadius: 6
+                        pointHoverRadius: 6,
+                        pointHitRadius: 12
                     }
                 ]
             },
 
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-
-                interaction: {
-                    mode: "index",
-                    intersect: false
-                },
-
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: function(item) {
-                                return "Direction : " +
-                                    item.parsed.y + "°";
-                            }
-                        }
-                    }
-                },
+                ...optionsGraphique("Direction", "°"),
 
                 scales: {
                     x: {
+                        grid: {
+                            color: "#edf1f5"
+                        },
+                        ticks: {
+                            maxTicksLimit: 8
+                        },
                         title: {
                             display: true,
                             text: "Heure"
@@ -179,37 +195,49 @@ function creerGraphiques(donnees) {
                     y: {
                         min: 0,
                         max: 360,
+                        ticks: {
+                            stepSize: 45
+                        },
                         title: {
                             display: true,
                             text: "Direction (°)"
+                        },
+                        grid: {
+                            color: "#edf1f5"
                         }
                     }
                 }
             }
         }
     );
-}
 
-// Mise à jour de la flèche
-function afficherDirection(degres) {
+    // Graphique pression
+    graphiquePression = new Chart(
+        document.getElementById("graphPression"),
+        {
+            type: "line",
 
-    const fleche = document.getElementById("flecheDirection");
-    const texte = document.getElementById("texteDirection");
+            data: {
+                labels: labels,
 
-    if (!Number.isFinite(degres)) {
-        texte.textContent = "--";
-        return;
-    }
+                datasets: [
+                    {
+                        label: "Pression atmosphérique",
+                        data: pression,
+                        borderColor: "#8e44ad",
+                        backgroundColor: "#8e44ad20",
+                        fill: true,
+                        tension: 0.25,
+                        pointRadius: 1,
+                        pointHoverRadius: 6,
+                        pointHitRadius: 12
+                    }
+                ]
+            },
 
-    // La direction météo indique d'où vient le vent.
-    // On ajoute 180° pour pointer dans le sens où il souffle.
-    const directionSouffle = (degres + 180) % 360;
-
-    fleche.style.transform =
-        `rotate(${directionSouffle}deg)`;
-
-    texte.textContent =
-        "Souffle vers " + directionTexte(directionSouffle);
+            options: optionsGraphique("Pression", "hPa")
+        }
+    );
 }
 
 // Chargement des données météo
@@ -225,7 +253,6 @@ async function chargerDonnees() {
 
         const resultat = await reponse.json();
 
-        // Récupération des relevés
         const lignes = Array.isArray(resultat)
             ? resultat
             : resultat.features || resultat.data || [];
@@ -244,7 +271,8 @@ async function chargerDonnees() {
                     date: d.validity_time,
                     ff: d.ff == null ? null : Number(d.ff),
                     raf10: d.raf10 == null ? null : Number(d.raf10),
-                    dd: d.dd == null ? null : Number(d.dd)
+                    dd: d.dd == null ? null : Number(d.dd),
+                    pmer: d.pmer == null ? null : Number(d.pmer)
                 };
 
             })
@@ -261,30 +289,46 @@ async function chargerDonnees() {
             throw new Error("Aucune donnée météo exploitable");
         }
 
-        // Dernier relevé
+        // Dernière valeur disponible
         const dernier = donnees[donnees.length - 1];
 
-        // Affichage du vent moyen
+        // Vent moyen
         document.getElementById("ventActuel").textContent =
-            noeuds(dernier.ff).toFixed(1) + " kt";
+            noeuds(dernier.ff).toFixed(1);
 
-        // Affichage des rafales
+        // Rafales
         document.getElementById("rafaleActuelle").textContent =
             Number.isFinite(dernier.raf10)
-                ? noeuds(dernier.raf10).toFixed(1) + " kt"
-                : "-- kt";
+                ? noeuds(dernier.raf10).toFixed(1)
+                : "--";
 
-        // Affichage de la direction
+        // Direction du vent
         if (Number.isFinite(dernier.dd)) {
 
             document.getElementById("directionActuelle").textContent =
-                dernier.dd.toFixed(0) + "° " +
+                dernier.dd.toFixed(0) + "°";
+
+            document.getElementById("directionCardinale").textContent =
                 directionTexte(dernier.dd);
 
-            afficherDirection(dernier.dd);
+            // La flèche indique le sens dans lequel le vent souffle.
+            // 0° météo = vent venant du Nord = flèche vers le Sud.
+            document.getElementById("flecheDirection").style.transform =
+                "rotate(" + (dernier.dd + 180) + "deg)";
+
+        } else {
+
+            document.getElementById("directionActuelle").textContent = "--°";
+            document.getElementById("directionCardinale").textContent = "--";
         }
 
-        // Filtrage des dernières 24 heures
+        // Pression : pmer est en Pa, conversion en hPa
+        document.getElementById("pressionActuelle").textContent =
+            Number.isFinite(dernier.pmer)
+                ? (dernier.pmer / 100).toFixed(1)
+                : "----";
+
+        // Dernières 24 heures
         const maintenant = Date.now();
         const limite = maintenant - 24 * 60 * 60 * 1000;
 
@@ -297,27 +341,37 @@ async function chargerDonnees() {
             throw new Error("Aucune donnée disponible sur les dernières 24 h");
         }
 
-        // Mise à jour des graphiques
+        // Création des graphiques
         creerGraphiques(donnees24h);
 
-        // Mise à jour du tableau
+        // Tableau historique : 30 dernières mesures
         const tableau = document.getElementById("tableau");
 
-        tableau.innerHTML = donnees
+        tableau.innerHTML = donnees24h
             .slice()
             .reverse()
+            .slice(0, 30)
             .map(d => `
                 <tr>
                     <td>${new Date(d.date).toLocaleString("fr-FR")}</td>
+
                     <td>${noeuds(d.ff).toFixed(1)}</td>
+
                     <td>
                         ${Number.isFinite(d.raf10)
                             ? noeuds(d.raf10).toFixed(1)
                             : "--"}
                     </td>
+
                     <td>
                         ${Number.isFinite(d.dd)
                             ? d.dd.toFixed(0) + "° " + directionTexte(d.dd)
+                            : "--"}
+                    </td>
+
+                    <td>
+                        ${Number.isFinite(d.pmer)
+                            ? (d.pmer / 100).toFixed(1)
                             : "--"}
                     </td>
                 </tr>
@@ -331,7 +385,6 @@ async function chargerDonnees() {
 
         console.log("Nombre de relevés :", donnees.length);
         console.log("Relevés sur 24 h :", donnees24h.length);
-        console.log("Dernière rafale (m/s) :", dernier.raf10);
 
     } catch (erreur) {
 
