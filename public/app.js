@@ -28,11 +28,6 @@ function creerGraphiques(donnees) {
     );
 
     const vent = donnees.map(d => noeuds(d.ff));
-
-    const rafales = donnees.map(d =>
-        Number.isFinite(d.raf10) ? noeuds(d.raf10) : null
-    );
-
     const direction = donnees.map(d => d.dd);
 
     // Supprimer les anciens graphiques
@@ -56,14 +51,8 @@ function creerGraphiques(donnees) {
                         backgroundColor: "#1677b820",
                         fill: true,
                         tension: 0.3,
-                        pointRadius: 2
-                    },
-                    {
-                        label: "Rafales",
-                        data: rafales,
-                        borderColor: "#e67e22",
-                        tension: 0.3,
-                        pointRadius: 2
+                        pointRadius: 2,
+                        pointHoverRadius: 6
                     }
                 ]
             },
@@ -71,6 +60,30 @@ function creerGraphiques(donnees) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+
+                // Afficher les valeurs au survol
+                interaction: {
+                    mode: "index",
+                    intersect: false
+                },
+
+                plugins: {
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            title: function(items) {
+                                return "Heure : " + items[0].label;
+                            },
+                            label: function(item) {
+                                return "Vent : " +
+                                    item.parsed.y.toFixed(1) + " kt";
+                            }
+                        }
+                    },
+                    legend: {
+                        display: false
+                    }
+                },
 
                 scales: {
                     x: {
@@ -132,6 +145,24 @@ function creerGraphiques(donnees) {
     );
 }
 
+// Mise à jour de la flèche de direction
+function afficherDirection(degres) {
+
+    const fleche = document.getElementById("flecheDirection");
+    const texte = document.getElementById("texteDirection");
+
+    if (!Number.isFinite(degres)) {
+        texte.textContent = "--";
+        return;
+    }
+
+    // La flèche pointe vers la provenance du vent
+    fleche.style.transform = `rotate(${degres}deg)`;
+
+    texte.textContent =
+        degres.toFixed(0) + "° " + directionTexte(degres);
+}
+
 // Chargement des données météo
 async function chargerDonnees() {
 
@@ -163,8 +194,7 @@ async function chargerDonnees() {
                 return {
                     date: d.validity_time,
                     ff: Number(d.ff),
-                    raf10: d.raf10 == null ? null : Number(d.raf10),
-                    dd: Number(d.dd)
+                    dd: d.dd == null ? null : Number(d.dd)
                 };
 
             })
@@ -184,29 +214,26 @@ async function chargerDonnees() {
         // Dernière valeur disponible
         const dernier = donnees[donnees.length - 1];
 
-        // Affichage des valeurs actuelles
+        // Affichage de la vitesse actuelle
         document.getElementById("ventActuel").textContent =
             noeuds(dernier.ff).toFixed(1) + " kt";
 
-        document.getElementById("rafaleActuelle").textContent =
-            Number.isFinite(dernier.raf10)
-                ? noeuds(dernier.raf10).toFixed(1) + " kt"
-                : "-- kt";
+        // Affichage de la direction
+        if (Number.isFinite(dernier.dd)) {
+            document.getElementById("directionActuelle").textContent =
+                dernier.dd.toFixed(0) + "° " +
+                directionTexte(dernier.dd);
 
-        document.getElementById("directionActuelle").textContent =
-            dernier.dd + "° " + directionTexte(dernier.dd);
+            afficherDirection(dernier.dd);
+        }
 
         // Filtrage des dernières 24 heures
         const maintenant = Date.now();
-
         const limite = maintenant - 24 * 60 * 60 * 1000;
 
         const donnees24h = donnees.filter(d => {
-
             const temps = new Date(d.date).getTime();
-
             return temps >= limite && temps <= maintenant;
-
         });
 
         if (donnees24h.length === 0) {
@@ -225,18 +252,10 @@ async function chargerDonnees() {
             .map(d => `
                 <tr>
                     <td>${new Date(d.date).toLocaleString("fr-FR")}</td>
-
                     <td>${noeuds(d.ff).toFixed(1)}</td>
-
-                    <td>
-                        ${Number.isFinite(d.raf10)
-                            ? noeuds(d.raf10).toFixed(1)
-                            : "--"}
-                    </td>
-
                     <td>
                         ${Number.isFinite(d.dd)
-                            ? d.dd + "° " + directionTexte(d.dd)
+                            ? d.dd.toFixed(0) + "° " + directionTexte(d.dd)
                             : "--"}
                     </td>
                 </tr>
@@ -265,4 +284,3 @@ chargerDonnees();
 
 // Actualisation automatique toutes les 6 minutes
 setInterval(chargerDonnees, 6 * 60 * 1000);
-
