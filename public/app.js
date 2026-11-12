@@ -19,7 +19,7 @@ function initialiserCarteRadar() {
     );
 
     // Fond de carte OpenStreetMap
-    L.tileLayer("https://tiles.openfreemap.org/styles/positron/{z}/{x}/{y}.png", {
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19
     }).addTo(carteRadar);
