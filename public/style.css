@@ -6,17 +6,25 @@
 body {
     margin: 0;
     font-family: Arial, sans-serif;
-    background: #eef2f6;
+    background: #eef3f8;
     color: #26384a;
 }
 
-/* En-tête */
+/* EN-TETE */
 
 header {
-    background: #14283f;
+    background: linear-gradient(135deg, #14283f, #1e4567);
     color: white;
-    padding: 25px;
-    text-align: center;
+    padding: 25px 30px;
+}
+
+.header-contenu {
+    max-width: 1200px;
+    margin: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
 }
 
 header h1 {
@@ -25,150 +33,279 @@ header h1 {
 }
 
 header p {
-    margin: 5px;
+    margin: 0;
     color: #b8c9dc;
 }
 
-#miseAJour {
-    display: inline-block;
-    margin-top: 8px;
+.statut {
+    display: flex;
+    align-items: center;
+    gap: 9px;
     font-size: 13px;
-    color: #b8c9dc;
+    color: #d5e3ef;
 }
 
-/* Contenu principal */
+.point-statut {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #36d399;
+}
+
+/* CONTENU */
 
 main {
-    max-width: 1100px;
+    max-width: 1200px;
     margin: auto;
-    padding: 20px;
+    padding: 25px 20px;
 }
 
-/* Cartes météo */
+/* CARTES METEO */
 
 .cartes {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.carte {
+    background: white;
+    border-radius: 14px;
+    padding: 22px 18px;
+    box-shadow: 0 3px 12px #172b4d0d;
+    min-height: 155px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.titre-carte {
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.7px;
+    color: #718096;
+    margin-bottom: 14px;
+}
+
+.valeur-principale {
+    font-size: 34px;
+    font-weight: bold;
+    color: #1677b8;
+}
+
+.unite {
+    margin-top: 5px;
+    color: #8a99a9;
+    font-size: 12px;
+}
+
+.carte-rafale .valeur-principale {
+    color: #e67e22;
+}
+
+/* BOUSSOLE */
+
+.carte-direction {
+    align-items: center;
+    text-align: center;
+}
+
+.carte-direction .titre-carte {
+    align-self: flex-start;
+}
+
+.boussole {
+    position: relative;
+    width: 105px;
+    height: 105px;
+    border: 2px solid #dce5ed;
+    border-radius: 50%;
+    background: #f8fafc;
+}
+
+.repere {
+    position: absolute;
+    font-size: 10px;
+    font-weight: bold;
+    color: #64748b;
+}
+
+.nord {
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.sud {
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.est {
+    right: 7px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.ouest {
+    left: 7px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.fleche-container {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fleche {
+    display: block;
+    font-size: 54px;
+    line-height: 1;
+    color: #1685c8;
+    transform-origin: center;
+    transition: transform 0.5s ease;
+}
+
+.centre-boussole {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #14283f;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.direction-valeur {
+    margin-top: 9px;
+    font-size: 20px;
+    font-weight: bold;
+    color: #26384a;
+}
+
+.direction-cardinale {
+    font-size: 12px;
+    color: #718096;
+    margin-top: 3px;
+}
+
+/* BLOCS ET GRAPHIQUES */
+
+.bloc {
+    background: white;
+    border-radius: 14px;
+    padding: 23px;
+    margin-bottom: 20px;
+    box-shadow: 0 3px 12px #172b4d0d;
+}
+
+.entete-bloc {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     gap: 15px;
     margin-bottom: 20px;
 }
 
-.carte,
-.graphique {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 2px 8px #00000010;
-}
-
-.carte {
-    min-height: 145px;
-}
-
-.carte h3 {
-    margin-top: 0;
-    font-size: 15px;
-    color: #718096;
-}
-
-.valeur {
-    font-size: 30px;
-    font-weight: bold;
-    color: #1677b8;
-}
-
-.valeur-rafale {
-    color: #e67e22;
-}
-
-/* Flèche de direction */
-
-.carte-direction {
-    text-align: center;
-}
-
-.fleche-direction {
-    width: 90px;
-    height: 90px;
-    margin: 5px auto 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #edf6fc;
-    border-radius: 50%;
-}
-
-#flecheDirection {
-    display: inline-block;
-    font-size: 65px;
-    line-height: 1;
-    color: #1677b8;
-    transform: rotate(0deg);
-    transition: transform 0.5s ease;
-}
-
-#texteDirection {
-    margin-top: 5px;
-    color: #718096;
-    font-size: 14px;
-}
-
-/* Graphiques */
-
-.graphique {
-    margin-bottom: 20px;
-}
-
-.graphique h2 {
+.entete-bloc h2 {
+    margin: 0 0 6px 0;
     font-size: 19px;
-    margin-top: 0;
-    margin-bottom: 20px;
+    color: #26384a;
+}
+
+.entete-bloc p {
+    margin: 0;
+    font-size: 13px;
+    color: #8795a5;
+}
+
+.unite-graphique {
+    background: #edf5fb;
+    color: #1677b8;
+    padding: 7px 12px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: bold;
 }
 
 .zone-graphique {
     position: relative;
-    height: 300px;
+    height: 310px;
     width: 100%;
 }
 
-/* Tableau */
+/* TABLEAU */
 
 .table-container {
-    width: 100%;
     overflow-x: auto;
+    width: 100%;
 }
 
 table {
     width: 100%;
-    min-width: 600px;
     border-collapse: collapse;
-    font-size: 14px;
+    font-size: 13px;
+    white-space: nowrap;
 }
 
 th,
 td {
-    padding: 12px 10px;
+    padding: 12px 14px;
     text-align: center;
-    white-space: nowrap;
-    border-bottom: 1px solid #e5e9ef;
+    border-bottom: 1px solid #edf1f5;
 }
 
 th {
-    background: #f5f7fa;
-    color: #526477;
+    background: #f5f8fb;
+    color: #536579;
     font-weight: bold;
+}
+
+td {
+    color: #405368;
 }
 
 tbody tr:hover {
     background: #f5f9fc;
 }
 
-/* Téléphones */
+/* PIED DE PAGE */
 
-@media (max-width: 700px) {
+footer {
+    text-align: center;
+    color: #8a99a9;
+    font-size: 12px;
+    padding: 10px 0 20px;
+}
+
+/* ADAPTATION TABLETTE */
+
+@media (max-width: 900px) {
+
+    .cartes {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+}
+
+/* ADAPTATION TELEPHONE */
+
+@media (max-width: 600px) {
 
     header {
-        padding: 20px 10px;
+        padding: 20px;
+    }
+
+    .header-contenu {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
     header h1 {
@@ -176,27 +313,37 @@ tbody tr:hover {
     }
 
     main {
-        padding: 12px;
+        padding: 14px 10px;
     }
 
     .cartes {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
     }
 
-    .carte,
-    .graphique {
-        padding: 16px;
+    .carte {
+        padding: 15px 10px;
+        min-height: 145px;
     }
 
-    .valeur {
-        font-size: 26px;
+    .valeur-principale {
+        font-size: 27px;
+    }
+
+    .titre-carte {
+        font-size: 10px;
+    }
+
+    .bloc {
+        padding: 16px 12px;
+    }
+
+    .entete-bloc h2 {
+        font-size: 17px;
     }
 
     .zone-graphique {
         height: 260px;
     }
 
-    .graphique h2 {
-        font-size: 17px;
-    }
 }
