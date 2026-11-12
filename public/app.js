@@ -104,7 +104,9 @@ function creerGraphiques(donnees) {
 
     const direction = donnees.map(d => d.dd);
 
-    const pression = donnees.map(d => d.pmer);
+    const pression = donnees.map(d =>
+        Number.isFinite(d.pmer) ? d.pmer / 100 : null
+    );
 
     // Détruire les anciens graphiques
     if (graphiqueVent) graphiqueVent.destroy();
