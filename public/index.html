@@ -10,6 +10,13 @@
     <title>Météo La Rochelle</title>
 
     <link rel="stylesheet" href="style.css">
+
+    <!-- Leaflet : bibliothèque cartographique -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    >
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
@@ -70,6 +77,33 @@
                 <div class="titre-carte">PRESSION ATMOSPHÉRIQUE</div>
                 <div class="valeur-principale" id="pressionActuelle">----</div>
                 <div class="unite">hPa · niveau de la mer</div>
+            </div>
+
+        </section>
+
+        <!-- Radar de précipitations -->
+        <section class="bloc">
+
+            <div class="entete-bloc">
+                <div>
+                    <h2>Radar de précipitations</h2>
+                    <p>Météo-France · Accumulation sur 5 minutes</p>
+                </div>
+                <span id="radarMiseAJour" class="unite-graphique">
+                    Chargement...
+                </span>
+            </div>
+
+            <div id="carteRadar" style="height: 450px; width: 100%;"></div>
+
+            <div class="legende-radar">
+                <span>Précipitations :</span>
+                <span class="couleur-radar radar-faible"></span>
+                <span>Faibles</span>
+                <span class="couleur-radar radar-moyenne"></span>
+                <span>Modérées</span>
+                <span class="couleur-radar radar-forte"></span>
+                <span>Fortes</span>
             </div>
 
         </section>
@@ -163,7 +197,12 @@
 
     </main>
 
+    <!-- Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Application -->
     <script src="app.js"></script>
 
 </body>
 </html>
+
