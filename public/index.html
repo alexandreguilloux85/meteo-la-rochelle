@@ -1,4 +1,4 @@
-```html
+
 <!DOCTYPE html>
 <html lang="fr">
 
@@ -10,69 +10,48 @@
     <title>Météo La Rochelle</title>
 
     <link rel="stylesheet" href="style.css">
+
+    <!-- Bibliothèque pour les graphiques -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
 
+    <!-- En-tête -->
     <header>
-        <div class="header-contenu">
-            <div>
-                <h1>Météo La Rochelle</h1>
-                <p>Station météo 17300009</p>
-            </div>
-
-            <div class="statut">
-                <span class="point-statut"></span>
-                <span id="miseAJour">Chargement des données...</span>
-            </div>
-        </div>
+        <h1>Météo La Rochelle</h1>
+        <p>Station météo 17300009</p>
+        <span id="miseAJour">Chargement des données...</span>
     </header>
 
     <main>
 
-        <!-- Conditions actuelles -->
+        <!-- Dernières valeurs mesurées -->
         <section class="cartes">
 
-            <div class="carte carte-vent">
-                <div class="titre-carte">VENT MOYEN</div>
-                <div class="valeur-principale" id="ventActuel">--</div>
-                <div class="unite">nœuds (kt)</div>
+            <div class="carte">
+                <h3>Vent moyen</h3>
+                <div class="valeur" id="ventActuel">-- kt</div>
             </div>
 
             <div class="carte carte-direction">
-                <div class="titre-carte">DIRECTION DU VENT</div>
+                <h3>Direction du vent</h3>
 
-                <div class="boussole">
-                    <span class="repere nord">N</span>
-                    <span class="repere est">E</span>
-                    <span class="repere sud">S</span>
-                    <span class="repere ouest">O</span>
-
-                    <div class="fleche-container">
-                        <span id="flecheDirection" class="fleche">↑</span>
-                    </div>
-
-                    <div class="centre-boussole"></div>
+                <div class="fleche-direction">
+                    <div id="flecheDirection">↑</div>
                 </div>
 
-                <div class="direction-valeur" id="directionActuelle">--°</div>
-                <div class="direction-cardinale" id="directionCardinale">--</div>
+                <div class="valeur" id="directionActuelle">-- °</div>
+
+                <div id="texteDirection">--</div>
             </div>
 
         </section>
 
-        <!-- Graphique du vent -->
-        <section class="bloc graphique">
+        <!-- Graphique vitesse du vent -->
+        <section class="graphique">
 
-            <div class="entete-bloc">
-                <div>
-                    <h2>Vitesse du vent</h2>
-                    <p>Évolution sur les dernières 24 heures</p>
-                </div>
-
-                <span class="unite-graphique">kt</span>
-            </div>
+            <h2>Vitesse du vent - dernières 24 h</h2>
 
             <div class="zone-graphique">
                 <canvas id="graphVent"></canvas>
@@ -80,22 +59,30 @@
 
         </section>
 
-        <!-- Tableau des relevés -->
-        <section class="bloc">
+        <!-- Graphique direction -->
+        <section class="graphique">
 
-            <div class="entete-bloc">
-                <div>
-                    <h2>Historique des mesures</h2>
-                    <p>Derniers relevés disponibles</p>
-                </div>
+            <h2>Direction du vent - dernières 24 h</h2>
+
+            <div class="zone-graphique">
+                <canvas id="graphDirection"></canvas>
             </div>
 
+        </section>
+
+        <!-- Tableau des relevés -->
+        <section class="graphique">
+
+            <h2>Derniers relevés</h2>
+
             <div class="table-container">
+
                 <table>
+
                     <thead>
                         <tr>
                             <th>Date / Heure</th>
-                            <th>Vent moyen</th>
+                            <th>Vent (kt)</th>
                             <th>Direction</th>
                         </tr>
                     </thead>
@@ -105,19 +92,17 @@
                             <td colspan="3">Chargement...</td>
                         </tr>
                     </tbody>
+
                 </table>
+
             </div>
 
         </section>
 
-        <footer>
-            Données issues de Météo-France · Station 17300009
-        </footer>
-
     </main>
 
+    <!-- Script de gestion des données et graphiques -->
     <script src="app.js"></script>
 
 </body>
 </html>
-```
