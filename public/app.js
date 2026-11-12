@@ -3,6 +3,134 @@ let graphiqueVent = null;
 let graphiqueDirection = null;
 let graphiquePression = null;
 
+// --------------------------------------------------
+// RADAR METEO-FRANCE - CARTE LEAFLET
+// --------------------------------------------------
+
+let carteRadar = null;
+let coucheRadar = null;
+let urlImageRadar = null;
+
+function initialiserCarteRadar() {
+
+    carteRadar = L.map("carteRadar").setView(
+        [46.178, -1.193167],
+        9
+    );
+
+    // Fond de carte OpenStreetMap
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19
+    }).addTo(carteRadar);
+
+    // Cercle de référence : rayon de 25 km
+    L.circle([46.178, -1.193167], {
+        radius: 25000,
+        color: "#14283f",
+        weight: 1,
+        fill: false,
+        dashArray: "5, 5"
+    }).addTo(carteRadar);
+
+    chargerRadar();
+
+    // Actualisation toutes les 5 minutes
+    setInterval(chargerRadar, 5 * 60 * 1000);
+}
+
+async function chargerRadar() {
+
+    const statut = document.getElementById("radarMiseAJour");
+
+    try {
+
+        statut.textContent = "Actualisation du radar...";
+
+        const reponse = await fetch(
+            "/api/radar/image?t=" + Date.now()
+        );
+
+        if (!reponse.ok) {
+            throw new Error("Erreur radar : " + reponse.status);
+        }
+
+        // Récupération des coordonnées géographiques
+        const boundsTexte = reponse.headers.get("X-Radar-Bounds");
+
+        if (!boundsTexte) {
+            throw new Error("Coordonnées radar absentes");
+        }
+
+        const bounds = JSON.parse(boundsTexte);
+
+        const limites = [
+            [bounds.sud, bounds.ouest],
+            [bounds.nord, bounds.est]
+        ];
+
+        // Récupération de la date du produit
+        const dateRadar = reponse.headers.get("X-Radar-Date");
+
+        // Image PNG
+        const blob = await reponse.blob();
+        const nouvelleUrl = URL.createObjectURL(blob);
+
+        // Suppression de l'ancienne image
+        if (coucheRadar) {
+            carteRadar.removeLayer(coucheRadar);
+        }
+
+        if (urlImageRadar) {
+            URL.revokeObjectURL(urlImageRadar);
+        }
+
+        urlImageRadar = nouvelleUrl;
+
+        // Affichage de l'image radar
+        coucheRadar = L.imageOverlay(
+            urlImageRadar,
+            limites,
+            {
+                opacity: 0.8,
+                interactive: false
+            }
+        );
+
+        coucheRadar.addTo(carteRadar);
+
+        // Mise à jour de l'affichage de la date
+        if (dateRadar) {
+
+            const date = new Date(dateRadar);
+
+            statut.textContent =
+                "Radar : " +
+                date.toLocaleString("fr-FR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit"
+                });
+
+        } else {
+            statut.textContent = "Radar actualisé";
+        }
+
+        console.log("Radar actualisé :", dateRadar);
+
+    } catch (erreur) {
+
+        console.error("Erreur chargement radar :", erreur);
+
+        statut.textContent = "Radar indisponible";
+    }
+}
+
+// --------------------------------------------------
+// CONVERSION DES UNITES
+// --------------------------------------------------
+
 // Conversion m/s vers noeuds
 function noeuds(valeur) {
     return valeur * 1.94384;
@@ -10,6 +138,7 @@ function noeuds(valeur) {
 
 // Conversion de la direction en points cardinaux
 function directionTexte(degres) {
+
     const directions = [
         "N", "NE", "E", "SE",
         "S", "SO", "O", "NO"
@@ -18,7 +147,10 @@ function directionTexte(degres) {
     return directions[Math.round(degres / 45) % 8];
 }
 
-// Options communes des graphiques
+// --------------------------------------------------
+// OPTIONS COMMUNES DES GRAPHIQUES
+// --------------------------------------------------
+
 function optionsGraphique(titreAxe, unite) {
 
     return {
@@ -86,7 +218,10 @@ function optionsGraphique(titreAxe, unite) {
     };
 }
 
-// Création des trois graphiques
+// --------------------------------------------------
+// CREATION DES TROIS GRAPHIQUES
+// --------------------------------------------------
+
 function creerGraphiques(donnees) {
 
     const labels = donnees.map(d =>
@@ -242,7 +377,10 @@ function creerGraphiques(donnees) {
     );
 }
 
-// Chargement des données météo
+// --------------------------------------------------
+// CHARGEMENT DES DONNEES METEO
+// --------------------------------------------------
+
 async function chargerDonnees() {
 
     try {
@@ -314,7 +452,6 @@ async function chargerDonnees() {
                 directionTexte(dernier.dd);
 
             // La flèche indique le sens dans lequel le vent souffle.
-            // 0° météo = vent venant du Nord = flèche vers le Sud.
             document.getElementById("flecheDirection").style.transform =
                 "rotate(" + (dernier.dd + 180) + "deg)";
 
@@ -397,8 +534,14 @@ async function chargerDonnees() {
     }
 }
 
-// Premier chargement
+// --------------------------------------------------
+// DEMARRAGE
+// --------------------------------------------------
+
+initialiserCarteRadar();
+
 chargerDonnees();
 
-// Actualisation automatique toutes les 6 minutes
+// Actualisation météo toutes les 6 minutes
 setInterval(chargerDonnees, 6 * 60 * 1000);
+
