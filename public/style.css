@@ -1,3 +1,8 @@
+
+/* ============================= */
+/* Réglages généraux */
+/* ============================= */
+
 * {
     box-sizing: border-box;
 }
@@ -9,6 +14,10 @@ body {
     color: #26384a;
 }
 
+/* ============================= */
+/* En-tête */
+/* ============================= */
+
 header {
     background: #14283f;
     color: white;
@@ -18,6 +27,7 @@ header {
 
 header h1 {
     margin: 0 0 8px 0;
+    font-size: 28px;
 }
 
 header p {
@@ -26,9 +36,15 @@ header p {
 }
 
 #miseAJour {
+    display: inline-block;
+    margin-top: 8px;
     font-size: 13px;
     color: #b8c9dc;
 }
+
+/* ============================= */
+/* Contenu principal */
+/* ============================= */
 
 main {
     max-width: 1100px;
@@ -36,18 +52,27 @@ main {
     padding: 20px;
 }
 
+/* ============================= */
+/* Cartes météo */
+/* ============================= */
+
 .cartes {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 15px;
     margin-bottom: 20px;
 }
 
-.carte, .graphique {
+.carte,
+.graphique {
     background: white;
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 20px;
     box-shadow: 0 2px 8px #00000010;
+}
+
+.carte {
+    min-height: 145px;
 }
 
 .carte h3 {
@@ -57,10 +82,48 @@ main {
 }
 
 .valeur {
-    font-size: 28px;
+    font-size: 30px;
     font-weight: bold;
     color: #1677b8;
 }
+
+/* ============================= */
+/* Direction du vent */
+/* ============================= */
+
+.carte-direction {
+    text-align: center;
+}
+
+.fleche-direction {
+    width: 90px;
+    height: 90px;
+    margin: 5px auto 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #edf6fc;
+    border-radius: 50%;
+}
+
+#flecheDirection {
+    font-size: 65px;
+    line-height: 1;
+    color: #1677b8;
+    display: inline-block;
+    transform: rotate(0deg);
+    transition: transform 0.5s ease;
+}
+
+#texteDirection {
+    margin-top: 5px;
+    color: #718096;
+    font-size: 14px;
+}
+
+/* ============================= */
+/* Graphiques */
+/* ============================= */
 
 .graphique {
     margin-bottom: 20px;
@@ -69,11 +132,18 @@ main {
 .graphique h2 {
     font-size: 19px;
     margin-top: 0;
+    margin-bottom: 20px;
 }
 
-.graphique canvas {
-    max-height: 300px;
+.zone-graphique {
+    position: relative;
+    height: 300px;
+    width: 100%;
 }
+
+/* ============================= */
+/* Tableau des relevés */
+/* ============================= */
 
 .table-container {
     overflow-x: auto;
@@ -85,17 +155,37 @@ table {
     font-size: 14px;
 }
 
-th, td {
-    padding: 10px;
+th,
+td {
+    padding: 12px 10px;
     text-align: center;
     border-bottom: 1px solid #e5e9ef;
 }
 
 th {
     background: #f5f7fa;
+    color: #526477;
+    font-weight: bold;
 }
 
+tbody tr:hover {
+    background: #f5f9fc;
+}
+
+/* ============================= */
+/* Affichage téléphone */
+/* ============================= */
+
 @media (max-width: 600px) {
+
+    header {
+        padding: 20px 10px;
+    }
+
+    header h1 {
+        font-size: 23px;
+    }
+
     main {
         padding: 12px;
     }
@@ -104,12 +194,29 @@ th {
         grid-template-columns: 1fr;
     }
 
-    .valeur {
-        font-size: 24px;
+    .carte,
+    .graphique {
+        padding: 16px;
     }
-}
-.zone-graphique {
-    position: relative;
-    height: 300px;
-    width: 100%;
+
+    .valeur {
+        font-size: 26px;
+    }
+
+    .zone-graphique {
+        height: 260px;
+    }
+
+    .graphique h2 {
+        font-size: 17px;
+    }
+
+    table {
+        font-size: 12px;
+    }
+
+    th,
+    td {
+        padding: 9px 6px;
+    }
 }
