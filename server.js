@@ -5,12 +5,32 @@ const express = require("express");
 const fs = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
+const crypto = require("node:crypto");
+const proj4 = require("proj4");
+const { PNG } = require("pngjs");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const API_KEY = process.env.METEO_API_KEY;
 const RADAR_API_KEY = process.env.METEO_RADAR_API_KEY;
+
+const RADAR_CATALOGUE =
+    "https://public-api.meteofrance.fr/public/DPRadar/v1/mosaiques/METROPOLE/observations/LAME_D_EAU";
+
+// Centre de la carte : La Rochelle
+const CENTRE_LAT = 46.178;
+const CENTRE_LON = -1.193167;
+
+// Rayon de la zone radar
+const RAYON_RADAR = 25000;
+
+// Taille de l'image PNG
+const IMAGE_TAILLE = 512;
+
+// --------------------------------------------------
+// OUTILS
+// --------------------------------------------------
 
 function convertirJSON(valeur) {
     if (typeof valeur === "bigint") {
@@ -37,6 +57,309 @@ function convertirJSON(valeur) {
 
     return valeur;
 }
+
+function valeurAttribut(groupe, nom) {
+    const attribut = groupe.attrs[nom];
+
+    if (!attribut) {
+        throw new Error("Attribut HDF5 manquant : " + nom);
+    }
+
+    return Number(attribut.value);
+}
+
+async function obtenirProduitRadar() {
+    const catalogueResponse = await fetch(RADAR_CATALOGUE, {
+        headers: {
+            apikey: RADAR_API_KEY,
+            accept: "application/json"
+        }
+    });
+
+    if (!catalogueResponse.ok) {
+        throw new Error(
+            "Erreur catalogue radar : " + catalogueResponse.status
+        );
+    }
+
+    const catalogue = await catalogueResponse.json();
+
+    const produit = catalogue.links.find(link =>
+        link.href.includes("maille=500")
+    );
+
+    if (!produit) {
+        throw new Error("Produit radar 500 m introuvable");
+    }
+
+    const response = await fetch(produit.href, {
+        headers: {
+            apikey: RADAR_API_KEY,
+            accept: "*/*"
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(
+            "Erreur téléchargement radar : " + response.status
+        );
+    }
+
+    return {
+        buffer: Buffer.from(await response.arrayBuffer()),
+        date: produit.validity_time
+    };
+}
+
+// --------------------------------------------------
+// PALETTE RADAR
+// Valeurs en mm / 5 minutes
+// --------------------------------------------------
+
+function couleurRadar(pluie) {
+    if (pluie <= 0) {
+        return [0, 0, 0, 0];
+    }
+
+    if (pluie < 0.1) {
+        return [150, 210, 255, 180];
+    }
+
+    if (pluie < 0.5) {
+        return [25, 100, 220, 210];
+    }
+
+    if (pluie < 1) {
+        return [30, 180, 100, 220];
+    }
+
+    if (pluie < 2) {
+        return [255, 230, 30, 230];
+    }
+
+    if (pluie < 5) {
+        return [255, 140, 20, 240];
+    }
+
+    return [220, 25, 35, 245];
+}
+
+// --------------------------------------------------
+// GENERATION DE L'IMAGE RADAR
+// --------------------------------------------------
+
+async function genererImageRadar() {
+    let fichierHdf;
+    let fichierTemporaire;
+
+    try {
+        // Téléchargement de la dernière mosaïque
+        const produit = await obtenirProduitRadar();
+
+        fichierTemporaire = path.join(
+            os.tmpdir(),
+            "radar-" + crypto.randomUUID() + ".h5"
+        );
+
+        await fs.writeFile(fichierTemporaire, produit.buffer);
+
+        // Lecture HDF5
+        const h5wasm = await import("h5wasm/node");
+        await h5wasm.ready;
+
+        fichierHdf = new h5wasm.File(fichierTemporaire, "r");
+
+        // Données radar
+        const datasetPluie = fichierHdf.get(
+            "/dataset1/data1/data"
+        );
+
+        const datasetQualite = fichierHdf.get(
+            "/dataset1/data1/quality1/data"
+        );
+
+        const valeursPluie = datasetPluie.value;
+        const valeursQualite = datasetQualite.value;
+
+        const hauteur = datasetPluie.shape[0];
+        const largeur = datasetPluie.shape[1];
+
+        // Métadonnées géographiques
+        const where = fichierHdf.get("/where");
+
+        const definitionProjection = where.attrs.projdef.value;
+
+        const xScale = valeurAttribut(where, "xscale");
+        const yScale = valeurAttribut(where, "yscale");
+
+        const longitudeLL = valeurAttribut(where, "LL_lon");
+        const latitudeLL = valeurAttribut(where, "LL_lat");
+
+        // Projection radar Météo-France
+        const projection = proj4.defs(
+            "RADAR_METEO",
+            definitionProjection
+        );
+
+        // Origine de la grille : coin inférieur gauche
+        const origine = proj4(
+            "EPSG:4326",
+            projection,
+            [longitudeLL, latitudeLL]
+        );
+
+        const origineX = origine[0];
+        const origineY = origine[1];
+
+        // Centre de La Rochelle dans la projection radar
+        const centre = proj4(
+            "EPSG:4326",
+            projection,
+            [CENTRE_LON, CENTRE_LAT]
+        );
+
+        const centreX = centre[0];
+        const centreY = centre[1];
+
+        // Carré de 50 km autour du centre
+        const minX = centreX - RAYON_RADAR;
+        const maxX = centreX + RAYON_RADAR;
+        const minY = centreY - RAYON_RADAR;
+        const maxY = centreY + RAYON_RADAR;
+
+        // Conversion des quatre coins en coordonnées géographiques
+        const coins = [
+            proj4(projection, "EPSG:4326", [minX, minY]),
+            proj4(projection, "EPSG:4326", [maxX, minY]),
+            proj4(projection, "EPSG:4326", [minX, maxY]),
+            proj4(projection, "EPSG:4326", [maxX, maxY])
+        ];
+
+        const longitudes = coins.map(point => point[0]);
+        const latitudes = coins.map(point => point[1]);
+
+        const ouest = Math.min(...longitudes);
+        const est = Math.max(...longitudes);
+        const sud = Math.min(...latitudes);
+        const nord = Math.max(...latitudes);
+
+        // Création du PNG transparent
+        const png = new PNG({
+            width: IMAGE_TAILLE,
+            height: IMAGE_TAILLE
+        });
+
+        // Parcours de chaque pixel de l'image
+        for (let py = 0; py < IMAGE_TAILLE; py++) {
+            for (let px = 0; px < IMAGE_TAILLE; px++) {
+
+                const longitude =
+                    ouest + (px + 0.5) / IMAGE_TAILLE * (est - ouest);
+
+                const latitude =
+                    nord - (py + 0.5) / IMAGE_TAILLE * (nord - sud);
+
+                // Coordonnées dans la projection radar
+                const coord = proj4(
+                    "EPSG:4326",
+                    projection,
+                    [longitude, latitude]
+                );
+
+                const x = coord[0];
+                const y = coord[1];
+
+                // Découpage circulaire de 25 km
+                const distance = Math.hypot(
+                    x - centreX,
+                    y - centreY
+                );
+
+                const indexPNG = (py * IMAGE_TAILLE + px) * 4;
+
+                if (distance > RAYON_RADAR) {
+                    continue;
+                }
+
+                // Conversion coordonnées -> pixel source
+                const colonne = Math.floor(
+                    (x - origineX) / xScale
+                );
+
+                const ligne = Math.floor(
+                    (origineY + hauteur * yScale - y) / yScale
+                );
+
+                // Vérification des limites
+                if (
+                    colonne < 0 ||
+                    colonne >= largeur ||
+                    ligne < 0 ||
+                    ligne >= hauteur
+                ) {
+                    continue;
+                }
+
+                const indexSource = ligne * largeur + colonne;
+
+                const valeurBrute = valeursPluie[indexSource];
+                const qualite = valeursQualite[indexSource];
+
+                // Valeurs manquantes ou non exploitables
+                if (
+                    valeurBrute === 65535 ||
+                    valeurBrute === 65534 ||
+                    qualite === 255 ||
+                    qualite <= 0
+                ) {
+                    continue;
+                }
+
+                // Conversion en mm / 5 minutes
+                const pluie = valeurBrute * 0.01;
+
+                const couleur = couleurRadar(pluie);
+
+                png.data[indexPNG] = couleur[0];
+                png.data[indexPNG + 1] = couleur[1];
+                png.data[indexPNG + 2] = couleur[2];
+                png.data[indexPNG + 3] = couleur[3];
+            }
+        }
+
+        return {
+            image: PNG.sync.write(png),
+            date: produit.date,
+            bounds: {
+                sud,
+                ouest,
+                nord,
+                est
+            }
+        };
+
+    } finally {
+        if (fichierHdf) {
+            try {
+                fichierHdf.close();
+            } catch (error) {
+                console.error("Fermeture HDF5 :", error.message);
+            }
+        }
+
+        if (fichierTemporaire) {
+            try {
+                await fs.unlink(fichierTemporaire);
+            } catch (error) {
+                console.error("Suppression temporaire :", error.message);
+            }
+        }
+    }
+}
+
+// --------------------------------------------------
+// FICHIERS PUBLICS
+// --------------------------------------------------
 
 app.use(express.static("public"));
 
@@ -85,10 +408,7 @@ app.get("/api/observations", async (req, res) => {
 
 app.get("/api/radar/disponibilite", async (req, res) => {
     try {
-        const url =
-            "https://public-api.meteofrance.fr/public/DPRadar/v1/mosaiques/METROPOLE/observations/LAME_D_EAU";
-
-        const response = await fetch(url, {
+        const response = await fetch(RADAR_CATALOGUE, {
             headers: {
                 apikey: RADAR_API_KEY,
                 accept: "application/json"
@@ -115,53 +435,20 @@ app.get("/api/radar/disponibilite", async (req, res) => {
 
 app.get("/api/radar/test-produit", async (req, res) => {
     try {
-        const catalogueUrl =
-            "https://public-api.meteofrance.fr/public/DPRadar/v1/mosaiques/METROPOLE/observations/LAME_D_EAU";
-
-        const catalogueResponse = await fetch(catalogueUrl, {
-            headers: {
-                apikey: RADAR_API_KEY,
-                accept: "application/json"
-            }
-        });
-
-        if (!catalogueResponse.ok) {
-            throw new Error("Erreur catalogue : " + catalogueResponse.status);
-        }
-
-        const catalogue = await catalogueResponse.json();
-
-        const produit = catalogue.links.find(link =>
-            link.href.includes("maille=500")
-        );
-
-        if (!produit) {
-            throw new Error("Produit radar 500 m introuvable");
-        }
-
-        const fichierResponse = await fetch(produit.href, {
-            headers: {
-                apikey: RADAR_API_KEY,
-                accept: "*/*"
-            }
-        });
-
-        if (!fichierResponse.ok) {
-            throw new Error("Erreur téléchargement : " + fichierResponse.status);
-        }
-
-        const fichier = await fichierResponse.arrayBuffer();
+        const produit = await obtenirProduitRadar();
 
         res.json({
             succes: true,
-            format: produit.type,
-            date: produit.validity_time,
-            taille_octets: fichier.byteLength,
-            taille_Mo: (fichier.byteLength / 1048576).toFixed(2)
+            date: produit.date,
+            taille_octets: produit.buffer.length,
+            taille_Mo: (
+                produit.buffer.length / 1048576
+            ).toFixed(2)
         });
 
     } catch (error) {
         console.error("Test radar :", error);
+
         res.status(502).json({
             succes: false,
             erreur: error.message
@@ -178,62 +465,20 @@ app.get("/api/radar/analyse", async (req, res) => {
     let fichierHdf;
 
     try {
-        // Récupération du catalogue
-        const catalogueUrl =
-            "https://public-api.meteofrance.fr/public/DPRadar/v1/mosaiques/METROPOLE/observations/LAME_D_EAU";
+        const produit = await obtenirProduitRadar();
 
-        const catalogueResponse = await fetch(catalogueUrl, {
-            headers: {
-                apikey: RADAR_API_KEY,
-                accept: "application/json"
-            }
-        });
-
-        if (!catalogueResponse.ok) {
-            throw new Error("Erreur catalogue : " + catalogueResponse.status);
-        }
-
-        const catalogue = await catalogueResponse.json();
-
-        // Recherche du produit 500 m
-        const produit = catalogue.links.find(link =>
-            link.href.includes("maille=500")
-        );
-
-        if (!produit) {
-            throw new Error("Produit radar 500 m introuvable");
-        }
-
-        // Téléchargement du fichier
-        const response = await fetch(produit.href, {
-            headers: {
-                apikey: RADAR_API_KEY,
-                accept: "*/*"
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error("Erreur téléchargement : " + response.status);
-        }
-
-        const buffer = Buffer.from(await response.arrayBuffer());
-
-        // Enregistrement temporaire
         fichierTemporaire = path.join(
             os.tmpdir(),
-            "radar-meteofrance.h5"
+            "radar-" + crypto.randomUUID() + ".h5"
         );
 
-        await fs.writeFile(fichierTemporaire, buffer);
+        await fs.writeFile(fichierTemporaire, produit.buffer);
 
-        // Chargement de h5wasm
         const h5wasm = await import("h5wasm/node");
         await h5wasm.ready;
 
-        // Ouverture du fichier HDF5
         fichierHdf = new h5wasm.File(fichierTemporaire, "r");
 
-        // Exploration de la structure HDF5
         const elements = [];
 
         function explorer(noeud, chemin = "/") {
@@ -247,7 +492,6 @@ app.get("/api/radar/analyse", async (req, res) => {
                 }
             }
 
-            // Dataset
             if (noeud.metadata) {
                 elements.push({
                     chemin,
@@ -261,7 +505,6 @@ app.get("/api/radar/analyse", async (req, res) => {
                 return;
             }
 
-            // Groupe
             elements.push({
                 chemin,
                 type: "groupe",
@@ -285,8 +528,10 @@ app.get("/api/radar/analyse", async (req, res) => {
 
         res.json(convertirJSON({
             succes: true,
-            date: produit.validity_time,
-            taille_Mo: (buffer.length / 1048576).toFixed(2),
+            date: produit.date,
+            taille_Mo: (
+                produit.buffer.length / 1048576
+            ).toFixed(2),
             nombre_elements: elements.length,
             elements
         }));
@@ -304,7 +549,7 @@ app.get("/api/radar/analyse", async (req, res) => {
             try {
                 fichierHdf.close();
             } catch (error) {
-                console.error("Erreur fermeture HDF5 :", error.message);
+                console.error(error.message);
             }
         }
 
@@ -312,9 +557,40 @@ app.get("/api/radar/analyse", async (req, res) => {
             try {
                 await fs.unlink(fichierTemporaire);
             } catch (error) {
-                console.error("Erreur suppression temporaire :", error.message);
+                console.error(error.message);
             }
         }
+    }
+});
+
+// --------------------------------------------------
+// IMAGE RADAR PNG
+// --------------------------------------------------
+
+app.get("/api/radar/image", async (req, res) => {
+    try {
+        console.log("Génération de l'image radar...");
+
+        const resultat = await genererImageRadar();
+
+        res.set({
+            "Content-Type": "image/png",
+            "Cache-Control": "no-store",
+            "X-Radar-Date": resultat.date || "",
+            "X-Radar-Bounds": JSON.stringify(resultat.bounds)
+        });
+
+        res.send(resultat.image);
+
+        console.log("Image radar générée :", resultat.date);
+
+    } catch (error) {
+        console.error("Erreur image radar :", error);
+
+        res.status(502).json({
+            succes: false,
+            erreur: error.message
+        });
     }
 });
 
