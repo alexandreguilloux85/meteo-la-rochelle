@@ -12,6 +12,32 @@ const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.METEO_API_KEY;
 const RADAR_API_KEY = process.env.METEO_RADAR_API_KEY;
 
+function convertirJSON(valeur) {
+    if (typeof valeur === "bigint") {
+        return valeur.toString();
+    }
+
+    if (ArrayBuffer.isView(valeur)) {
+        return Array.from(valeur, convertirJSON);
+    }
+
+    if (Array.isArray(valeur)) {
+        return valeur.map(convertirJSON);
+    }
+
+    if (valeur && typeof valeur === "object") {
+        const resultat = {};
+
+        for (const [cle, element] of Object.entries(valeur)) {
+            resultat[cle] = convertirJSON(element);
+        }
+
+        return resultat;
+    }
+
+    return valeur;
+}
+
 app.use(express.static("public"));
 
 // --------------------------------------------------
@@ -257,13 +283,13 @@ app.get("/api/radar/analyse", async (req, res) => {
 
         explorer(fichierHdf);
 
-        res.json({
+        res.json(convertirJSON({
             succes: true,
             date: produit.validity_time,
             taille_Mo: (buffer.length / 1048576).toFixed(2),
             nombre_elements: elements.length,
             elements
-        });
+        }));
 
     } catch (error) {
         console.error("Analyse HDF5 :", error);
