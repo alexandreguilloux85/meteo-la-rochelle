@@ -187,7 +187,6 @@ async function genererImageRadar() {
         // Métadonnées géographiques
         const where = fichierHdf.get("/where");
 
-        const definitionProjection = where.attrs.projdef.value;
 
         const xScale = valeurAttribut(where, "xscale");
         const yScale = valeurAttribut(where, "yscale");
@@ -196,10 +195,14 @@ async function genererImageRadar() {
         const latitudeLL = valeurAttribut(where, "LL_lat");
 
         // Projection radar Météo-France
-        const projection = proj4.defs(
-            "RADAR_METEO",
-            definitionProjection
-        );
+        const definitionProjection =
+            "+proj=stere +lat_0=90 +lon_0=0 +lat_ts=45 " +
+            "+ellps=WGS84 +x_0=619652.07 +y_0=5262818.34 " +
+            "+datum=WGS84 +units=m +no_defs";
+
+        proj4.defs("RADAR_METEO", definitionProjection);
+
+const projection = "RADAR_METEO";
 
         // Origine de la grille : coin inférieur gauche
         const origine = proj4(
