@@ -2,6 +2,7 @@
 let graphiqueVent = null;
 let graphiqueDirection = null;
 let graphiquePression = null;
+let graphiqueTemperature = null;
 
 // --------------------------------------------------
 // RADAR METEO-FRANCE - CARTE LEAFLET
@@ -18,7 +19,7 @@ function initialiserCarteRadar() {
         9
     );
 
-    // Fond de carte OpenStreetMap
+    // Fond de carte actuel
     L.tileLayer("https://basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png?key=cb1_57wq_1_07826fc0a0495a659d44fac5", {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19
@@ -136,6 +137,11 @@ function noeuds(valeur) {
     return valeur * 1.94384;
 }
 
+// Conversion kelvins vers degrés Celsius
+function celsius(valeur) {
+    return valeur - 273.15;
+}
+
 // Conversion de la direction en points cardinaux
 function directionTexte(degres) {
 
@@ -203,7 +209,8 @@ function optionsGraphique(titreAxe, unite) {
             },
 
             y: {
-                beginAtZero: titreAxe !== "Pression",
+                beginAtZero: titreAxe !== "Pression" &&
+                    titreAxe !== "Température",
 
                 title: {
                     display: true,
@@ -219,7 +226,7 @@ function optionsGraphique(titreAxe, unite) {
 }
 
 // --------------------------------------------------
-// CREATION DES TROIS GRAPHIQUES
+// CREATION DES QUATRE GRAPHIQUES
 // --------------------------------------------------
 
 function creerGraphiques(donnees) {
@@ -243,10 +250,16 @@ function creerGraphiques(donnees) {
         Number.isFinite(d.pmer) ? d.pmer / 100 : null
     );
 
+    // Température en degrés Celsius
+    const temperature = donnees.map(d =>
+        Number.isFinite(d.t) ? celsius(d.t) : null
+    );
+
     // Détruire les anciens graphiques
     if (graphiqueVent) graphiqueVent.destroy();
     if (graphiqueDirection) graphiqueDirection.destroy();
     if (graphiquePression) graphiquePression.destroy();
+    if (graphiqueTemperature) graphiqueTemperature.destroy();
 
     // Graphique vent moyen et rafales
     graphiqueVent = new Chart(
@@ -375,6 +388,34 @@ function creerGraphiques(donnees) {
             options: optionsGraphique("Pression", "hPa")
         }
     );
+
+    // Graphique température
+    graphiqueTemperature = new Chart(
+        document.getElementById("graphTemperature"),
+        {
+            type: "line",
+
+            data: {
+                labels: labels,
+
+                datasets: [
+                    {
+                        label: "Température",
+                        data: temperature,
+                        borderColor: "#e74c3c",
+                        backgroundColor: "#e74c3c20",
+                        fill: true,
+                        tension: 0.25,
+                        pointRadius: 1,
+                        pointHoverRadius: 6,
+                        pointHitRadius: 12
+                    }
+                ]
+            },
+
+            options: optionsGraphique("Température", "°C")
+        }
+    );
 }
 
 // --------------------------------------------------
@@ -412,7 +453,8 @@ async function chargerDonnees() {
                     ff: d.ff == null ? null : Number(d.ff),
                     raf10: d.raf10 == null ? null : Number(d.raf10),
                     dd: d.dd == null ? null : Number(d.dd),
-                    pmer: d.pmer == null ? null : Number(d.pmer)
+                    pmer: d.pmer == null ? null : Number(d.pmer),
+                    t: d.t == null ? null : Number(d.t)
                 };
 
             })
@@ -544,4 +586,3 @@ chargerDonnees();
 
 // Actualisation météo toutes les 6 minutes
 setInterval(chargerDonnees, 6 * 60 * 1000);
-
