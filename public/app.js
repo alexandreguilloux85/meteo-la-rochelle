@@ -20,12 +20,9 @@ function directionTexte(degres) {
 // Création des graphiques
 function creerGraphiques(donnees) {
 
-    const labels = donnees.map(d =>
-        new Date(d.date).toLocaleTimeString("fr-FR", {
-            hour: "2-digit",
-            minute: "2-digit"
-        })
-    );
+        const rafales = donnees.map(d =>
+            Number.isFinite(d.raf10) ? noeuds(d.raf10) : null
+        );
 
     const vent = donnees.map(d => noeuds(d.ff));
     const direction = donnees.map(d => d.dd);
@@ -45,11 +42,10 @@ function creerGraphiques(donnees) {
 
                 datasets: [
                     {
-                        label: "Vent moyen",
-                        data: vent,
-                        borderColor: "#1677b8",
-                        backgroundColor: "#1677b820",
-                        fill: true,
+                        label: "Rafales",
+                        data: rafales,
+                        borderColor: "#e67e22",
+                        backgroundColor: "#e67e2220",
                         tension: 0.3,
                         pointRadius: 2,
                         pointHoverRadius: 6
@@ -157,7 +153,7 @@ function afficherDirection(degres) {
     }
 
     // La flèche pointe vers la provenance du vent
-    fleche.style.transform = `rotate(${degres}deg)`;
+    fleche.style.transform = `rotate(${(degres + 180) % 360}deg)`;
 
     texte.textContent =
         degres.toFixed(0) + "° " + directionTexte(degres);
@@ -194,6 +190,7 @@ async function chargerDonnees() {
                 return {
                     date: d.validity_time,
                     ff: Number(d.ff),
+                    raf10: d.raf10 == null ? null : Number(d.raf10),
                     dd: d.dd == null ? null : Number(d.dd)
                 };
 
@@ -217,7 +214,13 @@ async function chargerDonnees() {
         // Affichage de la vitesse actuelle
         document.getElementById("ventActuel").textContent =
             noeuds(dernier.ff).toFixed(1) + " kt";
-
+        
+        // Affichage vent en rafale
+        document.getElementById("rafaleActuelle").textContent =
+            Number.isFinite(dernier.raf10)
+                ? noeuds(dernier.raf10).toFixed(1) + " kt"
+                : "-- kt";
+        
         // Affichage de la direction
         if (Number.isFinite(dernier.dd)) {
             document.getElementById("directionActuelle").textContent =
@@ -253,6 +256,11 @@ async function chargerDonnees() {
                 <tr>
                     <td>${new Date(d.date).toLocaleString("fr-FR")}</td>
                     <td>${noeuds(d.ff).toFixed(1)}</td>
+                    <td>
+                        ${Number.isFinite(d.raf10)
+                            ? noeuds(d.raf10).toFixed(1)
+                            : "--"}
+                    </td>
                     <td>
                         ${Number.isFinite(d.dd)
                             ? d.dd.toFixed(0) + "° " + directionTexte(d.dd)
