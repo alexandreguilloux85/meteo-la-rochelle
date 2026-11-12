@@ -93,7 +93,63 @@ app.get("/api/radar/disponibilite", async (req, res) => {
 // ----------------------------------
 // DEMARRAGE SERVEUR
 // ----------------------------------
+// DEBUT TEST
+app.get("/api/radar/test-produit", async (req, res) => {
+    try {
+        const catalogueUrl =
+            "https://public-api.meteofrance.fr/public/DPRadar/v1/mosaiques/METROPOLE/observations/LAME_D_EAU";
 
+        const catalogueResponse = await fetch(catalogueUrl, {
+            headers: {
+                "apikey": RADAR_API_KEY,
+                "accept": "application/json"
+            }
+        });
+
+        if (!catalogueResponse.ok) {
+            throw new Error("Erreur catalogue : " + catalogueResponse.status);
+        }
+
+        const catalogue = await catalogueResponse.json();
+
+        const produit = catalogue.links.find(link =>
+            link.href.includes("maille=500")
+        );
+
+        if (!produit) {
+            throw new Error("Produit radar 500 m introuvable");
+        }
+
+        const fichierResponse = await fetch(produit.href, {
+            headers: {
+                "apikey": RADAR_API_KEY,
+                "accept": "*/*"
+            }
+        });
+
+        if (!fichierResponse.ok) {
+            throw new Error("Erreur téléchargement : " + fichierResponse.status);
+        }
+
+        const fichier = await fichierResponse.arrayBuffer();
+
+        res.json({
+            succes: true,
+            format: produit.type,
+            date: produit.validity_time,
+            taille_octets: fichier.byteLength,
+            taille_Mo: (fichier.byteLength / 1048576).toFixed(2)
+        });
+
+    } catch (error) {
+        console.error("Test radar :", error);
+        res.status(502).json({
+            succes: false,
+            erreur: error.message
+        });
+    }
+});
+/// FIN TEST 
 app.listen(PORT, "0.0.0.0", () => {
     console.log(`Application disponible sur http://localhost:${PORT}`);
 });
