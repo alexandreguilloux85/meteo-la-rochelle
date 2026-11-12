@@ -19,10 +19,9 @@ function initialiserCarteRadar() {
     );
 
     // Fond de carte OpenStreetMap
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        subdomains: "abcd",
-        maxZoom: 20
+    L.tileLayer("https://tiles.openfreemap.org/styles/positron/{z}/{x}/{y}.png", {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
     }).addTo(carteRadar);
 
     // Cercle de référence : rayon de 25 km
