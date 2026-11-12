@@ -92,7 +92,7 @@ async function chargerRadar() {
             urlImageRadar,
             limites,
             {
-                opacity: 0.8,
+                opacity: 0.95,
                 interactive: false
             }
         );
