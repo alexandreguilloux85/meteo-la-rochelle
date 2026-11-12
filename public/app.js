@@ -19,7 +19,7 @@ function initialiserCarteRadar() {
     );
 
     // Fond de carte OpenStreetMap
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", {
+    L.tileLayer("https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_57wq_1_07826fc0a0495a659d44fac5", {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19
     }).addTo(carteRadar);
