@@ -102,9 +102,9 @@ function initialiserCarteRadar() {
                     color: ${couleur};
                     border: 1px solid ${couleur};
                     border-radius: 4px;
-                    padding: 3px 7px;
+                    padding: 2px 4px;
                     font-family: Arial, sans-serif;
-                    font-size: 12px;
+                    font-size: 10px;
                     font-weight: bold;
                     white-space: nowrap;
                     box-shadow: 0 1px 5px rgba(0,0,0,0.4);
@@ -112,7 +112,7 @@ function initialiserCarteRadar() {
                     ${texte}
                 </div>
             `,
-            iconSize: [55, 22],
+            iconSize: [45, 18],
             iconAnchor: [-5, 11]
         });
 
