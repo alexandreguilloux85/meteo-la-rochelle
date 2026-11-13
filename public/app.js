@@ -59,7 +59,7 @@ function initialiserCarteRadar() {
      // Cercle 5 milles nautiques
     // --------------------------------------------------
    
-    L.circle([latitudeCentre, longitudeCentre], {
+    L.circle([centreLat, centreLon], {
         radius: 5 * 1852,
         color: couleurRadar,
         weight: 2,
@@ -72,7 +72,7 @@ function initialiserCarteRadar() {
     // Cercle 15 milles nautiques
     // --------------------------------------------------
 
-    L.circle([latitudeCentre, longitudeCentre], {
+    L.circle([centreLat, centreLon], {
         radius: 15 * 1852,
         color: couleurRadar,
         weight: 2,
