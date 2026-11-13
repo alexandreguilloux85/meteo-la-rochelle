@@ -679,32 +679,27 @@ async function chargerDonnees() {
                 <tr>
                     //Date
                     <td>${new Date(d.date).toLocaleString("fr-FR")}</td>
-                    
-                    //Vitesse vent moyen
+
                     <td>${noeuds(d.ff).toFixed(1)}</td>
 
-                    //Vitesse vent rafale
                     <td>
                         ${Number.isFinite(d.raf10) 
                           ? noeuds(d.raf10).toFixed(1)
                           :"--"}
                     </td>
 
-                    //Direction  du vent
                     <td>
                         ${Number.isFinite(d.dd) 
                             ? d.dd.toFixed(0) + "° " + directionTexte(d.dd)
                             : "--"}
                     </td>
 
-                    // Pression atmosphérique
                     <td>
                         ${Number.isFinite(d.pmer) 
                             ? (d.pmer / 100).toFixed(1)
                             : "--"}
                     </td>
 
-                    // Température
                     <td>
                         ${Number.isFinite(d.t)
                           ? (d.t - 273.15).toFixed(1)
