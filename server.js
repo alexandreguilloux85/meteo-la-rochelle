@@ -406,6 +406,14 @@ app.get("/api/observations", async (req, res) => {
 });
 
 // --------------------------------------------------
+// Reveil du serveur (depuis nas)
+// --------------------------------------------------
+// Vérification légère pour maintenir Render actif
+app.get("/api/keepalive", (req, res) => {
+    res.status(200).send("OK");
+});
+
+// --------------------------------------------------
 // CATALOGUE RADAR
 // --------------------------------------------------
 
