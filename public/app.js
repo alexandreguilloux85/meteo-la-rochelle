@@ -677,7 +677,6 @@ async function chargerDonnees() {
             .slice(0, 30)
             .map(d => `
                 <tr>
-                    //Date
                     <td>${new Date(d.date).toLocaleString("fr-FR")}</td>
 
                     <td>${noeuds(d.ff).toFixed(1)}</td>
