@@ -36,7 +36,7 @@ function destinationGeographique(lat, lon, distance, azimut) {
     }
 
 function initialiserCarteRadar() {
-
+    const couleurRadar = "#ff9999";
     const centreLat = 46.178;
     const centreLon = -1.193167;
 
@@ -56,29 +56,29 @@ function initialiserCarteRadar() {
     }).addTo(carteRadar);
 
     // --------------------------------------------------
-    // CERCLE 10 KM
+     // Cercle 5 milles nautiques
     // --------------------------------------------------
-
-    L.circle([centreLat, centreLon], {
-        radius: 10000,
-        color: "#00e5ff",
+   
+    L.circle([latitudeCentre, longitudeCentre], {
+        radius: 5 * 1852,
+        color: couleurRadar,
         weight: 2,
-        opacity: 0.95,
-        fill: false,
-        dashArray: "8, 7"
+        opacity: 0.9,
+        dashArray: "6, 6",
+        fill: false
     }).addTo(carteRadar);
 
     // --------------------------------------------------
-    // CERCLE 25 KM
+    // Cercle 15 milles nautiques
     // --------------------------------------------------
 
-    L.circle([centreLat, centreLon], {
-        radius: 25000,
-        color: "#7cff6b",
+    L.circle([latitudeCentre, longitudeCentre], {
+        radius: 15 * 1852,
+        color: couleurRadar,
         weight: 2,
-        opacity: 0.95,
-        fill: false,
-        dashArray: "8, 7"
+        opacity: 0.9,
+        dashArray: "6, 6",
+        fill: false
     }).addTo(carteRadar);
 
     // --------------------------------------------------
@@ -122,23 +122,23 @@ function initialiserCarteRadar() {
         }).addTo(carteRadar);
     }
 
-    ajouterEtiquette(10000, "10 km", "#00e5ff");
-    ajouterEtiquette(25000, "25 km", "#7cff6b");
+    ajouterEtiquette(5 * 1852, "5 nm", couleurRadar);
+    ajouterEtiquette(15 * 1852, "15nm", couleurRadar);
 
     // --------------------------------------------------
     // AXE VERTICAL NORD-SUD
     // --------------------------------------------------
 
     const nord = destinationGeographique(
-        centreLat, centreLon, 25000, 0
+        centreLat, centreLon, 15 * 1852, 0
     );
 
     const sud = destinationGeographique(
-        centreLat, centreLon, 25000, 180
+        centreLat, centreLon, 15 * 1852, 180
     );
 
     L.polyline([nord, sud], {
-        color: "#00e5ff",
+        color: couleurRadar,
         weight: 1.5,
         opacity: 0.75,
         dashArray: "5, 8"
@@ -149,15 +149,15 @@ function initialiserCarteRadar() {
     // --------------------------------------------------
 
     const est = destinationGeographique(
-        centreLat, centreLon, 25000, 90
+        centreLat, centreLon, 15 * 1852, 90
     );
 
     const ouest = destinationGeographique(
-        centreLat, centreLon, 25000, 270
+        centreLat, centreLon, 15 * 1852, 270
     );
 
     L.polyline([est, ouest], {
-        color: "#00e5ff",
+        color: couleurRadar,
         weight: 1.5,
         opacity: 0.75,
         dashArray: "5, 8"
