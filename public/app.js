@@ -35,10 +35,12 @@ function destinationGeographique(lat, lon, distance, azimut) {
     ];
     }
 
+
 function initialiserCarteRadar() {
     const couleurRadar = "#ff9999";
     const centreLat = 46.178;
     const centreLon = -1.193167;
+    const rayonRadar = 15 * 1852;
 
     carteRadar = L.map("carteRadar").setView(
         [centreLat, centreLon],
@@ -49,16 +51,60 @@ function initialiserCarteRadar() {
     carteRadar.createPane("radarImagePane");
     carteRadar.getPane("radarImagePane").style.zIndex = 350;
 
-    // Fond de carte actuel
+    // Fond de carte
     L.tileLayer("https://basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png?key=cb1_57wq_1_07826fc0a0495a659d44fac5", {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19
     }).addTo(carteRadar);
 
     // --------------------------------------------------
-     // Cercle 5 milles nautiques
+    // VOILE SOMBRE EN DEHORS DU CERCLE DE 15 NM
     // --------------------------------------------------
-   
+
+    const pointsMasque = [];
+
+    // Contour extérieur couvrant la carte
+    const nordOuest = carteRadar.containerPointToLatLng([0, 0]);
+    const sudEst = carteRadar.containerPointToLatLng([
+        carteRadar.getSize().x,
+        carteRadar.getSize().y
+    ]);
+
+    // Grand rectangle autour de la zone visible
+    const rectangle = [
+        [nordOuest.lat + 20, nordOuest.lng - 20],
+        [nordOuest.lat + 20, sudEst.lng + 20],
+        [sudEst.lat - 20, sudEst.lng + 20],
+        [sudEst.lat - 20, nordOuest.lng - 20]
+    ];
+
+    // Cercle intérieur de 15 NM
+    for (let angle = 0; angle <= 360; angle += 2) {
+        pointsMasque.push(
+            destinationGeographique(
+                centreLat,
+                centreLon,
+                rayonRadar,
+                angle
+            )
+        );
+    }
+
+    L.polygon([
+        rectangle,
+        pointsMasque.reverse()
+    ], {
+        pane: "overlayPane",
+        stroke: false,
+        fillColor: "#172333",
+        fillOpacity: 0.25,
+        interactive: false
+    }).addTo(carteRadar);
+
+    // --------------------------------------------------
+    // CERCLE 5 NM
+    // --------------------------------------------------
+
     L.circle([centreLat, centreLon], {
         radius: 5 * 1852,
         color: couleurRadar,
@@ -69,11 +115,11 @@ function initialiserCarteRadar() {
     }).addTo(carteRadar);
 
     // --------------------------------------------------
-    // Cercle 15 milles nautiques
+    // CERCLE 15 NM
     // --------------------------------------------------
 
     L.circle([centreLat, centreLon], {
-        radius: 15 * 1852,
+        radius: rayonRadar,
         color: couleurRadar,
         weight: 2,
         opacity: 0.9,
@@ -86,7 +132,6 @@ function initialiserCarteRadar() {
     // --------------------------------------------------
 
     function ajouterEtiquette(distance, texte, couleur) {
-
         const position = destinationGeographique(
             centreLat,
             centreLon,
@@ -121,6 +166,67 @@ function initialiserCarteRadar() {
             interactive: false
         }).addTo(carteRadar);
     }
+
+    ajouterEtiquette(5 * 1852, "5 nm", couleurRadar);
+    ajouterEtiquette(rayonRadar, "15 nm", couleurRadar);
+
+    // --------------------------------------------------
+    // AXE VERTICAL NORD-SUD
+    // --------------------------------------------------
+
+    const nord = destinationGeographique(
+        centreLat, centreLon, rayonRadar, 0
+    );
+
+    const sud = destinationGeographique(
+        centreLat, centreLon, rayonRadar, 180
+    );
+
+    L.polyline([nord, sud], {
+        color: couleurRadar,
+        weight: 1.5,
+        opacity: 0.75,
+        dashArray: "5, 8"
+    }).addTo(carteRadar);
+
+    // --------------------------------------------------
+    // AXE HORIZONTAL EST-OUEST
+    // --------------------------------------------------
+
+    const est = destinationGeographique(
+        centreLat, centreLon, rayonRadar, 90
+    );
+
+    const ouest = destinationGeographique(
+        centreLat, centreLon, rayonRadar, 270
+    );
+
+    L.polyline([est, ouest], {
+        color: couleurRadar,
+        weight: 1.5,
+        opacity: 0.75,
+        dashArray: "5, 8"
+    }).addTo(carteRadar);
+
+    // --------------------------------------------------
+    // REPERE CENTRAL
+    // --------------------------------------------------
+
+    L.circleMarker([centreLat, centreLon], {
+        radius: 5,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: "#ff5252",
+        fillOpacity: 1
+    }).addTo(carteRadar);
+
+    // Chargement radar
+    chargerRadar();
+
+    // Actualisation toutes les 5 minutes
+    setInterval(chargerRadar, 5 * 60 * 1000);
+}
+
 
     ajouterEtiquette(5 * 1852, "5 nm", couleurRadar);
     ajouterEtiquette(15 * 1852, "15nm", couleurRadar);
