@@ -33,10 +33,78 @@ function destinationGeographique(lat, lon, distance, azimut) {
         lat2 * 180 / Math.PI,
         lon2 * 180 / Math.PI
     ];
+}
+
+// --------------------------------------------------
+// MASQUE SOMBRE EN DEHORS DU CERCLE RADAR
+// --------------------------------------------------
+
+function ajouterMasqueRadar(centreLat, centreLon, rayonRadar) {
+
+    let masqueRadar = null;
+
+    function actualiserMasque() {
+
+        if (masqueRadar) {
+            carteRadar.removeLayer(masqueRadar);
+        }
+
+        const limites = carteRadar.getBounds();
+
+        // Rectangle extérieur avec une marge
+        const sud = Math.max(-89, limites.getSouth() - 20);
+        const nord = Math.min(89, limites.getNorth() + 20);
+        const ouest = Math.max(-180, limites.getWest() - 20);
+        const est = Math.min(180, limites.getEast() + 20);
+
+        const rectangle = [
+            [sud, ouest],
+            [nord, ouest],
+            [nord, est],
+            [sud, est]
+        ];
+
+        // Contour circulaire de 15 milles nautiques
+        const cercle = [];
+
+        for (let angle = 0; angle <= 360; angle += 2) {
+            cercle.push(
+                destinationGeographique(
+                    centreLat,
+                    centreLon,
+                    rayonRadar,
+                    angle
+                )
+            );
+        }
+
+        // Polygone avec un trou circulaire transparent
+        masqueRadar = L.polygon(
+            [rectangle, cercle],
+            {
+                pane: "radarMaskPane",
+                stroke: false,
+                fillColor: "#172333",
+                fillOpacity: 0.25,
+                fillRule: "evenodd",
+                interactive: false
+            }
+        ).addTo(carteRadar);
     }
 
+    // Création initiale
+    actualiserMasque();
+
+    // Mise à jour lorsque la carte est déplacée ou zoomée
+    carteRadar.on("moveend", actualiserMasque);
+}
+
+// --------------------------------------------------
+// INITIALISATION DE LA CARTE RADAR
+// --------------------------------------------------
 
 function initialiserCarteRadar() {
+
     const couleurRadar = "#ff9999";
     const centreLat = 46.178;
     const centreLon = -1.193167;
@@ -51,58 +119,29 @@ function initialiserCarteRadar() {
     carteRadar.createPane("radarImagePane");
     carteRadar.getPane("radarImagePane").style.zIndex = 350;
 
-    // Fond de carte
+    // Couche du masque sombre, au-dessus du radar
+    // mais en dessous des cercles et des axes
+    carteRadar.createPane("radarMaskPane");
+    carteRadar.getPane("radarMaskPane").style.zIndex = 375;
+
+    // Fond de carte actuel
     L.tileLayer("https://basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png?key=cb1_57wq_1_07826fc0a0495a659d44fac5", {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19
     }).addTo(carteRadar);
 
     // --------------------------------------------------
-    // VOILE SOMBRE EN DEHORS DU CERCLE DE 15 NM
+    // MASQUE SOMBRE A L'EXTERIEUR DU CERCLE DE 15 NM
     // --------------------------------------------------
 
-    const pointsMasque = [];
-
-    // Contour extérieur couvrant la carte
-    const nordOuest = carteRadar.containerPointToLatLng([0, 0]);
-    const sudEst = carteRadar.containerPointToLatLng([
-        carteRadar.getSize().x,
-        carteRadar.getSize().y
-    ]);
-
-    // Grand rectangle autour de la zone visible
-    const rectangle = [
-        [nordOuest.lat + 20, nordOuest.lng - 20],
-        [nordOuest.lat + 20, sudEst.lng + 20],
-        [sudEst.lat - 20, sudEst.lng + 20],
-        [sudEst.lat - 20, nordOuest.lng - 20]
-    ];
-
-    // Cercle intérieur de 15 NM
-    for (let angle = 0; angle <= 360; angle += 2) {
-        pointsMasque.push(
-            destinationGeographique(
-                centreLat,
-                centreLon,
-                rayonRadar,
-                angle
-            )
-        );
-    }
-
-    L.polygon([
-        rectangle,
-        pointsMasque.reverse()
-    ], {
-        pane: "overlayPane",
-        stroke: false,
-        fillColor: "#172333",
-        fillOpacity: 0.25,
-        interactive: false
-    }).addTo(carteRadar);
+    ajouterMasqueRadar(
+        centreLat,
+        centreLon,
+        rayonRadar
+    );
 
     // --------------------------------------------------
-    // CERCLE 5 NM
+    // CERCLE 5 MILLES NAUTIQUES
     // --------------------------------------------------
 
     L.circle([centreLat, centreLon], {
@@ -115,7 +154,7 @@ function initialiserCarteRadar() {
     }).addTo(carteRadar);
 
     // --------------------------------------------------
-    // CERCLE 15 NM
+    // CERCLE 15 MILLES NAUTIQUES
     // --------------------------------------------------
 
     L.circle([centreLat, centreLon], {
@@ -132,6 +171,7 @@ function initialiserCarteRadar() {
     // --------------------------------------------------
 
     function ajouterEtiquette(distance, texte, couleur) {
+
         const position = destinationGeographique(
             centreLat,
             centreLon,
@@ -168,7 +208,7 @@ function initialiserCarteRadar() {
     }
 
     ajouterEtiquette(5 * 1852, "5 nm", couleurRadar);
-    ajouterEtiquette(rayonRadar, "15 nm", couleurRadar);
+    ajouterEtiquette(rayonRadar, "15nm", couleurRadar);
 
     // --------------------------------------------------
     // AXE VERTICAL NORD-SUD
@@ -227,66 +267,9 @@ function initialiserCarteRadar() {
     setInterval(chargerRadar, 5 * 60 * 1000);
 }
 
-
-    ajouterEtiquette(5 * 1852, "5 nm", couleurRadar);
-    ajouterEtiquette(15 * 1852, "15nm", couleurRadar);
-
-    // --------------------------------------------------
-    // AXE VERTICAL NORD-SUD
-    // --------------------------------------------------
-
-    const nord = destinationGeographique(
-        centreLat, centreLon, 15 * 1852, 0
-    );
-
-    const sud = destinationGeographique(
-        centreLat, centreLon, 15 * 1852, 180
-    );
-
-    L.polyline([nord, sud], {
-        color: couleurRadar,
-        weight: 1.5,
-        opacity: 0.75,
-        dashArray: "5, 8"
-    }).addTo(carteRadar);
-
-    // --------------------------------------------------
-    // AXE HORIZONTAL EST-OUEST
-    // --------------------------------------------------
-
-    const est = destinationGeographique(
-        centreLat, centreLon, 15 * 1852, 90
-    );
-
-    const ouest = destinationGeographique(
-        centreLat, centreLon, 15 * 1852, 270
-    );
-
-    L.polyline([est, ouest], {
-        color: couleurRadar,
-        weight: 1.5,
-        opacity: 0.75,
-        dashArray: "5, 8"
-    }).addTo(carteRadar);
-
-    // --------------------------------------------------
-    // REPERE CENTRAL
-    // --------------------------------------------------
-
-    L.circleMarker([centreLat, centreLon], {
-        radius: 5,
-        color: "#ffffff",
-        weight: 2,
-        fillColor: "#ff5252",
-        fillOpacity: 1
-    }).addTo(carteRadar);
-
-    // Chargement radar
-    chargerRadar();
-
-    // Actualisation toutes les 5 minutes
-    setInterval(chargerRadar, 5 * 60 * 1000);
-}
+// --------------------------------------------------
+// CHARGEMENT DE L'IMAGE RADAR
+// --------------------------------------------------
 
 async function chargerRadar() {
 
@@ -788,27 +771,27 @@ async function chargerDonnees() {
                     <td>${noeuds(d.ff).toFixed(1)}</td>
 
                     <td>
-                        ${Number.isFinite(d.raf10) 
-                          ? noeuds(d.raf10).toFixed(1)
-                          :"--"}
+                        ${Number.isFinite(d.raf10)
+                            ? noeuds(d.raf10).toFixed(1)
+                            : "--"}
                     </td>
 
                     <td>
-                        ${Number.isFinite(d.dd) 
+                        ${Number.isFinite(d.dd)
                             ? d.dd.toFixed(0) + "° " + directionTexte(d.dd)
                             : "--"}
                     </td>
 
                     <td>
-                        ${Number.isFinite(d.pmer) 
+                        ${Number.isFinite(d.pmer)
                             ? (d.pmer / 100).toFixed(1)
                             : "--"}
                     </td>
 
                     <td>
                         ${Number.isFinite(d.t)
-                          ? (d.t - 273.15).toFixed(1)
-                          : "--"}
+                            ? (d.t - 273.15).toFixed(1)
+                            : "--"}
                     </td>
                 </tr>
             `)
