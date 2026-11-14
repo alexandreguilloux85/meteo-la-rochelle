@@ -277,6 +277,15 @@ tbody tr:hover {
     background: #f5f9fc;
 }
 
+.fleche-prevision {
+    display: inline-block;
+    font-size: 20px;
+    font-weight: bold;
+    margin-right: 7px;
+    vertical-align: middle;
+    transform-origin: center;
+}
+
 /* PIED DE PAGE */
 
 footer {

@@ -307,6 +307,51 @@ function initialiserCarteRadar() {
 }
 
 // --------------------------------------------------
+// Palette de couleur pour la vitesse du vent
+// --------------------------------------------------
+
+function couleurVent(vitesse) {
+
+    const couleurs = [
+        { v: 0,  c: [245, 245, 245] },
+        { v: 5,  c: [245, 245, 245] },
+        { v: 8,  c: [0, 190, 245] },
+        { v: 11, c: [0, 220, 160] },
+        { v: 15, c: [65, 225, 0] },
+        { v: 18, c: [210, 215, 0] },
+        { v: 20, c: [255, 170, 0] },
+        { v: 25, c: [255, 100, 45] },
+        { v: 30, c: [255, 45, 85] },
+        { v: 35, c: [245, 15, 145] },
+        { v: 40, c: [220, 0, 150] }
+    ];
+
+    if (vitesse <= couleurs[0].v) {
+        return `rgb(${couleurs[0].c.join(",")})`;
+    }
+
+    for (let i = 0; i < couleurs.length - 1; i++) {
+
+        const a = couleurs[i];
+        const b = couleurs[i + 1];
+
+        if (vitesse <= b.v) {
+
+            const t = (vitesse - a.v) / (b.v - a.v);
+
+            const r = Math.round(a.c[0] + t * (b.c[0] - a.c[0]));
+            const g = Math.round(a.c[1] + t * (b.c[1] - a.c[1]));
+            const bl = Math.round(a.c[2] + t * (b.c[2] - a.c[2]));
+
+            return `rgb(${r},${g},${bl})`;
+        }
+    }
+
+    return `rgb(${couleurs[couleurs.length - 1].c.join(",")})`;
+}
+
+
+// --------------------------------------------------
 // CHARGEMENT DES PREVISIONS AROME
 // --------------------------------------------------
 
@@ -315,25 +360,20 @@ async function chargerPrevisionsArome(lat, lon) {
     const statut = document.getElementById("previsionsMiseAJour");
     const tableau = document.getElementById("tableauPrevisions");
 
-    // Identifiant pour ignorer les réponses anciennes
-    // si plusieurs clics sont effectués rapidement.
     const numeroRequete = ++numeroRequetePrevisions;
 
     statut.textContent = "Calcul des prévisions AROME...";
 
     tableau.innerHTML = `
-        <tr>
-            <td colspan="4">Chargement des prévisions...</td>
-        </tr>
+        <tr><td colspan="3">Chargement des prévisions...</td></tr>
     `;
 
     try {
 
-        const url =
-            "/api/arome/previsions?lat=" +
-            encodeURIComponent(lat) +
-            "&lon=" +
-            encodeURIComponent(lon);
+        const url = "/api/arome/previsions?lat="
+            + encodeURIComponent(lat)
+            + "&lon="
+            + encodeURIComponent(lon);
 
         const reponse = await fetch(url);
 
@@ -352,14 +392,10 @@ async function chargerPrevisionsArome(lat, lon) {
             throw new Error("Aucune prévision disponible");
         }
 
-        // Une requête plus récente a été lancée entre-temps.
-        if (numeroRequete !== numeroRequetePrevisions) {
-            return;
-        }
+        if (numeroRequete !== numeroRequetePrevisions) return;
 
         const previsions = resultat.previsions;
 
-        // Création du tableau
         tableau.innerHTML = previsions.map(p => {
 
             const date = new Date(p.date);
@@ -384,41 +420,42 @@ async function chargerPrevisionsArome(lat, lon) {
                 ? direction.toFixed(0) + "° " + directionTexte(direction)
                 : "--";
 
+            const fleche = Number.isFinite(direction)
+                ? `<span class="fleche-prevision"
+                         style="transform: rotate(${direction}deg)">↑</span>`
+                : "";
+
+            const couleur = Number.isFinite(vitesseKt)
+                ? couleurVent(vitesseKt)
+                : "transparent";
+
             return `
-                <tr>
+                <tr style="background-color: ${couleur}; color: #14283f;">
                     <td>${dateTexte}</td>
-                    <td>${p.echeance || "--"}</td>
-                    <td>${vitesseTexte}</td>
-                    <td>${directionTexteValeur}</td>
+                    <td><strong>${vitesseTexte}</strong></td>
+                    <td>
+                        ${fleche}
+                        ${directionTexteValeur}
+                    </td>
                 </tr>
             `;
 
         }).join("");
 
-                const modele = resultat.modele
-                    ? String(resultat.modele)
-                        .replace("T", " ")
-                        .replace("Z", " UTC")
-                    : "--";
+        const modele = resultat.modele
+            ? String(resultat.modele)
+                .replace("T", " ")
+                .replace("Z", " UTC")
+            : "--";
 
         statut.textContent =
-            previsions.length +
-            " échéances · Modèle du " +
-            modele;
+            previsions.length + " échéances · Modèle du " + modele;
 
-        console.log(
-            "Prévisions AROME chargées :",
-            previsions.length,
-            "échéances pour",
-            lat,
-            lon
-        );
+        console.log("Prévisions AROME chargées :", resultat);
 
     } catch (erreur) {
 
-        if (numeroRequete !== numeroRequetePrevisions) {
-            return;
-        }
+        if (numeroRequete !== numeroRequetePrevisions) return;
 
         console.error("Erreur prévisions AROME :", erreur);
 
@@ -426,7 +463,7 @@ async function chargerPrevisionsArome(lat, lon) {
 
         tableau.innerHTML = `
             <tr>
-                <td colspan="4">Erreur : ${erreur.message}</td>
+                <td colspan="3">Erreur : ${erreur.message}</td>
             </tr>
         `;
     }
