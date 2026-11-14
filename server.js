@@ -804,6 +804,7 @@ app.get("/api/arome/description", async (req, res) => {
 // --------------------------------------------------
 
 
+
 app.get("/api/arome/test-grib", async (req, res) => {
     try {
         if (!AROME_API_KEY) {
@@ -813,7 +814,6 @@ app.get("/api/arome/test-grib", async (req, res) => {
             });
         }
 
-        // Coordonnées par défaut : station La Rochelle
         const lat = Number(req.query.lat ?? 46.178);
         const lon = Number(req.query.lon ?? -1.193167);
 
@@ -829,16 +829,202 @@ app.get("/api/arome/test-grib", async (req, res) => {
             });
         }
 
-        // Zone autour du point GPS
-        const marge = 0.02;
+        // --------------------------------------------------
+        // DECODAGE D'UN FICHIER GRIB2 - PACKING SIMPLE 5.0
+        // --------------------------------------------------
 
-        const latMin = (lat - marge).toFixed(5);
-        const latMax = (lat + marge).toFixed(5);
-        const lonMin = (lon - marge).toFixed(5);
-        const lonMax = (lon + marge).toFixed(5);
+        function decoderGrib(buffer) {
+            if (
+                buffer.subarray(0, 4).toString("ascii") !== "GRIB" ||
+                buffer[7] !== 2 ||
+                buffer.subarray(buffer.length - 4).toString("ascii") !== "7777"
+            ) {
+                throw new Error("Fichier GRIB2 invalide");
+            }
+
+            const sections = {};
+            let offset = 16;
+
+            while (offset < buffer.length - 4) {
+                const longueur = buffer.readUInt32BE(offset);
+                const numero = buffer[offset + 4];
+
+                if (
+                    longueur < 5 ||
+                    offset + longueur > buffer.length - 4
+                ) {
+                    throw new Error("Section GRIB invalide");
+                }
+
+                sections[numero] = buffer.subarray(
+                    offset,
+                    offset + longueur
+                );
+
+                offset += longueur;
+            }
+
+            const s3 = sections[3];
+            const s5 = sections[5];
+            const s6 = sections[6];
+            const s7 = sections[7];
+
+            if (!s3 || !s5 || !s6 || !s7) {
+                throw new Error("Section GRIB manquante");
+            }
+
+            // Grille régulière latitude / longitude
+            const grille = {
+                nombre_points: s3.readUInt32BE(6),
+                modele: s3.readUInt16BE(12),
+                Ni: s3.readUInt32BE(30),
+                Nj: s3.readUInt32BE(34),
+
+                latitude_depart:
+                    s3.readInt32BE(46) / 1000000,
+
+                longitude_depart:
+                    s3.readInt32BE(50) / 1000000,
+
+                resolution_longitude:
+                    s3.readUInt32BE(63) / 1000000,
+
+                resolution_latitude:
+                    s3.readUInt32BE(67) / 1000000,
+
+                mode_balaye: s3[71]
+            };
+
+            if (grille.longitude_depart > 180) {
+                grille.longitude_depart -= 360;
+            }
+
+            if (grille.modele !== 0 || grille.mode_balaye !== 0) {
+                throw new Error(
+                    "Type de grille ou mode de balayage non pris en charge"
+                );
+            }
+
+            // Paramètres de compression GRIB - modèle 5.0
+            const nombreValeurs = s5.readUInt32BE(5);
+            const modeleCompression = s5.readUInt16BE(9);
+
+            if (modeleCompression !== 0) {
+                throw new Error(
+                    "Compression GRIB non prise en charge : " +
+                    modeleCompression
+                );
+            }
+
+            const reference = s5.readFloatBE(11);
+
+            function lireFacteurSigneMagnitude(valeur) {
+                return (valeur & 0x8000)
+                    ? -(valeur & 0x7FFF)
+                    : valeur;
+            }
+
+            const facteurBinaire = lireFacteurSigneMagnitude(
+                s5.readUInt16BE(15)
+            );
+
+            const facteurDecimal = lireFacteurSigneMagnitude(
+                s5.readUInt16BE(17)
+            );
+
+            const bitsParValeur = s5[19];
+
+            // Vérification du bitmap
+            const indicateurBitmap = s6[5];
+
+            if (indicateurBitmap !== 255) {
+                throw new Error(
+                    "Bitmap GRIB non pris en charge : " +
+                    indicateurBitmap
+                );
+            }
+
+            // Lecture des valeurs compactées dans la section 7
+            const donneesBrutes = s7.subarray(5);
+            const valeurs = [];
+
+            function lireBits(positionBit, nombreBits) {
+                let resultat = 0;
+
+                for (let b = 0; b < nombreBits; b++) {
+                    const position = positionBit + b;
+                    const indexOctet = Math.floor(position / 8);
+                    const indexBit = 7 - (position % 8);
+
+                    const bit =
+                        (donneesBrutes[indexOctet] >> indexBit) & 1;
+
+                    resultat = resultat * 2 + bit;
+                }
+
+                return resultat;
+            }
+
+            for (let i = 0; i < nombreValeurs; i++) {
+                const entierCompacte = bitsParValeur === 0
+                    ? 0
+                    : lireBits(
+                        i * bitsParValeur,
+                        bitsParValeur
+                    );
+
+                const valeur =
+                    (
+                        reference +
+                        entierCompacte * Math.pow(2, facteurBinaire)
+                    ) *
+                    Math.pow(10, -facteurDecimal);
+
+                valeurs.push(valeur);
+            }
+
+            if (valeurs.length !== grille.Ni * grille.Nj) {
+                throw new Error(
+                    "Nombre de valeurs incompatible avec la grille"
+                );
+            }
+
+            // Association de chaque valeur à sa coordonnée GPS
+            const points = [];
+
+            for (let j = 0; j < grille.Nj; j++) {
+                for (let i = 0; i < grille.Ni; i++) {
+                    const index = j * grille.Ni + i;
+
+                    points.push({
+                        latitude:
+                            grille.latitude_depart -
+                            j * grille.resolution_latitude,
+
+                        longitude:
+                            grille.longitude_depart +
+                            i * grille.resolution_longitude,
+
+                        valeur: valeurs[index]
+                    });
+                }
+            }
+
+            return {
+                grille,
+                valeurs,
+                points,
+                compression: {
+                    reference,
+                    facteur_binaire: facteurBinaire,
+                    facteur_decimal: facteurDecimal,
+                    bits_par_valeur: bitsParValeur
+                }
+            };
+        }
 
         // --------------------------------------------------
-        // 1. RECUPERATION DU CATALOGUE AROME
+        // RECUPERATION DU CATALOGUE AROME
         // --------------------------------------------------
 
         const urlCatalogue = new URL(
@@ -858,105 +1044,103 @@ app.get("/api/arome/test-grib", async (req, res) => {
 
         if (!reponseCatalogue.ok) {
             throw new Error(
-                "Erreur catalogue AROME : " + reponseCatalogue.status
+                "Erreur catalogue AROME : " +
+                reponseCatalogue.status
             );
         }
 
         const xmlCatalogue = await reponseCatalogue.text();
 
-        // Extraction des identifiants de couverture
         const ids = [
             ...xmlCatalogue.matchAll(
                 /<wcs:CoverageId>([\s\S]*?)<\/wcs:CoverageId>/g
             )
         ].map(m => m[1].trim());
 
-        // --------------------------------------------------
-        // 2. RECHERCHE DU DERNIER MODELE COMMUN
-        // --------------------------------------------------
+        const prefixes = {
+            vitesse:
+                "WIND_SPEED__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___",
 
-        const prefixeVent =
-            "WIND_SPEED__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___";
+            U:
+                "U_COMPONENT_OF_WIND__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___",
 
-        const prefixeU =
-            "U_COMPONENT_OF_WIND__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___";
-
-        const prefixeV =
-            "V_COMPONENT_OF_WIND__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___";
+            V:
+                "V_COMPONENT_OF_WIND__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___"
+        };
 
         const vents = ids
-            .filter(id => id.startsWith(prefixeVent))
+            .filter(id => id.startsWith(prefixes.vitesse))
             .sort();
 
-        if (vents.length === 0) {
-            throw new Error("Aucune couverture WIND_SPEED disponible");
-        }
+        // Recherche du dernier modèle commun aux trois paramètres
+        let modele = null;
+        let coverageIds = null;
 
-        let coverageVent = null;
-        let coverageU = null;
-        let coverageV = null;
-
-        // On cherche le dernier modèle présent dans les trois paramètres
         for (let i = vents.length - 1; i >= 0; i--) {
-            const suffixe = vents[i].slice(prefixeVent.length);
+            const suffixe = vents[i].slice(prefixes.vitesse.length);
 
-            const idU = prefixeU + suffixe;
-            const idV = prefixeV + suffixe;
+            const idU = prefixes.U + suffixe;
+            const idV = prefixes.V + suffixe;
 
             if (ids.includes(idU) && ids.includes(idV)) {
-                coverageVent = vents[i];
-                coverageU = idU;
-                coverageV = idV;
+                modele = suffixe;
+
+                coverageIds = {
+                    vitesse: vents[i],
+                    U: idU,
+                    V: idV
+                };
+
                 break;
             }
         }
 
-        if (!coverageVent) {
+        if (!modele) {
             throw new Error(
-                "Impossible de trouver un modèle commun pour WIND_SPEED, U et V"
+                "Aucun modèle AROME commun aux trois paramètres"
             );
         }
 
-        const suffixeModele = coverageVent.slice(prefixeVent.length);
-
-        console.log("Modèle AROME sélectionné :", suffixeModele);
-
         // --------------------------------------------------
-        // 3. FONCTION DE TELECHARGEMENT GRIB
+        // TELECHARGEMENT DES TROIS FICHIERS GRIB
         // --------------------------------------------------
+
+        const marge = 0.02;
+
+        const latMin = (lat - marge).toFixed(5);
+        const latMax = (lat + marge).toFixed(5);
+        const lonMin = (lon - marge).toFixed(5);
+        const lonMax = (lon + marge).toFixed(5);
 
         async function telechargerGrib(coverageId) {
-
-            const urlGrib = new URL(
+            const url = new URL(
                 AROME_WCS_BASE + "/GetCoverage"
             );
 
-            urlGrib.searchParams.set("service", "WCS");
-            urlGrib.searchParams.set("version", "2.0.1");
-            urlGrib.searchParams.set("request", "GetCoverage");
-            urlGrib.searchParams.set("coverageId", coverageId);
+            url.searchParams.set("service", "WCS");
+            url.searchParams.set("version", "2.0.1");
+            url.searchParams.set("request", "GetCoverage");
+            url.searchParams.set("coverageId", coverageId);
 
-            urlGrib.searchParams.append("subset", "time(3600)");
-            urlGrib.searchParams.append("subset", "height(10)");
+            url.searchParams.append("subset", "time(3600)");
+            url.searchParams.append("subset", "height(10)");
 
-            urlGrib.searchParams.append(
+            url.searchParams.append(
                 "subset",
                 `lat(${latMin},${latMax})`
             );
 
-            urlGrib.searchParams.append(
+            url.searchParams.append(
                 "subset",
                 `long(${lonMin},${lonMax})`
             );
 
-            urlGrib.searchParams.set(
+            url.searchParams.set(
                 "format",
                 "application/wmo-grib"
             );
 
-            console.log("Téléchargement GRIB :", coverageId);
-
-            const response = await fetch(urlGrib, {
+            const reponse = await fetch(url, {
                 headers: {
                     apikey: AROME_API_KEY,
                     accept: "application/octet-stream"
@@ -964,124 +1148,135 @@ app.get("/api/arome/test-grib", async (req, res) => {
             });
 
             const buffer = Buffer.from(
-                await response.arrayBuffer()
+                await reponse.arrayBuffer()
             );
 
-            if (!response.ok) {
+            if (!reponse.ok) {
                 throw new Error(
-                    "Erreur téléchargement " + coverageId +
-                    " : " + response.status + " - " +
+                    "Erreur téléchargement " +
+                    coverageId +
+                    " : " +
                     buffer.toString("utf8").slice(0, 500)
                 );
             }
 
-            // Vérification de la signature GRIB2
-            const signature = buffer
-                .subarray(0, 4)
-                .toString("ascii");
+            return decoderGrib(buffer);
+        }
 
-            if (
-                signature !== "GRIB" ||
-                buffer.length < 20 ||
-                buffer.subarray(buffer.length - 4).toString("ascii") !== "7777"
-            ) {
-                throw new Error(
-                    "Fichier GRIB invalide pour " + coverageId
-                );
-            }
+        const gribVitesse = await telechargerGrib(
+            coverageIds.vitesse
+        );
 
-            // Analyse des sections GRIB2
-            const sections = [];
-            let position = 16;
+        const gribU = await telechargerGrib(
+            coverageIds.U
+        );
 
-            while (position < buffer.length - 4) {
+        const gribV = await telechargerGrib(
+            coverageIds.V
+        );
 
-                const longueur = buffer.readUInt32BE(position);
-                const numero = buffer[position + 4];
+        // Vérification de la cohérence des trois grilles
+        function memeGrille(a, b) {
+            return (
+                a.Ni === b.Ni &&
+                a.Nj === b.Nj &&
+                Math.abs(
+                    a.latitude_depart - b.latitude_depart
+                ) < 0.000001 &&
+                Math.abs(
+                    a.longitude_depart - b.longitude_depart
+                ) < 0.000001
+            );
+        }
 
-                if (
-                    longueur < 5 ||
-                    position + longueur > buffer.length - 4
-                ) {
-                    throw new Error("Section GRIB2 invalide");
-                }
-
-                sections.push({
-                    numero,
-                    longueur
-                });
-
-                position += longueur;
-
-                if (numero === 7) {
-                    break;
-                }
-            }
-
-            return {
-                coverageId,
-                signature,
-                taille_octets: buffer.length,
-                sections,
-                buffer
-            };
+        if (
+            !memeGrille(gribVitesse.grille, gribU.grille) ||
+            !memeGrille(gribVitesse.grille, gribV.grille)
+        ) {
+            throw new Error(
+                "Les grilles des trois paramètres sont différentes"
+            );
         }
 
         // --------------------------------------------------
-        // 4. TELECHARGEMENT DES TROIS PARAMETRES
+        // CALCUL DE LA VITESSE ET DE LA DIRECTION DU VENT
         // --------------------------------------------------
 
-        const gribVent = await telechargerGrib(coverageVent);
-        const gribU = await telechargerGrib(coverageU);
-        const gribV = await telechargerGrib(coverageV);
+        const points = [];
+
+        for (let i = 0; i < gribVitesse.points.length; i++) {
+            const u = gribU.valeurs[i];
+            const v = gribV.valeurs[i];
+
+            // Vitesse calculée à partir des composantes U et V
+            const vitesseUV = Math.sqrt(u * u + v * v);
+
+            // Direction météorologique : direction d'où vient le vent
+            const direction =
+                (
+                    Math.atan2(-u, -v) * 180 / Math.PI + 360
+                ) % 360;
+
+            points.push({
+                latitude: gribVitesse.points[i].latitude,
+                longitude: gribVitesse.points[i].longitude,
+
+                vitesse_arome: Number(
+                    gribVitesse.valeurs[i].toFixed(3)
+                ),
+
+                vitesse_UV: Number(
+                    vitesseUV.toFixed(3)
+                ),
+
+                composante_U: Number(u.toFixed(3)),
+                composante_V: Number(v.toFixed(3)),
+
+                direction: Number(direction.toFixed(1))
+            });
+        }
 
         // --------------------------------------------------
-        // 5. REPONSE DE DIAGNOSTIC
+        // REPONSE
         // --------------------------------------------------
 
         res.json({
             succes: true,
 
-            coordonnees: {
+            coordonnees_demandees: {
                 latitude: lat,
                 longitude: lon
             },
 
-            zone: {
-                latitude: [Number(latMin), Number(latMax)],
-                longitude: [Number(lonMin), Number(lonMax)]
-            },
-
-            modele: suffixeModele,
+            modele,
             echeance: "H+1",
             hauteur: "10 m",
 
-            parametres: {
-                vitesse: {
-                    coverageId: gribVent.coverageId,
-                    signature: gribVent.signature,
-                    taille_octets: gribVent.taille_octets,
-                    sections: gribVent.sections
-                },
+            grille: {
+                Ni: gribVitesse.grille.Ni,
+                Nj: gribVitesse.grille.Nj,
+                nombre_points: points.length,
 
-                composante_U: {
-                    coverageId: gribU.coverageId,
-                    signature: gribU.signature,
-                    taille_octets: gribU.taille_octets,
-                    sections: gribU.sections
-                },
+                latitude_depart:
+                    gribVitesse.grille.latitude_depart,
 
-                composante_V: {
-                    coverageId: gribV.coverageId,
-                    signature: gribV.signature,
-                    taille_octets: gribV.taille_octets,
-                    sections: gribV.sections
-                }
-            }
+                longitude_depart:
+                    gribVitesse.grille.longitude_depart,
+
+                resolution_latitude:
+                    gribVitesse.grille.resolution_latitude,
+
+                resolution_longitude:
+                    gribVitesse.grille.resolution_longitude
+            },
+
+            compression: gribVitesse.compression,
+
+            points
         });
 
     } catch (error) {
-        console.error("Erreur test GRIB AROME :", error);
+        console.error("Erreur décodage GRIB AROME :", error);
 
         res.status(502).json({
             succes: false,
@@ -1089,7 +1284,6 @@ app.get("/api/arome/test-grib", async (req, res) => {
         });
     }
 });
-
 
 
 
