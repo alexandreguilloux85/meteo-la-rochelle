@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 
@@ -104,6 +103,41 @@
                 <span>Modérées</span>
                 <span class="couleur-radar radar-forte"></span>
                 <span>Fortes</span>
+            </div>
+
+        </section>
+
+        <!-- Prévisions AROME -->
+        <section class="bloc">
+
+            <div class="entete-bloc">
+                <div>
+                    <h2>Prévisions de vent AROME</h2>
+                    <p>Clique sur la carte pour choisir un emplacement</p>
+                </div>
+
+                <span id="previsionsMiseAJour" class="unite-graphique">
+                    Chargement...
+                </span>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date / Heure</th>
+                            <th>Échéance</th>
+                            <th>Vent (kt)</th>
+                            <th>Direction</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="tableauPrevisions">
+                        <tr>
+                            <td colspan="4">Chargement des prévisions...</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
         </section>
