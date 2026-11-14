@@ -395,15 +395,11 @@ async function chargerPrevisionsArome(lat, lon) {
 
         }).join("");
 
-        const modele = resultat.modele
-            ? new Date(resultat.modele).toLocaleString("fr-FR", {
-                timeZone: "Europe/Paris",
-                day: "2-digit",
-                month: "2-digit",
-                hour: "2-digit",
-                minute: "2-digit"
-            })
-            : "--";
+                const modele = resultat.modele
+                    ? String(resultat.modele)
+                        .replace("T", " ")
+                        .replace("Z", " UTC")
+                    : "--";
 
         statut.textContent =
             previsions.length +
