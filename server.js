@@ -700,6 +700,106 @@ app.get("/api/arome/capabilities", async (req, res) => {
 });
 
 // --------------------------------------------------
+// AROME - DESCRIPTION DES DONNEES DE VENT
+// --------------------------------------------------
+
+app.get("/api/arome/description", async (req, res) => {
+    try {
+        if (!AROME_API_KEY) {
+            return res.status(500).json({
+                succes: false,
+                erreur: "Variable METEO_AROME_API_KEY absente"
+            });
+        }
+
+        // Récupération du catalogue
+        const urlCatalogue = new URL(
+            AROME_WCS_BASE + "/GetCapabilities"
+        );
+
+        urlCatalogue.searchParams.set("service", "WCS");
+        urlCatalogue.searchParams.set("version", "2.0.1");
+        urlCatalogue.searchParams.set("request", "GetCapabilities");
+        urlCatalogue.searchParams.set("language", "eng");
+
+        const reponseCatalogue = await fetch(urlCatalogue, {
+            headers: {
+                apikey: AROME_API_KEY,
+                accept: "application/xml, text/xml, */*"
+            }
+        });
+
+        if (!reponseCatalogue.ok) {
+            throw new Error(
+                "Erreur catalogue AROME : " + reponseCatalogue.status
+            );
+        }
+
+        const xmlCatalogue = await reponseCatalogue.text();
+
+        // Recherche des couvertures WIND_SPEED
+        const ids = [
+            ...xmlCatalogue.matchAll(
+                /<wcs:CoverageId>([\s\S]*?)<\/wcs:CoverageId>/g
+            )
+        ].map(m => m[1].trim());
+
+        const vents = ids.filter(id =>
+            id.startsWith("WIND_SPEED__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___")
+        );
+
+        if (vents.length === 0) {
+            throw new Error("Aucune couverture WIND_SPEED trouvée");
+        }
+
+        // La dernière couverture disponible
+        const coverageId = vents[vents.length - 1];
+
+        // Description de cette couverture
+        const urlDescription = new URL(
+            AROME_WCS_BASE + "/DescribeCoverage"
+        );
+
+        urlDescription.searchParams.set("service", "WCS");
+        urlDescription.searchParams.set("version", "2.0.1");
+        urlDescription.searchParams.set("request", "DescribeCoverage");
+        urlDescription.searchParams.set("coverageID", coverageId);
+
+        const reponseDescription = await fetch(urlDescription, {
+            headers: {
+                apikey: AROME_API_KEY,
+                accept: "application/xml, text/xml, */*"
+            }
+        });
+
+        const xmlDescription = await reponseDescription.text();
+
+        if (!reponseDescription.ok) {
+            throw new Error(
+                "Erreur DescribeCoverage : " +
+                reponseDescription.status +
+                " - " + xmlDescription.slice(0, 1000)
+            );
+        }
+
+        res.json({
+            succes: true,
+            coverageId,
+            description: xmlDescription
+        });
+
+    } catch (error) {
+        console.error("Erreur description AROME :", error);
+
+        res.status(502).json({
+            succes: false,
+            erreur: error.message
+        });
+    }
+});
+
+
+// --------------------------------------------------
 // DEMARRAGE SERVEUR
 // --------------------------------------------------
 
