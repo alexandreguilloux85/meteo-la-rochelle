@@ -940,7 +940,37 @@ app.get("/api/arome/test-grib", async (req, res) => {
         const signature = buffer
             .subarray(0, 4)
             .toString("ascii");
-
+        
+        // Analyse des sections GRIB2
+        const sections = [];
+        let offset = 16;
+        
+        while (offset < buffer.length - 4) {
+            const longueur = buffer.readUInt32BE(offset);
+            const numero = buffer[offset + 4];
+        
+            if (
+                longueur < 5 ||
+                offset + longueur > buffer.length
+            ) {
+                break;
+            }
+        
+            sections.push({
+                numero,
+                longueur
+            });
+        
+            offset += longueur;
+        
+            if (numero === 7) {
+                break;
+            }
+        }
+        
+        const finGrib = buffer
+            .subarray(buffer.length - 4)
+            .toString("ascii");
         res.json({
             succes: true,
             coverageId,
@@ -961,7 +991,9 @@ app.get("/api/arome/test-grib", async (req, res) => {
             fichier_grib_valide: signature === "GRIB",
             debut_fichier_hex: buffer
                 .subarray(0, 24)
-                .toString("hex")
+                .toString("hex"),
+            sections,
+            fin_grib: finGrib
         });
 
     } catch (error) {
