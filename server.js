@@ -1014,6 +1014,9 @@ app.get("/api/arome/test-grib", async (req, res) => {
         }
         
         if (numero === 5) {
+            const facteurBinaireBrut = buffer.readUInt16BE(position + 15);
+            const facteurDecimalBrut = buffer.readUInt16BE(position + 17);
+        
             donnees = {
                 nombre_valeurs: buffer.readUInt32BE(position + 5),
                 modele_compression: buffer.readUInt16BE(position + 9),
@@ -1022,13 +1025,16 @@ app.get("/api/arome/test-grib", async (req, res) => {
                     buffer.readFloatBE(position + 11),
         
                 facteur_binaire:
-                    buffer.readInt16BE(position + 15),
+                    (facteurBinaireBrut & 0x8000)
+                        ? -(facteurBinaireBrut & 0x7FFF)
+                        : facteurBinaireBrut,
         
                 facteur_decimal:
-                    buffer.readInt16BE(position + 17),
+                    (facteurDecimalBrut & 0x8000)
+                        ? -(facteurDecimalBrut & 0x7FFF)
+                        : facteurDecimalBrut,
         
-                bits_par_valeur:
-                    buffer[position + 19]
+                bits_par_valeur: buffer[position + 19]
             };
         }
     
