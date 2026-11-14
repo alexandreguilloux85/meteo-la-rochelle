@@ -982,14 +982,35 @@ app.get("/api/arome/test-grib", async (req, res) => {
             const longueur = buffer.readUInt32BE(position);
             const numero = buffer[position + 4];
         
-            if (numero === 3) {
-                grille = {
-                    nombre_points: buffer.readUInt32BE(position + 6),
-                    modele_grille: buffer.readUInt16BE(position + 12),
-                    Ni: buffer.readUInt32BE(position + 30),
-                    Nj: buffer.readUInt32BE(position + 34)
-                };
-            }
+        if (numero === 3) {
+            grille = {
+                nombre_points: buffer.readUInt32BE(position + 6),
+                modele_grille: buffer.readUInt16BE(position + 12),
+        
+                Ni: buffer.readUInt32BE(position + 30),
+                Nj: buffer.readUInt32BE(position + 34),
+        
+                latitude_depart:
+                    buffer.readInt32BE(position + 46) / 1000000,
+        
+                longitude_depart:
+                    buffer.readInt32BE(position + 50) / 1000000,
+        
+                latitude_arrivee:
+                    buffer.readInt32BE(position + 55) / 1000000,
+        
+                longitude_arrivee:
+                    buffer.readInt32BE(position + 59) / 1000000,
+        
+                resolution_longitude:
+                    buffer.readUInt32BE(position + 63) / 1000000,
+        
+                resolution_latitude:
+                    buffer.readUInt32BE(position + 67) / 1000000,
+        
+                mode_balaye: buffer[position + 71]
+            };
+        }
         
             if (numero === 5) {
                 donnees = {
