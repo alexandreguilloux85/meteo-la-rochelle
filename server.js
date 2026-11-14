@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 const express = require("express");
@@ -187,7 +186,6 @@ async function genererImageRadar() {
         // Métadonnées géographiques
         const where = fichierHdf.get("/where");
 
-
         const xScale = valeurAttribut(where, "xscale");
         const yScale = valeurAttribut(where, "yscale");
 
@@ -202,7 +200,7 @@ async function genererImageRadar() {
 
         proj4.defs("RADAR_METEO", definitionProjection);
 
-const projection = "RADAR_METEO";
+        const projection = "RADAR_METEO";
 
         // Origine de la grille : coin inférieur gauche
         const origine = proj4(
@@ -408,6 +406,7 @@ app.get("/api/observations", async (req, res) => {
 // --------------------------------------------------
 // Reveil du serveur (depuis nas)
 // --------------------------------------------------
+
 // Vérification légère pour maintenir Render actif
 app.get("/api/keepalive", (req, res) => {
     res.status(200).send("OK");
@@ -606,10 +605,104 @@ app.get("/api/radar/image", async (req, res) => {
 });
 
 // --------------------------------------------------
+// AROME - TEST DU CATALOGUE WCS
+// --------------------------------------------------
+
+const AROME_API_KEY = process.env.METEO_AROME_API_KEY;
+
+const AROME_WCS_BASE =
+    "https://public-api.meteofrance.fr/public/arome/1.0/wcs/" +
+    "MF-NWP-HIGHRES-AROME-001-FRANCE-WCS";
+
+app.get("/api/arome/capabilities", async (req, res) => {
+    try {
+        if (!AROME_API_KEY) {
+            return res.status(500).json({
+                succes: false,
+                erreur: "Variable METEO_AROME_API_KEY absente dans Render"
+            });
+        }
+
+        const url = new URL(AROME_WCS_BASE + "/GetCapabilities");
+        url.searchParams.set("service", "WCS");
+        url.searchParams.set("version", "2.0.1");
+        url.searchParams.set("request", "GetCapabilities");
+        url.searchParams.set("language", "eng");
+
+        const response = await fetch(url, {
+            headers: {
+                apikey: AROME_API_KEY,
+                accept: "application/xml, text/xml, */*"
+            }
+        });
+
+        const xml = await response.text();
+
+        if (!response.ok) {
+            console.error(
+                "AROME GetCapabilities :",
+                response.status,
+                xml.slice(0, 1000)
+            );
+
+            return res.status(response.status).json({
+                succes: false,
+                statut: response.status,
+                erreur: "Météo-France a refusé la requête GetCapabilities",
+                detail: xml.slice(0, 1200)
+            });
+        }
+
+        const coverages = [];
+        const blocs = xml.match(
+            /<wcs:CoverageSummary[\s\S]*?<\/wcs:CoverageSummary>/g
+        ) || [];
+
+        for (const bloc of blocs) {
+            const id = bloc.match(
+                /<wcs:CoverageId>([\s\S]*?)<\/wcs:CoverageId>/
+            );
+
+            const titre = bloc.match(
+                /<ows:Title>([\s\S]*?)<\/ows:Title>/
+            );
+
+            if (id) {
+                const coverageId = id[1].trim();
+
+                if (
+                    /WIND|U_COMPONENT|V_COMPONENT/i.test(
+                        coverageId + " " + (titre?.[1] || "")
+                    )
+                ) {
+                    coverages.push({
+                        id: coverageId,
+                        titre: titre ? titre[1].trim() : ""
+                    });
+                }
+            }
+        }
+
+        res.json({
+            succes: true,
+            nombre: coverages.length,
+            coverages
+        });
+
+    } catch (error) {
+        console.error("Erreur AROME GetCapabilities :", error);
+
+        res.status(502).json({
+            succes: false,
+            erreur: error.message
+        });
+    }
+});
+
+// --------------------------------------------------
 // DEMARRAGE SERVEUR
 // --------------------------------------------------
 
 app.listen(PORT, "0.0.0.0", () => {
     console.log(`Application disponible sur le port ${PORT}`);
 });
-
