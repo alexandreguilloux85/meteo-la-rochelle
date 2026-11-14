@@ -1,4 +1,3 @@
-
 let graphiqueVent = null;
 let graphiqueDirection = null;
 let graphiquePression = null;
@@ -11,6 +10,18 @@ let graphiqueTemperature = null;
 let carteRadar = null;
 let coucheRadar = null;
 let urlImageRadar = null;
+
+// --------------------------------------------------
+// PREVISIONS AROME
+// --------------------------------------------------
+
+let marqueurPrevisions = null;
+let numeroRequetePrevisions = 0;
+
+const positionInitiale = {
+    lat: 46.178,
+    lon: -1.193167
+};
 
 function destinationGeographique(lat, lon, distance, azimut) {
 
@@ -249,22 +260,180 @@ function initialiserCarteRadar() {
     }).addTo(carteRadar);
 
     // --------------------------------------------------
-    // REPERE CENTRAL
+    // MARQUEUR DE POSITION DES PREVISIONS AROME
     // --------------------------------------------------
 
-    L.circleMarker([centreLat, centreLon], {
-        radius: 5,
-        color: "#ffffff",
-        weight: 2,
-        fillColor: "#ff5252",
-        fillOpacity: 1
-    }).addTo(carteRadar);
+    marqueurPrevisions = L.circleMarker(
+        [positionInitiale.lat, positionInitiale.lon],
+        {
+            radius: 7,
+            color: "#ffffff",
+            weight: 2,
+            fillColor: "#00bfff",
+            fillOpacity: 1
+        }
+    ).addTo(carteRadar);
+
+    marqueurPrevisions.bindTooltip(
+        "Position des prévisions AROME",
+        {
+            direction: "top",
+            offset: [0, -8]
+        }
+    );
+
+    // Clic sur la carte : déplacement du marqueur
+    carteRadar.on("click", function(e) {
+
+        const lat = e.latlng.lat;
+        const lon = e.latlng.lng;
+
+        marqueurPrevisions.setLatLng([lat, lon]);
+
+        chargerPrevisionsArome(lat, lon);
+    });
+
+    // Chargement initial des prévisions à La Rochelle
+    chargerPrevisionsArome(
+        positionInitiale.lat,
+        positionInitiale.lon
+    );
 
     // Chargement radar
     chargerRadar();
 
     // Actualisation toutes les 5 minutes
     setInterval(chargerRadar, 5 * 60 * 1000);
+}
+
+// --------------------------------------------------
+// CHARGEMENT DES PREVISIONS AROME
+// --------------------------------------------------
+
+async function chargerPrevisionsArome(lat, lon) {
+
+    const statut = document.getElementById("previsionsMiseAJour");
+    const tableau = document.getElementById("tableauPrevisions");
+
+    // Identifiant pour ignorer les réponses anciennes
+    // si plusieurs clics sont effectués rapidement.
+    const numeroRequete = ++numeroRequetePrevisions;
+
+    statut.textContent = "Calcul des prévisions AROME...";
+
+    tableau.innerHTML = `
+        <tr>
+            <td colspan="4">Chargement des prévisions...</td>
+        </tr>
+    `;
+
+    try {
+
+        const url =
+            "/api/arome/previsions?lat=" +
+            encodeURIComponent(lat) +
+            "&lon=" +
+            encodeURIComponent(lon);
+
+        const reponse = await fetch(url);
+
+        if (!reponse.ok) {
+            throw new Error("Erreur API : " + reponse.status);
+        }
+
+        const resultat = await reponse.json();
+
+        if (!resultat.succes) {
+            throw new Error("L'API AROME n'a pas pu calculer les prévisions");
+        }
+
+        if (!Array.isArray(resultat.previsions) ||
+            resultat.previsions.length === 0) {
+            throw new Error("Aucune prévision disponible");
+        }
+
+        // Une requête plus récente a été lancée entre-temps.
+        if (numeroRequete !== numeroRequetePrevisions) {
+            return;
+        }
+
+        const previsions = resultat.previsions;
+
+        // Création du tableau
+        tableau.innerHTML = previsions.map(p => {
+
+            const date = new Date(p.date);
+
+            const dateTexte = date.toLocaleString("fr-FR", {
+                timeZone: "Europe/Paris",
+                day: "2-digit",
+                month: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+
+            const vitesseKt = Number(p.vitesse) * 1.94384;
+
+            const vitesseTexte = Number.isFinite(vitesseKt)
+                ? vitesseKt.toFixed(1)
+                : "--";
+
+            const direction = Number(p.direction);
+
+            const directionTexteValeur = Number.isFinite(direction)
+                ? direction.toFixed(0) + "° " + directionTexte(direction)
+                : "--";
+
+            return `
+                <tr>
+                    <td>${dateTexte}</td>
+                    <td>${p.echeance || "--"}</td>
+                    <td>${vitesseTexte}</td>
+                    <td>${directionTexteValeur}</td>
+                </tr>
+            `;
+
+        }).join("");
+
+        const modele = resultat.modele
+            ? new Date(resultat.modele).toLocaleString("fr-FR", {
+                timeZone: "Europe/Paris",
+                day: "2-digit",
+                month: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit"
+            })
+            : "--";
+
+        statut.textContent =
+            previsions.length +
+            " échéances · Modèle du " +
+            modele;
+
+        console.log(
+            "Prévisions AROME chargées :",
+            previsions.length,
+            "échéances pour",
+            lat,
+            lon
+        );
+
+    } catch (erreur) {
+
+        if (numeroRequete !== numeroRequetePrevisions) {
+            return;
+        }
+
+        console.error("Erreur prévisions AROME :", erreur);
+
+        statut.textContent = "Prévisions indisponibles";
+
+        tableau.innerHTML = `
+            <tr>
+                <td colspan="4">Erreur : ${erreur.message}</td>
+            </tr>
+        `;
+    }
 }
 
 // --------------------------------------------------
