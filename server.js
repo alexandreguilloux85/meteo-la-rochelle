@@ -977,6 +977,7 @@ app.get("/api/arome/test-grib", async (req, res) => {
         let donnees = null;
         
         let position = 16;
+        let donneesBrutes = null;
         
         while (position < buffer.length - 4) {
             const longueur = buffer.readUInt32BE(position);
@@ -1012,13 +1013,30 @@ app.get("/api/arome/test-grib", async (req, res) => {
             };
         }
         
-            if (numero === 5) {
-                donnees = {
-                    nombre_valeurs: buffer.readUInt32BE(position + 5),
-                    modele_compression: buffer.readUInt16BE(position + 9),
-                    bits_par_valeur: buffer[position + 19]
-                };
-            }
+        if (numero === 5) {
+            donnees = {
+                nombre_valeurs: buffer.readUInt32BE(position + 5),
+                modele_compression: buffer.readUInt16BE(position + 9),
+        
+                valeur_reference:
+                    buffer.readFloatBE(position + 11),
+        
+                facteur_binaire:
+                    buffer.readInt16BE(position + 15),
+        
+                facteur_decimal:
+                    buffer.readInt16BE(position + 17),
+        
+                bits_par_valeur:
+                    buffer[position + 19]
+            };
+        }
+    
+        if (numero === 7) {
+    donneesBrutes = buffer
+        .subarray(position + 5, position + longueur)
+        .toString("hex");
+        }
         
             position += longueur;
         }
@@ -1048,7 +1066,8 @@ app.get("/api/arome/test-grib", async (req, res) => {
             sections,
             fin_grib: finGrib,
             grille,
-            donnees
+            donnees,
+            donneesBrutes
         });
 
     } catch (error) {
