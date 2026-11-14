@@ -542,7 +542,7 @@ async function chargerPrevisionsArome(lat, lon) {
                 ligneDirection += `
                     <td class="cellule-direction">
                         <span class="fleche-prevision"
-                              style="transform: rotate(${direction}deg)">
+                              style="transform: rotate(${direction + 180}deg)"
                             ↑
                         </span>
                         <br>
