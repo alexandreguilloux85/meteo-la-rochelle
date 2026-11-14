@@ -355,17 +355,19 @@ function couleurVent(vitesse) {
 // CHARGEMENT DES PREVISIONS AROME
 // --------------------------------------------------
 
+
 async function chargerPrevisionsArome(lat, lon) {
 
     const statut = document.getElementById("previsionsMiseAJour");
     const tableau = document.getElementById("tableauPrevisions");
+    const entete = document.getElementById("entetePrevisions");
 
     const numeroRequete = ++numeroRequetePrevisions;
 
     statut.textContent = "Calcul des prévisions AROME...";
 
     tableau.innerHTML = `
-        <tr><td colspan="3">Chargement des prévisions...</td></tr>
+        <tr><td colspan="2">Chargement des prévisions...</td></tr>
     `;
 
     try {
@@ -396,51 +398,176 @@ async function chargerPrevisionsArome(lat, lon) {
 
         const previsions = resultat.previsions;
 
-        tableau.innerHTML = previsions.map(p => {
+        // ------------------------------------------
+        // CONSTRUCTION DES EN-TETES JOUR ET HEURE
+        // ------------------------------------------
+
+        let groupesJours = [];
+
+        previsions.forEach((p, index) => {
 
             const date = new Date(p.date);
 
-            const dateTexte = date.toLocaleString("fr-FR", {
+            const jourCle = date.toLocaleDateString("fr-FR", {
                 timeZone: "Europe/Paris",
                 day: "2-digit",
                 month: "2-digit",
+                year: "numeric"
+            });
+
+            const heure = date.toLocaleTimeString("fr-FR", {
+                timeZone: "Europe/Paris",
                 hour: "2-digit",
                 minute: "2-digit"
             });
 
+            let dernierGroupe = groupesJours[groupesJours.length - 1];
+
+            if (!dernierGroupe || dernierGroupe.cle !== jourCle) {
+
+                const nomJour = date.toLocaleDateString("fr-FR", {
+                    timeZone: "Europe/Paris",
+                    weekday: "long",
+                    day: "2-digit"
+                });
+
+                groupesJours.push({
+                    cle: jourCle,
+                    nom: nomJour.charAt(0).toUpperCase()
+                        + nomJour.slice(1),
+                    heures: []
+                });
+
+                dernierGroupe = groupesJours[groupesJours.length - 1];
+            }
+
+            dernierGroupe.heures.push({
+                index: index,
+                heure: heure
+            });
+
+        });
+
+        // Première ligne : les jours
+        let ligneJours = `
+            <tr>
+                <th rowspan="2" class="colonne-parametre">
+                    Paramètre
+                </th>
+        `;
+
+        groupesJours.forEach(groupe => {
+
+            ligneJours += `
+                <th colspan="${groupe.heures.length}"
+                    class="jour-prevision">
+                    ${groupe.nom}
+                </th>
+            `;
+
+        });
+
+        ligneJours += `</tr>`;
+
+        // Deuxième ligne : les heures
+        let ligneHeures = `<tr>`;
+
+        groupesJours.forEach(groupe => {
+
+            groupe.heures.forEach(element => {
+
+                ligneHeures += `
+                    <th class="heure-prevision">
+                        ${element.heure}
+                    </th>
+                `;
+
+            });
+
+        });
+
+        ligneHeures += `</tr>`;
+
+        entete.innerHTML = ligneJours + ligneHeures;
+
+        // ------------------------------------------
+        // LIGNE VITESSE DU VENT
+        // ------------------------------------------
+
+        let ligneVent = `
+            <tr>
+                <td class="cellule-parametre">Vent (kt)</td>
+        `;
+
+        previsions.forEach(p => {
+
             const vitesseKt = Number(p.vitesse) * 1.94384;
 
             const vitesseTexte = Number.isFinite(vitesseKt)
-                ? vitesseKt.toFixed(1)
+                ? vitesseKt.toFixed(0)
                 : "--";
-
-            const direction = Number(p.direction);
-
-            const directionTexteValeur = Number.isFinite(direction)
-                ? direction.toFixed(0) + "° " + directionTexte(direction)
-                : "--";
-
-            const fleche = Number.isFinite(direction)
-                ? `<span class="fleche-prevision"
-                         style="transform: rotate(${direction}deg)">↑</span>`
-                : "";
 
             const couleur = Number.isFinite(vitesseKt)
                 ? couleurVent(vitesseKt)
-                : "transparent";
+                : "#dce3eb";
 
-            return `
-                <tr style="background-color: ${couleur}; color: #14283f;">
-                    <td>${dateTexte}</td>
-                    <td><strong>${vitesseTexte}</strong></td>
-                    <td>
-                        ${fleche}
-                        ${directionTexteValeur}
-                    </td>
-                </tr>
+            ligneVent += `
+                <td class="cellule-vent"
+                    style="background-color: ${couleur}">
+                    ${vitesseTexte}
+                </td>
             `;
 
-        }).join("");
+        });
+
+        ligneVent += `</tr>`;
+
+        // ------------------------------------------
+        // LIGNE DIRECTION DU VENT
+        // ------------------------------------------
+
+        let ligneDirection = `
+            <tr>
+                <td class="cellule-parametre">Direction</td>
+        `;
+
+        previsions.forEach(p => {
+
+            const direction = Number(p.direction);
+
+            if (Number.isFinite(direction)) {
+
+                const directionCardinale = directionTexte(direction);
+
+                ligneDirection += `
+                    <td class="cellule-direction">
+                        <span class="fleche-prevision"
+                              style="transform: rotate(${direction}deg)">
+                            ↑
+                        </span>
+                        <br>
+                        ${direction.toFixed(0)}°
+                        <br>
+                        ${directionCardinale}
+                    </td>
+                `;
+
+            } else {
+
+                ligneDirection += `<td class="cellule-direction">--</td>`;
+
+            }
+
+        });
+
+        ligneDirection += `</tr>`;
+
+        // Affichage du tableau
+        tableau.innerHTML = ligneVent + ligneDirection;
+
+        // ------------------------------------------
+        // INFORMATIONS DU MODELE
+        // ------------------------------------------
 
         const modele = resultat.modele
             ? String(resultat.modele)
@@ -461,13 +588,18 @@ async function chargerPrevisionsArome(lat, lon) {
 
         statut.textContent = "Prévisions indisponibles";
 
+        entete.innerHTML = `
+            <tr><th>Prévisions AROME</th></tr>
+        `;
+
         tableau.innerHTML = `
             <tr>
-                <td colspan="3">Erreur : ${erreur.message}</td>
+                <td colspan="2">Erreur : ${erreur.message}</td>
             </tr>
         `;
     }
 }
+
 
 // --------------------------------------------------
 // CHARGEMENT DE L'IMAGE RADAR
