@@ -800,6 +800,183 @@ app.get("/api/arome/description", async (req, res) => {
 
 
 // --------------------------------------------------
+// AROME - TEST TELECHARGEMENT GRIB AU POINT GPS
+// --------------------------------------------------
+
+app.get("/api/arome/test-grib", async (req, res) => {
+    try {
+        if (!AROME_API_KEY) {
+            return res.status(500).json({
+                succes: false,
+                erreur: "Variable METEO_AROME_API_KEY absente"
+            });
+        }
+
+        // Coordonnées par défaut : station La Rochelle
+        const lat = Number(req.query.lat ?? 46.178);
+        const lon = Number(req.query.lon ?? -1.193167);
+
+        if (
+            !Number.isFinite(lat) ||
+            !Number.isFinite(lon) ||
+            lat < 37.5 || lat > 55.4 ||
+            lon < -12 || lon > 16
+        ) {
+            return res.status(400).json({
+                succes: false,
+                erreur: "Coordonnées GPS invalides ou hors domaine AROME"
+            });
+        }
+
+        // Petite zone autour du point demandé
+        const marge = 0.02;
+
+        const latMin = (lat - marge).toFixed(5);
+        const latMax = (lat + marge).toFixed(5);
+        const lonMin = (lon - marge).toFixed(5);
+        const lonMax = (lon + marge).toFixed(5);
+
+        // Récupération du catalogue AROME
+        const urlCatalogue = new URL(
+            AROME_WCS_BASE + "/GetCapabilities"
+        );
+
+        urlCatalogue.searchParams.set("service", "WCS");
+        urlCatalogue.searchParams.set("version", "2.0.1");
+        urlCatalogue.searchParams.set("request", "GetCapabilities");
+
+        const reponseCatalogue = await fetch(urlCatalogue, {
+            headers: {
+                apikey: AROME_API_KEY,
+                accept: "application/xml, text/xml, */*"
+            }
+        });
+
+        if (!reponseCatalogue.ok) {
+            throw new Error(
+                "Erreur catalogue AROME : " + reponseCatalogue.status
+            );
+        }
+
+        const xmlCatalogue = await reponseCatalogue.text();
+
+        // Recherche des couvertures de vitesse du vent
+        const ids = [
+            ...xmlCatalogue.matchAll(
+                /<wcs:CoverageId>([\s\S]*?)<\/wcs:CoverageId>/g
+            )
+        ].map(m => m[1].trim());
+
+        const vents = ids.filter(id =>
+            id.startsWith(
+                "WIND_SPEED__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___"
+            )
+        );
+
+        if (vents.length === 0) {
+            throw new Error("Aucune couverture WIND_SPEED disponible");
+        }
+
+        // Sélection du dernier modèle disponible
+        const coverageId = vents[vents.length - 1];
+
+        // Téléchargement GRIB :
+        // +1 heure après le début du modèle
+        // hauteur 10 m
+        // petite zone autour du point GPS
+
+        const urlGrib = new URL(
+            AROME_WCS_BASE + "/GetCoverage"
+        );
+
+        urlGrib.searchParams.set("service", "WCS");
+        urlGrib.searchParams.set("version", "2.0.1");
+        urlGrib.searchParams.set("request", "GetCoverage");
+        urlGrib.searchParams.set("coverageId", coverageId);
+
+        urlGrib.searchParams.append("subset", "time(3600)");
+        urlGrib.searchParams.append("subset", "height(10)");
+        urlGrib.searchParams.append(
+            "subset",
+            `lat(${latMin},${latMax})`
+        );
+        urlGrib.searchParams.append(
+            "subset",
+            `long(${lonMin},${lonMax})`
+        );
+
+        urlGrib.searchParams.set(
+            "format",
+            "application/wmo-grib"
+        );
+
+        console.log("Téléchargement GRIB AROME :", urlGrib.toString());
+
+        const reponseGrib = await fetch(urlGrib, {
+            headers: {
+                apikey: AROME_API_KEY,
+                accept: "application/octet-stream"
+            }
+        });
+
+        const buffer = Buffer.from(
+            await reponseGrib.arrayBuffer()
+        );
+
+        const typeContenu =
+            reponseGrib.headers.get("content-type") || "";
+
+        // Si Météo-France renvoie une erreur XML
+        if (!reponseGrib.ok) {
+            return res.status(reponseGrib.status).json({
+                succes: false,
+                statut: reponseGrib.status,
+                type: typeContenu,
+                detail: buffer.toString("utf8").slice(0, 2000)
+            });
+        }
+
+        // Vérification de la signature GRIB
+        const signature = buffer
+            .subarray(0, 4)
+            .toString("ascii");
+
+        res.json({
+            succes: true,
+            coverageId,
+            coordonnees: {
+                latitude: lat,
+                longitude: lon
+            },
+            zone: {
+                latitude: [Number(latMin), Number(latMax)],
+                longitude: [Number(lonMin), Number(lonMax)]
+            },
+            echeance: "H+1",
+            hauteur: "10 m",
+            format: typeContenu,
+            signature,
+            taille_octets: buffer.length,
+            taille_Ko: (buffer.length / 1024).toFixed(2),
+            fichier_grib_valide: signature === "GRIB",
+            debut_fichier_hex: buffer
+                .subarray(0, 24)
+                .toString("hex")
+        });
+
+    } catch (error) {
+        console.error("Erreur test GRIB AROME :", error);
+
+        res.status(502).json({
+            succes: false,
+            erreur: error.message
+        });
+    }
+});
+
+
+
+// --------------------------------------------------
 // DEMARRAGE SERVEUR
 // --------------------------------------------------
 
