@@ -971,6 +971,38 @@ app.get("/api/arome/test-grib", async (req, res) => {
         const finGrib = buffer
             .subarray(buffer.length - 4)
             .toString("ascii");
+        
+        // Informations détaillées sur la grille GRIB2
+        let grille = null;
+        let donnees = null;
+        
+        let position = 16;
+        
+        while (position < buffer.length - 4) {
+            const longueur = buffer.readUInt32BE(position);
+            const numero = buffer[position + 4];
+        
+            if (numero === 3) {
+                grille = {
+                    nombre_points: buffer.readUInt32BE(position + 6),
+                    modele_grille: buffer.readUInt16BE(position + 12),
+                    Ni: buffer.readUInt32BE(position + 30),
+                    Nj: buffer.readUInt32BE(position + 34)
+                };
+            }
+        
+            if (numero === 5) {
+                donnees = {
+                    nombre_valeurs: buffer.readUInt32BE(position + 5),
+                    modele_compression: buffer.readUInt16BE(position + 9),
+                    bits_par_valeur: buffer[position + 19]
+                };
+            }
+        
+            position += longueur;
+        }
+
+        
         res.json({
             succes: true,
             coverageId,
