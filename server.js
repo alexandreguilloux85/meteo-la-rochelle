@@ -1025,7 +1025,9 @@ app.get("/api/arome/test-grib", async (req, res) => {
                 .subarray(0, 24)
                 .toString("hex"),
             sections,
-            fin_grib: finGrib
+            fin_grib: finGrib,
+            grille,
+            donnees
         });
 
     } catch (error) {
