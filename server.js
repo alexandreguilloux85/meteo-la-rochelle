@@ -804,7 +804,6 @@ app.get("/api/arome/description", async (req, res) => {
 // --------------------------------------------------
 
 
-
 app.get("/api/arome/test-grib", async (req, res) => {
     try {
         if (!AROME_API_KEY) {
@@ -830,7 +829,7 @@ app.get("/api/arome/test-grib", async (req, res) => {
         }
 
         // --------------------------------------------------
-        // DECODAGE D'UN FICHIER GRIB2 - PACKING SIMPLE 5.0
+        // DECODAGE GRIB2 - PACKING SIMPLE 5.0
         // --------------------------------------------------
 
         function decoderGrib(buffer) {
@@ -873,7 +872,6 @@ app.get("/api/arome/test-grib", async (req, res) => {
                 throw new Error("Section GRIB manquante");
             }
 
-            // Grille régulière latitude / longitude
             const grille = {
                 nombre_points: s3.readUInt32BE(6),
                 modele: s3.readUInt16BE(12),
@@ -905,7 +903,6 @@ app.get("/api/arome/test-grib", async (req, res) => {
                 );
             }
 
-            // Paramètres de compression GRIB - modèle 5.0
             const nombreValeurs = s5.readUInt32BE(5);
             const modeleCompression = s5.readUInt16BE(9);
 
@@ -934,17 +931,12 @@ app.get("/api/arome/test-grib", async (req, res) => {
 
             const bitsParValeur = s5[19];
 
-            // Vérification du bitmap
-            const indicateurBitmap = s6[5];
-
-            if (indicateurBitmap !== 255) {
+            if (s6[5] !== 255) {
                 throw new Error(
-                    "Bitmap GRIB non pris en charge : " +
-                    indicateurBitmap
+                    "Bitmap GRIB non pris en charge : " + s6[5]
                 );
             }
 
-            // Lecture des valeurs compactées dans la section 7
             const donneesBrutes = s7.subarray(5);
             const valeurs = [];
 
@@ -968,10 +960,7 @@ app.get("/api/arome/test-grib", async (req, res) => {
             for (let i = 0; i < nombreValeurs; i++) {
                 const entierCompacte = bitsParValeur === 0
                     ? 0
-                    : lireBits(
-                        i * bitsParValeur,
-                        bitsParValeur
-                    );
+                    : lireBits(i * bitsParValeur, bitsParValeur);
 
                 const valeur =
                     (
@@ -989,7 +978,6 @@ app.get("/api/arome/test-grib", async (req, res) => {
                 );
             }
 
-            // Association de chaque valeur à sa coordonnée GPS
             const points = [];
 
             for (let j = 0; j < grille.Nj; j++) {
@@ -1019,6 +1007,69 @@ app.get("/api/arome/test-grib", async (req, res) => {
                     facteur_binaire: facteurBinaire,
                     facteur_decimal: facteurDecimal,
                     bits_par_valeur: bitsParValeur
+                }
+            };
+        }
+
+        // --------------------------------------------------
+        // INTERPOLATION BILINEAIRE
+        // --------------------------------------------------
+
+        function interpolerGrille(grille, valeurs, lat, lon) {
+            const x =
+                (lon - grille.longitude_depart) /
+                grille.resolution_longitude;
+
+            const y =
+                (grille.latitude_depart - lat) /
+                grille.resolution_latitude;
+
+            if (
+                x < 0 || y < 0 ||
+                x > grille.Ni - 1 ||
+                y > grille.Nj - 1
+            ) {
+                throw new Error(
+                    "Le point GPS demandé est hors de la grille AROME"
+                );
+            }
+
+            // Indices des quatre points entourant la position
+            const i0 = Math.min(Math.floor(x), grille.Ni - 2);
+            const j0 = Math.min(Math.floor(y), grille.Nj - 2);
+
+            const i1 = i0 + 1;
+            const j1 = j0 + 1;
+
+            // Distances relatives dans la maille
+            const tx = x - i0;
+            const ty = y - j0;
+
+            function valeur(i, j) {
+                return valeurs[j * grille.Ni + i];
+            }
+
+            const v00 = valeur(i0, j0);
+            const v10 = valeur(i1, j0);
+            const v01 = valeur(i0, j1);
+            const v11 = valeur(i1, j1);
+
+            // Interpolation horizontale puis verticale
+            const haut = v00 * (1 - tx) + v10 * tx;
+            const bas = v01 * (1 - tx) + v11 * tx;
+
+            const resultat = haut * (1 - ty) + bas * ty;
+
+            return {
+                valeur: resultat,
+                indices: {
+                    i0, i1, j0, j1
+                },
+                poids: {
+                    haut_gauche: (1 - tx) * (1 - ty),
+                    haut_droite: tx * (1 - ty),
+                    bas_gauche: (1 - tx) * ty,
+                    bas_droite: tx * ty
                 }
             };
         }
@@ -1072,7 +1123,6 @@ app.get("/api/arome/test-grib", async (req, res) => {
             .filter(id => id.startsWith(prefixes.vitesse))
             .sort();
 
-        // Recherche du dernier modèle commun aux trois paramètres
         let modele = null;
         let coverageIds = null;
 
@@ -1175,7 +1225,10 @@ app.get("/api/arome/test-grib", async (req, res) => {
             coverageIds.V
         );
 
-        // Vérification de la cohérence des trois grilles
+        // --------------------------------------------------
+        // VERIFICATION DES GRILLES
+        // --------------------------------------------------
+
         function memeGrille(a, b) {
             return (
                 a.Ni === b.Ni &&
@@ -1185,6 +1238,12 @@ app.get("/api/arome/test-grib", async (req, res) => {
                 ) < 0.000001 &&
                 Math.abs(
                     a.longitude_depart - b.longitude_depart
+                ) < 0.000001 &&
+                Math.abs(
+                    a.resolution_latitude - b.resolution_latitude
+                ) < 0.000001 &&
+                Math.abs(
+                    a.resolution_longitude - b.resolution_longitude
                 ) < 0.000001
             );
         }
@@ -1199,22 +1258,60 @@ app.get("/api/arome/test-grib", async (req, res) => {
         }
 
         // --------------------------------------------------
-        // CALCUL DE LA VITESSE ET DE LA DIRECTION DU VENT
+        // INTERPOLATION AU POINT GPS DEMANDE
+        // --------------------------------------------------
+
+        const interpolationU = interpolerGrille(
+            gribU.grille,
+            gribU.valeurs,
+            lat,
+            lon
+        );
+
+        const interpolationV = interpolerGrille(
+            gribV.grille,
+            gribV.valeurs,
+            lat,
+            lon
+        );
+
+        const interpolationVitesse = interpolerGrille(
+            gribVitesse.grille,
+            gribVitesse.valeurs,
+            lat,
+            lon
+        );
+
+        const u = interpolationU.valeur;
+        const v = interpolationV.valeur;
+
+        const vitesseUV = Math.sqrt(u * u + v * v);
+
+        // Direction météorologique : direction d'où vient le vent
+        const direction =
+            (
+                Math.atan2(-u, -v) * 180 / Math.PI + 360
+            ) % 360;
+
+        // --------------------------------------------------
+        // POINTS DE GRILLE POUR VERIFICATION
         // --------------------------------------------------
 
         const points = [];
 
         for (let i = 0; i < gribVitesse.points.length; i++) {
-            const u = gribU.valeurs[i];
-            const v = gribV.valeurs[i];
+            const composanteU = gribU.valeurs[i];
+            const composanteV = gribV.valeurs[i];
 
-            // Vitesse calculée à partir des composantes U et V
-            const vitesseUV = Math.sqrt(u * u + v * v);
+            const vitesseUVPoint = Math.sqrt(
+                composanteU * composanteU +
+                composanteV * composanteV
+            );
 
-            // Direction météorologique : direction d'où vient le vent
-            const direction =
+            const directionPoint =
                 (
-                    Math.atan2(-u, -v) * 180 / Math.PI + 360
+                    Math.atan2(-composanteU, -composanteV) *
+                    180 / Math.PI + 360
                 ) % 360;
 
             points.push({
@@ -1226,13 +1323,13 @@ app.get("/api/arome/test-grib", async (req, res) => {
                 ),
 
                 vitesse_UV: Number(
-                    vitesseUV.toFixed(3)
+                    vitesseUVPoint.toFixed(3)
                 ),
 
-                composante_U: Number(u.toFixed(3)),
-                composante_V: Number(v.toFixed(3)),
+                composante_U: Number(composanteU.toFixed(3)),
+                composante_V: Number(composanteV.toFixed(3)),
 
-                direction: Number(direction.toFixed(1))
+                direction: Number(directionPoint.toFixed(1))
             });
         }
 
@@ -1251,6 +1348,25 @@ app.get("/api/arome/test-grib", async (req, res) => {
             modele,
             echeance: "H+1",
             hauteur: "10 m",
+
+            interpolation: {
+                methode: "bilineaire",
+
+                vitesse: Number(vitesseUV.toFixed(3)),
+                vitesse_arome: Number(
+                    interpolationVitesse.valeur.toFixed(3)
+                ),
+
+                composante_U: Number(u.toFixed(3)),
+                composante_V: Number(v.toFixed(3)),
+
+                direction: Number(direction.toFixed(1)),
+
+                quatre_points_utilises: {
+                    haut_gauche: interpolationU.indices,
+                    poids: interpolationU.poids
+                }
+            },
 
             grille: {
                 Ni: gribVitesse.grille.Ni,
@@ -1284,6 +1400,7 @@ app.get("/api/arome/test-grib", async (req, res) => {
         });
     }
 });
+
 
 
 
