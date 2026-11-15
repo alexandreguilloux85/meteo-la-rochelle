@@ -1219,7 +1219,7 @@ app.get("/api/arome/previsions", async (req, res) => {
         }
 
         await Promise.all(
-            Array.from({ length: 6 }, () => travailleur())
+            Array.from({ length: 2 }, () => travailleur())
         );
 
         // --------------------------------------------------
