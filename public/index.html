@@ -113,14 +113,42 @@
 
             <div id="carteRadar" style="height: 450px; width: 100%;"></div>
 
-            <div class="legende-radar">
-                <span>Précipitations :</span>
-                <span class="couleur-radar radar-faible"></span>
-                <span>Faibles</span>
-                <span class="couleur-radar radar-moyenne"></span>
-                <span>Modérées</span>
-                <span class="couleur-radar radar-forte"></span>
-                <span>Fortes</span>
+            <div class="legende-radar" aria-label="Légende des précipitations">
+                <span class="titre-legende-radar">
+                    Précipitations sur 5 min :
+                </span>
+
+                <div class="echelle-radar">
+                    <div class="niveau-radar">
+                        <span class="couleur-radar radar-tres-faible"></span>
+                        <span>&lt; 0,1 mm</span>
+                    </div>
+
+                    <div class="niveau-radar">
+                        <span class="couleur-radar radar-faible"></span>
+                        <span>0,1 à 0,5 mm</span>
+                    </div>
+
+                    <div class="niveau-radar">
+                        <span class="couleur-radar radar-moderee"></span>
+                        <span>0,5 à 1 mm</span>
+                    </div>
+
+                    <div class="niveau-radar">
+                        <span class="couleur-radar radar-soutenue"></span>
+                        <span>1 à 2 mm</span>
+                    </div>
+
+                    <div class="niveau-radar">
+                        <span class="couleur-radar radar-forte"></span>
+                        <span>2 à 5 mm</span>
+                    </div>
+
+                    <div class="niveau-radar">
+                        <span class="couleur-radar radar-tres-forte"></span>
+                        <span>≥ 5 mm</span>
+                    </div>
+                </div>
             </div>
 
         </section>
