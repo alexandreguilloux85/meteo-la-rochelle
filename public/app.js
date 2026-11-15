@@ -577,9 +577,9 @@ async function chargerPrevisionsArome(lat, lon) {
             previsions.length + " échéances · Modèle du " + modele;
 
         //console.log("Prévisions AROME chargées :", resultat);
-        console.log("Nombre de prévisions reçues :", resultat.previsions.length);
-        console.log("Première prévision :", resultat.previsions[0]);
-        console.log("Dernière prévision :", resultat.previsions[resultat.previsions.length - 1]);
+        console.log("Nombre de prévisions :", resultat.previsions.length);
+        console.log("Erreurs de téléchargement AROME :");
+        console.table(resultat.erreurs);
 
     } catch (erreur) {
 
