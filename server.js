@@ -1709,55 +1709,86 @@ app.get("/api/arome/test-grib", async (req, res) => {
         const lonMin = (lon - marge).toFixed(5);
         const lonMax = (lon + marge).toFixed(5);
 
-        async function telechargerGrib(coverageId) {
-            const url = new URL(
-                AROME_WCS_BASE + "/GetCoverage"
-            );
+        async function telechargerGrib(coverageId, echeance) {
 
-            url.searchParams.set("service", "WCS");
-            url.searchParams.set("version", "2.0.1");
-            url.searchParams.set("request", "GetCoverage");
-            url.searchParams.set("coverageId", coverageId);
+            let derniereErreur;
 
-            url.searchParams.append("subset", "time(3600)");
-            url.searchParams.append("subset", "height(10)");
+            for (let tentative = 1; tentative <= 3; tentative++) {
 
-            url.searchParams.append(
-                "subset",
-                `lat(${latMin},${latMax})`
-            );
+                try {
 
-            url.searchParams.append(
-                "subset",
-                `long(${lonMin},${lonMax})`
-            );
+                    const url = new URL(
+                        AROME_WCS_BASE + "/GetCoverage"
+                    );
 
-            url.searchParams.set(
-                "format",
-                "application/wmo-grib"
-            );
+                    url.searchParams.set("service", "WCS");
+                    url.searchParams.set("version", "2.0.1");
+                    url.searchParams.set("request", "GetCoverage");
+                    url.searchParams.set("coverageId", coverageId);
 
-            const reponse = await fetch(url, {
-                headers: {
-                    apikey: AROME_API_KEY,
-                    accept: "application/octet-stream"
+                    url.searchParams.append("subset", `time(${echeance})`);
+                    url.searchParams.append("subset", "height(10)");
+
+                    url.searchParams.append(
+                        "subset",
+                        `lat(${latMin},${latMax})`
+                    );
+
+                    url.searchParams.append(
+                        "subset",
+                        `long(${lonMin},${lonMax})`
+                    );
+
+                    url.searchParams.set("format", "application/wmo-grib");
+
+                    const reponse = await fetch(url, {
+                        headers: {
+                            apikey: AROME_API_KEY,
+                            accept: "application/octet-stream"
+                        },
+                        signal: AbortSignal.timeout(30000)
+                    });
+
+                    if (!reponse.ok) {
+
+                        const detail = await reponse.text();
+
+                        // Une échéance inexistante ne doit pas être retentée
+                        if (reponse.status === 404) {
+                            throw new Error(
+                                `GRIB H+${echeance / 3600} indisponible (404)`
+                            );
+                        }
+
+                        throw new Error(
+                            `Erreur GRIB H+${echeance / 3600} : ` +
+                            reponse.status + " " + detail.slice(0, 200)
+                        );
+                    }
+
+                    const buffer = Buffer.from(
+                        await reponse.arrayBuffer()
+                    );
+
+                    return decoderGrib(buffer);
+
+                } catch (error) {
+
+                    derniereErreur = error;
+
+                    if (error.message.includes("(404)")) {
+                        throw error;
+                    }
+
+                    if (tentative < 3) {
+                        await new Promise(resolve =>
+                            setTimeout(resolve, tentative * 1000)
+                        );
+                    }
                 }
-            });
-
-            const buffer = Buffer.from(
-                await reponse.arrayBuffer()
-            );
-
-            if (!reponse.ok) {
-                throw new Error(
-                    "Erreur téléchargement " +
-                    coverageId +
-                    " : " +
-                    buffer.toString("utf8").slice(0, 500)
-                );
             }
 
-            return decoderGrib(buffer);
+            throw derniereErreur;
         }
 
         const gribVitesse = await telechargerGrib(
