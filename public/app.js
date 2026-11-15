@@ -364,7 +364,7 @@ async function chargerPrevisionsArome(lat, lon) {
 
     const numeroRequete = ++numeroRequetePrevisions;
 
-    statut.textContent = "Calcul des prévisions AROME...";
+    statut.textContent = "Récupération des prévisions AROME...";
 
     tableau.innerHTML = `
         <tr><td colspan="2">Chargement des prévisions...</td></tr>
@@ -573,7 +573,12 @@ async function chargerPrevisionsArome(lat, lon) {
                 .replace("Z", " UTC")
             : "--";
 
+        const origine = resultat.cache === true
+            ? "Calcul depuis le cache"
+            : "Téléchargement de nouveaux GRIB";
+
         statut.textContent =
+            origine + " · " +
             previsions.length + " échéances · Modèle du " + modele;
 
         //console.log("Prévisions AROME chargées :", resultat);
