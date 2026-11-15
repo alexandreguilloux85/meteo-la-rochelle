@@ -105,6 +105,33 @@ main {
     color: #1677b8;
 }
 
+/* legende du radar */
+.legende-radar {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.couleur-radar {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.radar-faible {
+    background: #1e64dc;
+}
+
+.radar-moyenne {
+    background: #ffd000;
+}
+
+.radar-forte {
+    background: #dc1930;
+}
 /* BOUSSOLE */
 
 .carte-direction {

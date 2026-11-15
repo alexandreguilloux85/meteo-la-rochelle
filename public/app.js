@@ -584,7 +584,7 @@ async function chargerPrevisionsArome(lat, lon) {
         //console.log("Prévisions AROME chargées :", resultat);
         console.log("Nombre de prévisions :", resultat.previsions.length);
         console.log("Erreurs de téléchargement AROME :");
-        console.table(resultat.erreurs);
+        console.table(resultat.erreurs || []);
 
     } catch (erreur) {
 
@@ -1158,9 +1158,39 @@ async function chargerDonnees() {
 // DEMARRAGE
 // --------------------------------------------------
 
-initialiserCarteRadar();
+// --------------------------------------------------
+// DEMARRAGE
+// --------------------------------------------------
+async function demarrerApplication() {
+    try {
+        const reponse = await fetch(
+            "/api/keepalive?t=" + Date.now(),
+            {
+                cache: "no-store"
+            }
+        );
 
-chargerDonnees();
+        if (!reponse.ok) {
+            console.warn(
+                "Keepalive indisponible :",
+                reponse.status
+            );
+        }
+    } catch (erreur) {
+        console.warn(
+            "Erreur pendant la vérification du serveur :",
+            erreur.message
+        );
+    }
+
+    // Initialisation de la carte, du radar et des prévisions
+    initialiserCarteRadar();
+
+    // Chargement des observations
+    await chargerDonnees();
+}
+
+demarrerApplication();
 
 // Actualisation météo toutes les 6 minutes
 setInterval(chargerDonnees, 6 * 60 * 1000);

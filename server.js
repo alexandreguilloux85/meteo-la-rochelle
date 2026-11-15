@@ -857,15 +857,24 @@ async function sauvegarderCacheArome(cache) {
         JSON.stringify(cache)
     );
 
-    await fs.rename(fichierTemporaire, AROME_CACHE_FILE);
+    await fs.rename(
+        fichierTemporaire,
+        AROME_CACHE_FILE
+    );
 
     AROME_CACHE_ZONE = cache;
+
+    // Affichage de la taille du cache dans les logs Render
+    const informationsFichier = await fs.stat(AROME_CACHE_FILE);
+    const tailleMo = informationsFichier.size / 1024 / 1024;
 
     console.log(
         "Cache AROME sauvegardé :",
         cache.modele,
         cache.previsions.length,
-        "échéances"
+        "échéances",
+        tailleMo.toFixed(2),
+        "Mo"
     );
 }
 
