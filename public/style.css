@@ -350,6 +350,12 @@ tbody tr:hover {
 
 
 
+.table-previsions .cellule-rafale {
+    font-weight: bold;
+    border-top: 1px solid rgba(20, 40, 63, 0.12);
+    border-bottom: 1px solid rgba(20, 40, 63, 0.12);
+}
+
 /* PIED DE PAGE */
 
 footer {

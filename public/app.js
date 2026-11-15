@@ -523,6 +523,42 @@ async function chargerPrevisionsArome(lat, lon) {
         ligneVent += `</tr>`;
 
         // ------------------------------------------
+        // LIGNE RAFALES
+        // ------------------------------------------
+
+        let ligneRafales = `
+            <tr>
+                <td class="cellule-parametre">Rafales (kt)</td>
+        `;
+
+        previsions.forEach(p => {
+            const rafaleMs = p.rafale == null
+                ? NaN
+                : Number(p.rafale);
+
+            const rafaleKt = Number.isFinite(rafaleMs)
+                ? rafaleMs * 1.94384
+                : NaN;
+
+            const rafaleTexte = Number.isFinite(rafaleKt)
+                ? rafaleKt.toFixed(0)
+                : "--";
+
+            const couleur = Number.isFinite(rafaleKt)
+                ? couleurVent(rafaleKt)
+                : "#dce3eb";
+
+            ligneRafales += `
+                <td class="cellule-vent cellule-rafale"
+                    style="background-color: ${couleur}">
+                    ${rafaleTexte}
+                </td>
+            `;
+        });
+
+        ligneRafales += `</tr>`;
+
+        // ------------------------------------------
         // LIGNE DIRECTION DU VENT
         // ------------------------------------------
 
@@ -561,7 +597,7 @@ async function chargerPrevisionsArome(lat, lon) {
         ligneDirection += `</tr>`;
 
         // Affichage du tableau
-        tableau.innerHTML = ligneVent + ligneDirection;
+        tableau.innerHTML = ligneVent +ligneRafales + ligneDirection;
 
         // ------------------------------------------
         // INFORMATIONS DU MODELE

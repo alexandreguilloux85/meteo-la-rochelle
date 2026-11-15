@@ -924,6 +924,7 @@ app.get("/api/arome/previsions", async (req, res) => {
         let modele = null;
         let coverageU = null;
         let coverageV = null;
+        let coverageRafale = null;
         let erreurCatalogue = null;
 
         try {
@@ -963,6 +964,9 @@ app.get("/api/arome/previsions", async (req, res) => {
             const prefixV =
                 "V_COMPONENT_OF_WIND__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___";
 
+            const prefixRafale =
+                "WIND_SPEED_GUST__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___";
+
             const modelesU = ids
                 .filter(id => id.startsWith(prefixU))
                 .sort();
@@ -970,14 +974,23 @@ app.get("/api/arome/previsions", async (req, res) => {
             for (let i = modelesU.length - 1; i >= 0; i--) {
                 const suffixe = modelesU[i].slice(prefixU.length);
                 const idV = prefixV + suffixe;
+                const idRafale = prefixRafale + suffixe;
 
                 if (ids.includes(idV)) {
                     modele = suffixe;
                     coverageU = modelesU[i];
                     coverageV = idV;
+                    coverageRafale = ids.includes(idRafale)
+                        ? idRafale
+                        : null;
                     break;
                 }
             }
+            
+            console.log("AROME modèle :", modele);
+            console.log("AROME composante U :", coverageU);
+            console.log("AROME composante V :", coverageV);
+            console.log("AROME rafales :", coverageRafale);
 
             if (!modele) {
                 throw new Error(
@@ -1001,6 +1014,11 @@ app.get("/api/arome/previsions", async (req, res) => {
 
         const nouveauModele = !cache || cache.modele !== modele;
         const nouvelleZone = !pointDansZone;
+        const cacheSansRafales = Boolean(
+            coverageRafale &&
+            cache &&
+            !cache.previsions?.some(p => p.RAFALE)
+        );
 
         // Si le modèle change et que le point est dans l'ancienne
         // zone, on conserve le centre de cette zone.
@@ -1013,7 +1031,7 @@ app.get("/api/arome/previsions", async (req, res) => {
         }
 
         const telechargementNecessaire =
-            nouveauModele || nouvelleZone;
+            nouveauModele || nouvelleZone || cacheSansRafales;
 
         // --------------------------------------------------
         // SI LE CACHE EST VALIDE : INTERPOLATION DIRECTE
@@ -1097,6 +1115,17 @@ app.get("/api/arome/previsions", async (req, res) => {
 
                     const vitesse = Math.sqrt(u * u + v * v);
 
+                    let rafale = null;
+
+                    if (donnees.RAFALE) {
+                        rafale = interpoler(
+                            donnees.RAFALE.grille,
+                            donnees.RAFALE.valeurs,
+                            latitude,
+                            longitude
+                        );
+                    }
+
                     const direction = (
                         Math.atan2(-u, -v) * 180 / Math.PI + 360
                     ) % 360;
@@ -1109,6 +1138,9 @@ app.get("/api/arome/previsions", async (req, res) => {
                         echeance: "H+" + h,
                         date: dateValide.toISOString(),
                         vitesse: Number(vitesse.toFixed(2)),
+                        rafale: Number.isFinite(rafale)
+                            ? Number(rafale.toFixed(2))
+                            : null,
                         direction: Number(direction.toFixed(1)),
                         composante_U: Number(u.toFixed(3)),
                         composante_V: Number(v.toFixed(3))
@@ -1424,6 +1456,14 @@ app.get("/api/arome/previsions", async (req, res) => {
                 parametre: "V",
                 coverageId: coverageV
             });
+
+            if (coverageRafale) {
+                taches.push({
+                    seconde,
+                    parametre: "RAFALE",
+                    coverageId: coverageRafale
+                });
+            }
         }
 
         let indexTache = 0;
@@ -1449,7 +1489,8 @@ app.get("/api/arome/previsions", async (req, res) => {
                         donneesPrevisions.set(cle, {
                             seconde: cle,
                             U: null,
-                            V: null
+                            V: null,
+                            RAFALE: null
                         });
                     }
 
@@ -1501,6 +1542,29 @@ app.get("/api/arome/previsions", async (req, res) => {
                 });
 
                 continue;
+            }
+
+            if (donnees.RAFALE) {
+                const gRafale = donnees.RAFALE.grille;
+
+                if (
+                    gU.Ni !== gRafale.Ni ||
+                    gU.Nj !== gRafale.Nj ||
+                    Math.abs(
+                        gU.latitude_depart - gRafale.latitude_depart
+                    ) > 0.000001 ||
+                    Math.abs(
+                        gU.longitude_depart - gRafale.longitude_depart
+                    ) > 0.000001
+                ) {
+                    erreurs.push({
+                        echeance: "H+" + seconde / 3600,
+                        parametre: "RAFALE",
+                        erreur: "La grille de rafales diffère de la grille U/V"
+                    });
+
+                    donnees.RAFALE = null;
+                }
             }
 
             previsionsCache.push(donnees);
