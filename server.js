@@ -896,75 +896,8 @@ app.get("/api/arome/previsions", async (req, res) => {
                 erreur: "Coordonnées GPS invalides"
             });
         }
-
         // --------------------------------------------------
-        // RECUPERATION DU MODELE AROME
-        // --------------------------------------------------
-
-        const urlCatalogue = new URL(
-            AROME_WCS_BASE + "/GetCapabilities"
-        );
-
-        urlCatalogue.searchParams.set("service", "WCS");
-        urlCatalogue.searchParams.set("version", "2.0.1");
-        urlCatalogue.searchParams.set("request", "GetCapabilities");
-
-        const reponseCatalogue = await fetch(urlCatalogue, {
-            headers: {
-                apikey: AROME_API_KEY,
-                accept: "application/xml, text/xml, */*"
-            }
-        });
-
-        if (!reponseCatalogue.ok) {
-            throw new Error(
-                "Erreur catalogue AROME : " +
-                reponseCatalogue.status
-            );
-        }
-
-        const xmlCatalogue = await reponseCatalogue.text();
-
-        const ids = [
-            ...xmlCatalogue.matchAll(
-                /<wcs:CoverageId>([\s\S]*?)<\/wcs:CoverageId>/g
-            )
-        ].map(m => m[1].trim());
-
-        const prefixU =
-            "U_COMPONENT_OF_WIND__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___";
-
-        const prefixV =
-            "V_COMPONENT_OF_WIND__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___";
-
-        const modelesU = ids
-            .filter(id => id.startsWith(prefixU))
-            .sort();
-
-        let modele = null;
-        let coverageU = null;
-        let coverageV = null;
-
-        for (let i = modelesU.length - 1; i >= 0; i--) {
-            const suffixe = modelesU[i].slice(prefixU.length);
-            const idV = prefixV + suffixe;
-
-            if (ids.includes(idV)) {
-                modele = suffixe;
-                coverageU = modelesU[i];
-                coverageV = idV;
-                break;
-            }
-        }
-
-        if (!modele) {
-            throw new Error(
-                "Aucun modèle AROME commun aux composantes U et V"
-            );
-        }
-
-        // --------------------------------------------------
-        // CHARGEMENT DU CACHE
+        // CHARGEMENT DU CACHE AVANT TOUTE REQUETE API
         // --------------------------------------------------
 
         let cache = await chargerCacheArome();
@@ -974,6 +907,88 @@ app.get("/api/arome/previsions", async (req, res) => {
             lat <= cache.zone.latMax &&
             lon >= cache.zone.lonMin &&
             lon <= cache.zone.lonMax;
+
+        // --------------------------------------------------
+        // RECUPERATION DU MODELE AROME
+        // --------------------------------------------------
+
+        let modele = null;
+        let coverageU = null;
+        let coverageV = null;
+        let erreurCatalogue = null;
+
+        try {
+            const urlCatalogue = new URL(
+                AROME_WCS_BASE + "/GetCapabilities"
+            );
+
+            urlCatalogue.searchParams.set("service", "WCS");
+            urlCatalogue.searchParams.set("version", "2.0.1");
+            urlCatalogue.searchParams.set("request", "GetCapabilities");
+
+            const reponseCatalogue = await fetch(urlCatalogue, {
+                headers: {
+                    apikey: AROME_API_KEY,
+                    accept: "application/xml, text/xml, */*"
+                }
+            });
+
+            if (!reponseCatalogue.ok) {
+                throw new Error(
+                    "Erreur catalogue AROME : " +
+                    reponseCatalogue.status
+                );
+            }
+
+            const xmlCatalogue = await reponseCatalogue.text();
+
+            const ids = [
+                ...xmlCatalogue.matchAll(
+                    /<wcs:CoverageId>([\s\S]*?)<\/wcs:CoverageId>/g
+                )
+            ].map(m => m[1].trim());
+
+            const prefixU =
+                "U_COMPONENT_OF_WIND__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___";
+
+            const prefixV =
+                "V_COMPONENT_OF_WIND__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___";
+
+            const modelesU = ids
+                .filter(id => id.startsWith(prefixU))
+                .sort();
+
+            for (let i = modelesU.length - 1; i >= 0; i--) {
+                const suffixe = modelesU[i].slice(prefixU.length);
+                const idV = prefixV + suffixe;
+
+                if (ids.includes(idV)) {
+                    modele = suffixe;
+                    coverageU = modelesU[i];
+                    coverageV = idV;
+                    break;
+                }
+            }
+
+            if (!modele) {
+                throw new Error(
+                    "Aucun modèle AROME commun aux composantes U et V"
+                );
+            }
+
+        } catch (error) {
+            erreurCatalogue = error;
+
+            console.warn(
+                "AROME : catalogue indisponible, vérification du cache",
+                error.message
+            );
+        }
+
+
+        // --------------------------------------------------
+        // CHARGEMENT DU CACHE
+        // --------------------------------------------------
 
         const nouveauModele = !cache || cache.modele !== modele;
         const nouvelleZone = !pointDansZone;
@@ -1112,6 +1127,36 @@ app.get("/api/arome/previsions", async (req, res) => {
                 previsions,
                 erreurs: [...cache.erreurs, ...erreurs]
             };
+        }
+
+        // --------------------------------------------------
+        // SECOURS : UTILISATION DU CACHE SI LE CATALOGUE EST HS
+        // --------------------------------------------------
+
+        if (!modele) {
+
+            if (cache && pointDansZone) {
+
+                console.warn(
+                    "AROME : utilisation du cache malgré l'indisponibilité du catalogue"
+                );
+
+                const resultat = calculerPrevisions(
+                    cache,
+                    lat,
+                    lon
+                );
+
+                return res.json({
+                    ...resultat,
+                    cache: true,
+                    catalogue_indisponible: true
+                });
+            }
+
+            throw erreurCatalogue || new Error(
+                "Catalogue AROME indisponible et aucun cache utilisable pour ce point"
+            );
         }
 
         if (!telechargementNecessaire) {
