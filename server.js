@@ -1178,18 +1178,22 @@ app.get("/api/arome/previsions", async (req, res) => {
         // TELECHARGEMENT D'UNE NOUVELLE ZONE
         // --------------------------------------------------
 
-        // Zone de 15 x 15 km
-        const demiHauteur = 7.5 / 111.32;
-        const demiLargeur =
-            7.5 / (111.32 * Math.cos(centreLat * Math.PI / 180));
+        // Zone AROME de 15 x 15 km
+        const tailleZoneKm = 15;
+        const kmParDegre = 111.32;
+
+        const ecartLatitude = (tailleZoneKm / 2) / kmParDegre;
+
+        const ecartLongitude =
+            ecartLatitude / Math.cos(centreLat * Math.PI / 180);
 
         const zone = {
             centreLat,
             centreLon,
-            latMin: centreLat - demiHauteur,
-            latMax: centreLat + demiHauteur,
-            lonMin: centreLon - demiLargeur,
-            lonMax: centreLon + demiLargeur
+            latMin: centreLat - ecartLatitude,
+            latMax: centreLat + ecartLatitude,
+            lonMin: centreLon - ecartLongitude,
+            lonMax: centreLon + ecartLongitude
         };
 
         console.log(
