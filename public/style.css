@@ -279,11 +279,11 @@ tbody tr:hover {
 
 .fleche-prevision {
     display: inline-block;
-    font-size: 20px;
+    font-size: 21px;
     font-weight: bold;
-    margin-right: 7px;
-    vertical-align: middle;
     transform-origin: center;
+    margin-right: 3px;
+    vertical-align: middle;
 }
 
 
