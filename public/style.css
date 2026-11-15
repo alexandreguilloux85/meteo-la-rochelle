@@ -277,110 +277,49 @@ tbody tr:hover {
     background: #f5f9fc;
 }
 
-.fleche-prevision {
-    display: inline-block;
-    font-size: 21px;
-    font-weight: bold;
-    transform-origin: center;
-    margin-right: 3px;
-    vertical-align: middle;
-}
-
 
 /* --------------------------------------------------
    TABLEAU HORIZONTAL DES PREVISIONS AROME
 -------------------------------------------------- */
 
+/* Tableau horizontal AROME */
 .previsions-table-container {
+    display: block;
     width: 100%;
-    overflow-x: auto;
+    max-width: 100%;
+    overflow-x: auto !important;
     overflow-y: hidden;
-    border-radius: 6px;
+    -webkit-overflow-scrolling: touch;
 }
 
 .table-previsions {
-    border-collapse: separate;
-    border-spacing: 0;
     width: max-content;
     min-width: 100%;
-    font-size: 13px;
+    border-collapse: separate;
+    border-spacing: 0;
     white-space: nowrap;
 }
 
 .table-previsions th,
 .table-previsions td {
-    padding: 9px 7px;
     text-align: center;
-    border-bottom: 1px solid rgba(120, 140, 160, 0.2);
-    min-width: 52px;
-}
-
-.table-previsions thead th {
-    background: #172b3d;
-    color: white;
-    position: sticky;
-    z-index: 3;
-}
-
-.table-previsions thead tr:first-child th {
-    top: 0;
-}
-
-.table-previsions thead tr:nth-child(2) th {
-    top: 35px;
-}
-
-.table-previsions .colonne-parametre {
-    position: sticky;
-    left: 0;
-    z-index: 5;
-    min-width: 105px;
-    text-align: left;
-    background: #172b3d;
-}
-
-.table-previsions .cellule-parametre {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    min-width: 105px;
-    text-align: left;
-    font-weight: 600;
-    background: #20364d;
-    color: white;
-}
-
-.table-previsions .cellule-vent {
-    font-weight: 700;
-    color: #14283f;
+    padding: 9px 7px;
 }
 
 .table-previsions .cellule-direction {
     background: #e9eef4;
     color: #14283f;
+    transform: none !important;
 }
 
 .table-previsions .fleche-prevision {
     display: inline-block;
-    font-size: 21px;
+    font-size: 23px;
     font-weight: bold;
-    transform-origin: center;
-    margin-right: 3px;
+    line-height: 24px;
+    transform-origin: center center;
     vertical-align: middle;
 }
-
-.table-previsions .jour-prevision {
-    background: #203b57;
-    color: white;
-    font-weight: 700;
-}
-
-.table-previsions .heure-prevision {
-    background: #172b3d;
-    color: #cbd8e5;
-    font-weight: normal;
-}
-
 
 
 

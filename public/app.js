@@ -525,7 +525,7 @@ async function chargerPrevisionsArome(lat, lon) {
         // ------------------------------------------
         // LIGNE DIRECTION DU VENT
         // ------------------------------------------
-        
+
         let ligneDirection = `
             <tr>
                 <td class="cellule-parametre">Direction</td>
@@ -545,17 +545,15 @@ async function chargerPrevisionsArome(lat, lon) {
                             style="transform: rotate(${direction + 180}deg)">
                             ↑
                         </span>
-                        <br>
-                        ${direction.toFixed(0)}°
-                        <br>
-                        ${directionCardinale}
+                        <div>${direction.toFixed(0)}°</div>
+                        <div>${directionCardinale}</div>
                     </td>
                 `;
 
             } else {
-
-                ligneDirection += `<td class="cellule-direction">--</td>`;
-
+                ligneDirection += `
+                    <td class="cellule-direction">--</td>
+                `;
             }
 
         });
