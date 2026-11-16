@@ -1077,8 +1077,10 @@ app.get("/api/arome/previsions", async (req, res) => {
                 const detail = await reponse.text();
 
                 throw new Error(
-                    `Erreur GRIB H+${echeance / 3600} : ` +
-                    reponse.status + " " + detail.slice(0, 200)
+                    `Erreur GRIB ${coverageId} ` +
+                    `H+${echeance / 3600} : ` +
+                    reponse.status + " " +
+                    detail.slice(0, 500)
                 );
             }
 
@@ -1229,10 +1231,38 @@ app.get("/api/arome/previsions", async (req, res) => {
         }
 
         if (previsionsCache.length === 0) {
+            if (cache && pointDansZone) {
+                console.warn(
+                    "AROME : nouveau réseau indisponible, " +
+                    "utilisation de l'ancien cache",
+                    erreurs.slice(0, 3)
+                );
+        
+                const resultatSecours = calculerPrevisions(
+                    cache,
+                    lat,
+                    lon
+                );
+        
+                return res.json({
+                    ...resultatSecours,
+                    cache: true,
+                    ancien_modele: true,
+                    nouveau_modele_indisponible: modele,
+                    erreurs_telechargement: erreurs
+                });
+            }
+        
             throw new Error(
                 "Aucune prévision exploitable. " +
-                erreurs.slice(0, 3).map(e => e.erreur).join(" | ")
+                erreurs
+                    .slice(0, 3)
+                    .map(e =>
+                        `${e.parametre || "?"} ${e.echeance} : ${e.erreur}`
+                    )
+                    .join(" | ")
             );
+        }
         }
 
         // --------------------------------------------------
