@@ -280,26 +280,14 @@ function reconstruireRadarGraphique(
                 );
 
             const icone = L.divIcon({
-                className: "",
+                className: "radar-label",
                 html: `
-                        <div style="
-                            display:inline-block;
-                            background: rgba(15, 30, 45, 0.90);
-                            color: ${couleur};
-                            border: 1px solid ${couleur};
-                            border-radius: 4px;
-                            padding: 2px 6px;
-                            font-family: Arial, sans-serif;
-                            font-size: 10px;
-                            font-weight: bold;
-                            white-space: nowrap;
-                            box-shadow: 0 1px 5px rgba(0,0,0,0.4);
-                        ">
+                    <div class="radar-label-inner">
                         ${texte}
-                        </div>
-                        `,
-                iconSize: null,
-                iconAnchor: [-5, 11]
+                    </div>
+                `,
+                iconSize: [60, 20],
+                iconAnchor: [0, 10]
             });
 
             return L.marker(
