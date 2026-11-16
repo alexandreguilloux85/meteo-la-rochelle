@@ -147,7 +147,10 @@ function couleurRadar(pluie) {
 // GENERATION DE L'IMAGE RADAR
 // --------------------------------------------------
 
-async function genererImageRadar() {
+async function genererImageRadar(
+    centreLat = 46.178,
+    centreLon = -1.193167
+) {
     let fichierHdf;
     let fichierTemporaire;
 
@@ -216,7 +219,7 @@ async function genererImageRadar() {
         const centre = proj4(
             "EPSG:4326",
             projection,
-            [CENTRE_LON, CENTRE_LAT]
+            [centreLon, centreLat]
         );
 
         const centreX = centre[0];
@@ -421,24 +424,49 @@ app.get("/api/keepalive", (req, res) => {
 // --------------------------------------------------
 
 app.get("/api/radar/image", async (req, res) => {
-    try {
-        console.log("Génération de l'image radar...");
 
-        const resultat = await genererImageRadar();
+    const lat = Number(
+        req.query.lat ?? CENTRE_LAT
+    );
+
+    const lon = Number(
+        req.query.lon ?? CENTRE_LON
+    );
+
+    try {
+
+        console.log(
+            "Génération radar",
+            lat,
+            lon
+        );
+
+        const resultat =
+            await genererImageRadar(
+                lat,
+                lon
+            );
 
         res.set({
             "Content-Type": "image/png",
             "Cache-Control": "no-store",
             "X-Radar-Date": resultat.date || "",
-            "X-Radar-Bounds": JSON.stringify(resultat.bounds)
+            "X-Radar-Bounds":
+                JSON.stringify(
+                    resultat.bounds
+                )
         });
 
-        res.send(resultat.image);
-
-        console.log("Image radar générée :", resultat.date);
+        res.send(
+            resultat.image
+        );
 
     } catch (error) {
-        console.error("Erreur image radar :", error);
+
+        console.error(
+            "Erreur image radar :",
+            error
+        );
 
         res.status(502).json({
             succes: false,
@@ -467,7 +495,8 @@ const AROME_CACHE_FILE = path.join(__dirname, "arome-cache.json");
 let AROME_CACHE_ZONE = null;
 let AROME_CACHE_CHARGEMENT = null;
 let AROME_OPERATION_EN_COURS = false;
-
+let AROME_CATALOGUE_CACHE = null;
+let AROME_CATALOGUE_DATE = 0;
 // Chargement du cache depuis le disque Render
 async function chargerCacheArome() {
     if (AROME_CACHE_ZONE) return AROME_CACHE_ZONE;
@@ -535,6 +564,80 @@ async function sauvegarderCacheArome(cache) {
         "Mo"
     );
 }
+
+// -------------------------------------------------
+// Gestion de erreur
+// -------------------------------------------------
+async function obtenirCatalogueArome() {
+
+    const maintenant = Date.now();
+
+    if (
+        AROME_CATALOGUE_CACHE &&
+        maintenant - AROME_CATALOGUE_DATE <
+        6 * 3600 * 1000
+    ) {
+        return AROME_CATALOGUE_CACHE;
+    }
+
+    console.log(
+        "AROME : téléchargement catalogue"
+    );
+
+    const urlCatalogue =
+        new URL(
+            AROME_WCS_BASE +
+            "/GetCapabilities"
+        );
+
+    urlCatalogue.searchParams.set(
+        "service",
+        "WCS"
+    );
+
+    urlCatalogue.searchParams.set(
+        "version",
+        "2.0.1"
+    );
+
+    urlCatalogue.searchParams.set(
+        "request",
+        "GetCapabilities"
+    );
+
+    const reponseCatalogue =
+        await fetch(
+            urlCatalogue,
+            {
+                headers: {
+                    apikey:
+                        AROME_API_KEY,
+                    accept:
+                        "application/xml, text/xml, */*"
+                }
+            }
+        );
+
+    if (!reponseCatalogue.ok) {
+
+        throw new Error(
+            "Erreur catalogue AROME : "
+            + reponseCatalogue.status
+        );
+    }
+
+    const xmlCatalogue =
+        await reponseCatalogue.text();
+
+    AROME_CATALOGUE_CACHE =
+        xmlCatalogue;
+
+    AROME_CATALOGUE_DATE =
+        maintenant;
+
+    return xmlCatalogue;
+}
+
 
 // --------------------------------------------------
 // AROME - ROUTE DES PREVISIONS
@@ -608,7 +711,8 @@ app.get("/api/arome/previsions", async (req, res) => {
                 );
             }
 
-            const xmlCatalogue = await reponseCatalogue.text();
+            const xmlCatalogue =
+                await obtenirCatalogueArome();
 
             const ids = [
                 ...xmlCatalogue.matchAll(
@@ -852,7 +956,25 @@ app.get("/api/arome/previsions", async (req, res) => {
                     catalogue_indisponible: true
                 });
             }
+            if (cache) {
 
+                console.warn(
+                    "AROME : utilisation du cache existant"
+                );
+
+                const resultat =
+                    calculerPrevisions(
+                        cache,
+                        lat,
+                        lon
+                    );
+
+                return res.json({
+                    ...resultat,
+                    cache: true,
+                    catalogue_indisponible: true
+                });
+            }
             throw erreurCatalogue || new Error(
                 "Catalogue AROME indisponible et aucun cache utilisable pour ce point"
             );
