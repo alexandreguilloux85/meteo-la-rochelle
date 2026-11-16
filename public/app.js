@@ -78,8 +78,8 @@ function ajouterMasqueRadar(centreLat, centreLon, rayonRadar) {
 
     function actualiserMasque() {
 
-        if (masqueRadar) {
-            carteRadar.removeLayer(masqueRadar);
+        if (masqueRadarCourant) {
+            carteRadar.removeLayer(masqueRadarCourant);
         }
 
         const limites = carteRadar.getBounds();
