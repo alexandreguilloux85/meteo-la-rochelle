@@ -10,7 +10,13 @@ let graphiqueTemperature = null;
 let carteRadar = null;
 let coucheRadar = null;
 let urlImageRadar = null;
+let cercle5Nm = null;
+let cercle15Nm = null;
 
+let axeNordSud = null;
+let axeEstOuest = null;
+
+let masqueRadarCourant = null;
 // --------------------------------------------------
 // PREVISIONS AROME
 // --------------------------------------------------
@@ -69,7 +75,11 @@ function destinationGeographique(lat, lon, distance, azimut) {
 
 function ajouterMasqueRadar(centreLat, centreLon, rayonRadar) {
 
-    let masqueRadar = null;
+        if (masqueRadarCourant) {
+            carteRadar.removeLayer(
+                masqueRadarCourant
+            );
+        }
 
     function actualiserMasque() {
 
@@ -107,7 +117,7 @@ function ajouterMasqueRadar(centreLat, centreLon, rayonRadar) {
         }
 
         // Polygone avec un trou circulaire transparent
-        masqueRadar = L.polygon(
+        masqueRadarCourant = L.polygon(
             [rectangle, cercle],
             {
                 pane: "radarMaskPane",
@@ -171,31 +181,6 @@ function initialiserCarteRadar() {
         rayonRadar
     );
 
-    // --------------------------------------------------
-    // CERCLE 5 MILLES NAUTIQUES
-    // --------------------------------------------------
-
-    L.circle([centreLat, centreLon], {
-        radius: 5 * 1852,
-        color: couleurRadar,
-        weight: 2,
-        opacity: 0.9,
-        dashArray: "6, 6",
-        fill: false
-    }).addTo(carteRadar);
-
-    // --------------------------------------------------
-    // CERCLE 15 MILLES NAUTIQUES
-    // --------------------------------------------------
-
-    L.circle([centreLat, centreLon], {
-        radius: rayonRadar,
-        color: couleurRadar,
-        weight: 2,
-        opacity: 0.9,
-        dashArray: "6, 6",
-        fill: false
-    }).addTo(carteRadar);
 
     // --------------------------------------------------
     // ETIQUETTES DES DISTANCES
@@ -1327,18 +1312,29 @@ function reconstruireRadarGraphique(
     const couleurRadar = "#ff9999";
     const rayonRadar = 15 * 1852;
 
-    [
-        cercle5Nm,
-        cercle15Nm,
-        axeNordSud,
-        axeEstOuest,
-        etiquette5Nm,
-        etiquette15Nm
-    ].forEach(element => {
-        if (element) {
-            carteRadar.removeLayer(element);
-        }
-    });
+    if (cercle5Nm) {
+        carteRadar.removeLayer(
+            cercle5Nm
+        );
+    }
+
+    if (cercle15Nm) {
+        carteRadar.removeLayer(
+            cercle15Nm
+        );
+    }
+
+    if (axeNordSud) {
+        carteRadar.removeLayer(
+            axeNordSud
+        );
+    }
+
+    if (axeEstOuest) {
+        carteRadar.removeLayer(
+            axeEstOuest
+        );
+    }
 
     cercle5Nm = L.circle(
         [centreLat, centreLon],
@@ -1380,15 +1376,16 @@ function reconstruireRadarGraphique(
             180
         );
 
-    axeNordSud = L.polyline(
-        [nord, sud],
-        {
-            color: couleurRadar,
-            weight: 1.5,
-            opacity: 0.75,
-            dashArray: "5, 8"
-        }
-    ).addTo(carteRadar);
+    axeNordSud =
+        L.polyline(
+            [nord, sud],
+            {
+                color: couleurRadar,
+                weight: 1.5,
+                opacity: 0.75,
+                dashArray: "5, 8"
+            }
+        ).addTo(carteRadar);
 
     const est =
         destinationGeographique(
@@ -1406,15 +1403,16 @@ function reconstruireRadarGraphique(
             270
         );
 
-    axeEstOuest = L.polyline(
-        [est, ouest],
-        {
-            color: couleurRadar,
-            weight: 1.5,
-            opacity: 0.75,
-            dashArray: "5, 8"
-        }
-    ).addTo(carteRadar);
+    axeEstOuest =
+        L.polyline(
+            [est, ouest],
+            {
+                color: couleurRadar,
+                weight: 1.5,
+                opacity: 0.75,
+                dashArray: "5, 8"
+            }
+        ).addTo(carteRadar);
 
     ajouterMasqueRadar(
         centreLat,
