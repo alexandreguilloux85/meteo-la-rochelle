@@ -147,7 +147,10 @@ function couleurRadar(pluie) {
 // GENERATION DE L'IMAGE RADAR
 // --------------------------------------------------
 
-async function genererImageRadar() {
+async function genererImageRadar(
+    centreLat = 46.178,
+    centreLon = -1.193167
+) {
     let fichierHdf;
     let fichierTemporaire;
 
@@ -216,7 +219,7 @@ async function genererImageRadar() {
         const centre = proj4(
             "EPSG:4326",
             projection,
-            [CENTRE_LON, CENTRE_LAT]
+            [centreLon, centreLat]
         );
 
         const centreX = centre[0];
@@ -421,24 +424,49 @@ app.get("/api/keepalive", (req, res) => {
 // --------------------------------------------------
 
 app.get("/api/radar/image", async (req, res) => {
-    try {
-        console.log("Génération de l'image radar...");
 
-        const resultat = await genererImageRadar();
+    const lat = Number(
+        req.query.lat ?? CENTRE_LAT
+    );
+
+    const lon = Number(
+        req.query.lon ?? CENTRE_LON
+    );
+
+    try {
+
+        console.log(
+            "Génération radar",
+            lat,
+            lon
+        );
+
+        const resultat =
+            await genererImageRadar(
+                lat,
+                lon
+            );
 
         res.set({
             "Content-Type": "image/png",
             "Cache-Control": "no-store",
             "X-Radar-Date": resultat.date || "",
-            "X-Radar-Bounds": JSON.stringify(resultat.bounds)
+            "X-Radar-Bounds":
+                JSON.stringify(
+                    resultat.bounds
+                )
         });
 
-        res.send(resultat.image);
-
-        console.log("Image radar générée :", resultat.date);
+        res.send(
+            resultat.image
+        );
 
     } catch (error) {
-        console.error("Erreur image radar :", error);
+
+        console.error(
+            "Erreur image radar :",
+            error
+        );
 
         res.status(502).json({
             succes: false,
