@@ -18,10 +18,27 @@ let urlImageRadar = null;
 let marqueurPrevisions = null;
 let numeroRequetePrevisions = 0;
 
-const positionInitiale = {
+const positionParDefaut = {
     lat: 46.178,
     lon: -1.193167
 };
+
+let positionCourante =
+    JSON.parse(
+        localStorage.getItem("positionArome")
+    ) || positionParDefaut;
+
+let centreRadarActuel = {
+    lat: positionCourante.lat,
+    lon: positionCourante.lon
+};
+
+let cercle5Nm = null;
+let cercle15Nm = null;
+let axeNordSud = null;
+let axeEstOuest = null;
+let etiquette5Nm = null;
+let etiquette15Nm = null;
 
 function destinationGeographique(lat, lon, distance, azimut) {
 
@@ -117,8 +134,11 @@ function ajouterMasqueRadar(centreLat, centreLon, rayonRadar) {
 function initialiserCarteRadar() {
 
     const couleurRadar = "#ff9999";
-    const centreLat = 46.178;
-    const centreLon = -1.193167;
+    const centreLat =
+        positionCourante.lat;
+
+    const centreLon =
+        positionCourante.lon;
     const rayonRadar = 15 * 1852;
 
     carteRadar = L.map("carteRadar").setView(
@@ -264,7 +284,7 @@ function initialiserCarteRadar() {
     // --------------------------------------------------
 
     marqueurPrevisions = L.circleMarker(
-        [positionInitiale.lat, positionInitiale.lon],
+        [positionCourante.lat, positionCourante.lon],
         {
             radius: 7,
             color: "#ffffff",
@@ -283,20 +303,58 @@ function initialiserCarteRadar() {
     );
 
     // Clic sur la carte : déplacement du marqueur
-    carteRadar.on("click", function(e) {
+    carteRadar.on(
+        "click",
+        async function(e) {
 
-        const lat = e.latlng.lat;
-        const lon = e.latlng.lng;
+            const lat =
+                e.latlng.lat;
 
-        marqueurPrevisions.setLatLng([lat, lon]);
+            const lon =
+                e.latlng.lng;
 
-        chargerPrevisionsArome(lat, lon);
-    });
+            positionCourante = {
+                lat,
+                lon
+            };
+
+            localStorage.setItem(
+                "positionArome",
+                JSON.stringify(
+                    positionCourante
+                )
+            );
+
+            marqueurPrevisions.setLatLng(
+                [lat, lon]
+            );
+
+            await chargerPrevisionsArome(
+                lat,
+                lon
+            );
+
+            if (
+                !dansZoneRadar(
+                    lat,
+                    lon
+                )
+            ) {
+
+                reconstruireRadarGraphique(
+                    lat,
+                    lon
+                );
+
+                await chargerRadar();
+            }
+        }
+    );
 
     // Chargement initial des prévisions à La Rochelle
     chargerPrevisionsArome(
-        positionInitiale.lat,
-        positionInitiale.lon
+        positionCourante.lat,
+        positionCourante.lon
     );
 
     // Chargement radar
@@ -385,6 +443,11 @@ async function chargerPrevisionsArome(lat, lon) {
 
         const resultat = await reponse.json();
 
+        console.log(
+            "AROME JSON",
+            resultat
+        );
+
         if (!resultat.succes) {
             throw new Error("L'API AROME n'a pas pu calculer les prévisions");
         }
@@ -395,7 +458,14 @@ async function chargerPrevisionsArome(lat, lon) {
         }
 
         if (numeroRequete !== numeroRequetePrevisions) return;
+        if (!resultat.previsions) {
 
+            console.error(resultat);
+
+            throw new Error(
+                "Pas de tableau previsions"
+            );
+        }
         const previsions = resultat.previsions;
 
         // ------------------------------------------
@@ -656,7 +726,17 @@ async function chargerRadar() {
         statut.textContent = "Actualisation du radar...";
 
         const reponse = await fetch(
-            "/api/radar/image?t=" + Date.now()
+            "/api/radar/image?lat="
+                + encodeURIComponent(
+                    centreRadarActuel.lat
+                )
+                + "&lon="
+                + encodeURIComponent(
+                    centreRadarActuel.lon
+                )
+                + "&t="
+                + Date.now()
+
         );
 
         if (!reponse.ok) {
@@ -1190,9 +1270,159 @@ async function chargerDonnees() {
     }
 }
 
-// --------------------------------------------------
-// DEMARRAGE
-// --------------------------------------------------
+function distanceMetres(
+    lat1,
+    lon1,
+    lat2,
+    lon2
+) {
+    const R = 6371000;
+
+    const dLat =
+        (lat2 - lat1) *
+        Math.PI / 180;
+
+    const dLon =
+        (lon2 - lon1) *
+        Math.PI / 180;
+
+    const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1 * Math.PI / 180) *
+        Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) ** 2;
+
+    return (
+        2 *
+        R *
+        Math.atan2(
+            Math.sqrt(a),
+            Math.sqrt(1 - a)
+        )
+    );
+}
+
+function dansZoneRadar(lat, lon) {
+
+    const distance =
+        distanceMetres(
+            lat,
+            lon,
+            centreRadarActuel.lat,
+            centreRadarActuel.lon
+        );
+
+    return distance <= 25000;
+}
+function reconstruireRadarGraphique(
+    centreLat,
+    centreLon
+) {
+
+    centreRadarActuel = {
+        lat: centreLat,
+        lon: centreLon
+    };
+
+    const couleurRadar = "#ff9999";
+    const rayonRadar = 15 * 1852;
+
+    [
+        cercle5Nm,
+        cercle15Nm,
+        axeNordSud,
+        axeEstOuest,
+        etiquette5Nm,
+        etiquette15Nm
+    ].forEach(element => {
+        if (element) {
+            carteRadar.removeLayer(element);
+        }
+    });
+
+    cercle5Nm = L.circle(
+        [centreLat, centreLon],
+        {
+            radius: 5 * 1852,
+            color: couleurRadar,
+            weight: 2,
+            opacity: 0.9,
+            dashArray: "6, 6",
+            fill: false
+        }
+    ).addTo(carteRadar);
+
+    cercle15Nm = L.circle(
+        [centreLat, centreLon],
+        {
+            radius: rayonRadar,
+            color: couleurRadar,
+            weight: 2,
+            opacity: 0.9,
+            dashArray: "6, 6",
+            fill: false
+        }
+    ).addTo(carteRadar);
+
+    const nord =
+        destinationGeographique(
+            centreLat,
+            centreLon,
+            rayonRadar,
+            0
+        );
+
+    const sud =
+        destinationGeographique(
+            centreLat,
+            centreLon,
+            rayonRadar,
+            180
+        );
+
+    axeNordSud = L.polyline(
+        [nord, sud],
+        {
+            color: couleurRadar,
+            weight: 1.5,
+            opacity: 0.75,
+            dashArray: "5, 8"
+        }
+    ).addTo(carteRadar);
+
+    const est =
+        destinationGeographique(
+            centreLat,
+            centreLon,
+            rayonRadar,
+            90
+        );
+
+    const ouest =
+        destinationGeographique(
+            centreLat,
+            centreLon,
+            rayonRadar,
+            270
+        );
+
+    axeEstOuest = L.polyline(
+        [est, ouest],
+        {
+            color: couleurRadar,
+            weight: 1.5,
+            opacity: 0.75,
+            dashArray: "5, 8"
+        }
+    ).addTo(carteRadar);
+
+    ajouterMasqueRadar(
+        centreLat,
+        centreLon,
+        rayonRadar
+    );
+}
+
 
 // --------------------------------------------------
 // DEMARRAGE
