@@ -137,17 +137,23 @@ function reconstruireRadarGraphique(
     centreLat,
     centreLon
 ) {
-    if (etiquette5Nm) {
-        carteRadar.removeLayer(
-            etiquette5Nm
+    etiquette5Nm =
+        creerEtiquette(
+            centreLat,
+            centreLon,
+            5 * 1852,
+            "5 nm",
+            couleurRadar
         );
-    }
 
-    if (etiquette15Nm) {
-        carteRadar.removeLayer(
-            etiquette15Nm
+    etiquette15Nm =
+        creerEtiquette(
+            centreLat,
+            centreLon,
+            rayonRadar,
+            "15 nm",
+            couleurRadar
         );
-    }
     centreRadarActuel = {
         lat: centreLat,
         lon: centreLon
@@ -257,63 +263,41 @@ function reconstruireRadarGraphique(
                 dashArray: "5, 8"
             }
         ).addTo(carteRadar);
-    const position5 =
-        destinationGeographique(
+        function creerEtiquette(
             centreLat,
             centreLon,
-            5 * 1852,
-            0
-        );
+            distance,
+            texte,
+            couleur
+        ) {
 
-    etiquette5Nm =
-        L.marker(position5, {
-            icon: L.divIcon({
-                className: "",
+            const position =
+                destinationGeographique(
+                    centreLat,
+                    centreLon,
+                    distance,
+                    0
+                );
+
+            const icone = L.divIcon({
+                className: "radar-label",
                 html: `
-                    <div style="
-                        background: rgba(15,30,45,0.9);
-                        color:#ff9999;
-                        border:1px solid #ff9999;
-                        border-radius:4px;
-                        padding:2px 4px;
-                        font-size:10px;
-                        font-weight:bold;
-                    ">
-                        5 nm
+                    <div class="radar-label-inner">
+                        ${texte}
                     </div>
-                `
-            }),
-            interactive:false
-        }).addTo(carteRadar);
+                `,
+                iconSize: [60, 20],
+                iconAnchor: [0, 10]
+            });
 
-    const position15 =
-        destinationGeographique(
-            centreLat,
-            centreLon,
-            rayonRadar,
-            0
-        );
-
-    etiquette15Nm =
-        L.marker(position15,{
-            icon:L.divIcon({
-                className:"",
-                html:`
-                    <div style="
-                        background: rgba(15,30,45,0.9);
-                        color:#ff9999;
-                        border:1px solid #ff9999;
-                        border-radius:4px;
-                        padding:2px 4px;
-                        font-size:10px;
-                        font-weight:bold;
-                    ">
-                        15 nm
-                    </div>
-                `
-            }),
-            interactive:false
-        }).addTo(carteRadar);
+            return L.marker(
+                position,
+                {
+                    icon: icone,
+                    interactive: false
+                }
+            ).addTo(carteRadar);
+        }
     ajouterMasqueRadar(
         centreLat,
         centreLon,
