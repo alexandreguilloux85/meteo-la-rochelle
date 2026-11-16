@@ -12,7 +12,8 @@ let coucheRadar = null;
 let urlImageRadar = null;
 let cercle5Nm = null;
 let cercle15Nm = null;
-
+let etiquette5Nm = null;
+let etiquette15Nm = null;
 let axeNordSud = null;
 let axeEstOuest = null;
 
@@ -39,12 +40,6 @@ let centreRadarActuel = {
     lon: positionCourante.lon
 };
 
-let cercle5Nm = null;
-let cercle15Nm = null;
-let axeNordSud = null;
-let axeEstOuest = null;
-let etiquette5Nm = null;
-let etiquette15Nm = null;
 
 function destinationGeographique(lat, lon, distance, azimut) {
 
