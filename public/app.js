@@ -397,11 +397,6 @@ function initialiserCarteRadar() {
                 [lat, lon]
             );
 
-            await chargerPrevisionsArome(
-                lat,
-                lon
-            );
-
             if (
                 !dansZoneRadar(
                     lat,
@@ -416,6 +411,11 @@ function initialiserCarteRadar() {
 
                 await chargerRadar();
             }
+
+            await chargerPrevisionsArome(
+                lat,
+                lon
+            );
         }
     );
 
