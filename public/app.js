@@ -137,6 +137,10 @@ function reconstruireRadarGraphique(
     centreLat,
     centreLon
 ) {
+
+    const couleurRadar = "#ff9999";
+    const rayonRadar = 15 * 1852;
+
     etiquette5Nm =
         creerEtiquette(
             centreLat,
@@ -159,8 +163,6 @@ function reconstruireRadarGraphique(
         lon: centreLon
     };
 
-    const couleurRadar = "#ff9999";
-    const rayonRadar = 15 * 1852;
 
     if (cercle5Nm) {
         carteRadar.removeLayer(
