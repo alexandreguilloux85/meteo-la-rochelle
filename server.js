@@ -1263,7 +1263,6 @@ app.get("/api/arome/previsions", async (req, res) => {
                     .join(" | ")
             );
         }
-        }
 
         // --------------------------------------------------
         // ENREGISTREMENT DU NOUVEAU CACHE
