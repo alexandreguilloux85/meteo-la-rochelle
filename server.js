@@ -1075,11 +1075,11 @@ app.get("/api/arome/previsions", async (req, res) => {
 
             if (!reponse.ok) {
                 const detail = await reponse.text();
-
+            
                 throw new Error(
                     `Erreur GRIB ${coverageId} ` +
                     `H+${echeance / 3600} : ` +
-                    reponse.status + " " +
+                    `${reponse.status} ` +
                     detail.slice(0, 500)
                 );
             }
