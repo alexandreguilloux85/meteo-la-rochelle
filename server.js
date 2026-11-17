@@ -479,6 +479,7 @@ app.get("/api/radar/image", async (req, res) => {
 // AROME - TEST DU CATALOGUE WCS
 // --------------------------------------------------
 
+
 const AROME_API_KEY = process.env.METEO_AROME_API_KEY;
 const AROME_REFRESH_TOKEN = process.env.AROME_REFRESH_TOKEN;
 const AROME_CACHE_URL =
@@ -740,6 +741,7 @@ app.get("/api/arome/previsions", async (req, res) => {
 
         const lat = Number(req.query.lat ?? 46.178);
         const lon = Number(req.query.lon ?? -1.193167);
+        const forceIncompleteRefresh = req.query.refresh === "1";
 
         if (
             !Number.isFinite(lat) ||
@@ -845,6 +847,11 @@ app.get("/api/arome/previsions", async (req, res) => {
             cache &&
             !cache.previsions?.some(p => p.RAFALE)
         );
+        const echeancesMinimum = Math.ceil(51 * 0.8);
+        const cacheIncomplet =
+            !cache ||
+            !Array.isArray(cache.previsions) ||
+            cache.previsions.length < echeancesMinimum;
 
         // Si le modèle change et que le point est dans l'ancienne
         // zone, on conserve le centre de cette zone.
@@ -857,7 +864,10 @@ app.get("/api/arome/previsions", async (req, res) => {
         }
 
         const telechargementNecessaire =
-            nouveauModele || nouvelleZone || cacheSansRafales;
+            nouveauModele ||
+            nouvelleZone ||
+            cacheSansRafales ||
+            (forceIncompleteRefresh && cacheIncomplet);
 
         // --------------------------------------------------
         // SI LE CACHE EST VALIDE : INTERPOLATION DIRECTE
@@ -1416,12 +1426,22 @@ app.get("/api/arome/previsions", async (req, res) => {
             previsionsCache.push(donnees);
         }
 
-        if (previsionsCache.length === 0) {
+        if (previsionsCache.length < echeancesMinimum) {
+            const erreurCompleteness =
+                `Cache AROME incomplet : ${previsionsCache.length}/` +
+                `${echeances.length} échéances valides, ` +
+                `${echeancesMinimum} minimum requis`;
+
+            console.error(
+                "AROME :",
+                erreurCompleteness,
+                erreurs.slice(0, 3)
+            );
+
             if (cache && pointDansZone) {
                 console.warn(
-                    "AROME : nouveau réseau indisponible, " +
-                    "utilisation de l'ancien cache",
-                    erreurs.slice(0, 3)
+                    "AROME : conservation de l'ancien cache après " +
+                    "échec de validation du nouveau modèle"
                 );
         
                 const resultatSecours = calculerPrevisions(
@@ -1435,12 +1455,15 @@ app.get("/api/arome/previsions", async (req, res) => {
                     cache: true,
                     ancien_modele: true,
                     nouveau_modele_indisponible: modele,
+                    actualisation_incomplete: true,
+                    echeances_nouveau_modele: previsionsCache.length,
+                    echeances_minimum: echeancesMinimum,
                     erreurs_telechargement: erreurs
                 });
             }
         
             throw new Error(
-                "Aucune prévision exploitable. " +
+                erreurCompleteness + ". " +
                 erreurs
                     .slice(0, 3)
                     .map(e =>
@@ -1513,6 +1536,7 @@ app.post("/api/arome/cache/refresh", async (req, res) => {
         );
         url.searchParams.set("lat", "46.178");
         url.searchParams.set("lon", "-1.193167");
+        url.searchParams.set("refresh", "1");
 
         AROME_REFRESH_PROMISE = (async () => {
             try {
