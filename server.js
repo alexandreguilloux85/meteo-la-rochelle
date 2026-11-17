@@ -503,11 +503,13 @@ let AROME_CACHE_ZONE = null;
 let AROME_CACHE_CHARGEMENT = null;
 let AROME_OPERATION_EN_COURS = false;
 let AROME_REFRESH_PROMISE = null;
+let AROME_DERNIERE_VERIFICATION = 0;
 let AROME_REFRESH_STATE = {
     status: "idle",
     modele: null,
     erreur: null
 };
+let AROME_CACHE_SOURCE = null;
 let AROME_CATALOGUE_CACHE = null;
 let AROME_CATALOGUE_DATE = 0;
 
@@ -553,6 +555,7 @@ async function chargerCacheArome() {
         try {
             const contenu = await fs.readFile(AROME_CACHE_FILE, "utf8");
             AROME_CACHE_ZONE = JSON.parse(contenu);
+            AROME_CACHE_SOURCE = "Render";
 
             console.log(
                 "Cache AROME chargé :",
@@ -599,6 +602,7 @@ async function chargerCacheArome() {
                 }
 
                 AROME_CACHE_ZONE = cache;
+                AROME_CACHE_SOURCE = "GitHub Pages";
 
                 console.log(
                     "Cache AROME chargé depuis GitHub Pages :",
@@ -639,6 +643,7 @@ async function sauvegarderCacheArome(cache) {
     );
 
     AROME_CACHE_ZONE = cache;
+    AROME_CACHE_SOURCE = "Render";
 
     // Affichage de la taille du cache dans les logs Render
     const informationsFichier = await fs.stat(AROME_CACHE_FILE);
@@ -652,6 +657,202 @@ async function sauvegarderCacheArome(cache) {
         tailleMo.toFixed(2),
         "Mo"
     );
+}
+
+function calculerPrevisionsArome(cache, latitude, longitude) {
+    function interpoler(grille, valeurs, lat, lon) {
+        const x =
+            (lon - grille.longitude_depart) /
+            grille.resolution_longitude;
+
+        const y =
+            (grille.latitude_depart - lat) /
+            grille.resolution_latitude;
+
+        if (
+            x < 0 || y < 0 ||
+            x > grille.Ni - 1 ||
+            y > grille.Nj - 1
+        ) {
+            throw new Error("Point GPS hors de la grille AROME");
+        }
+
+        const i0 = Math.min(Math.floor(x), grille.Ni - 2);
+        const j0 = Math.min(Math.floor(y), grille.Nj - 2);
+        const tx = x - i0;
+        const ty = y - j0;
+
+        const v00 = valeurs[j0 * grille.Ni + i0];
+        const v10 = valeurs[j0 * grille.Ni + i0 + 1];
+        const v01 = valeurs[(j0 + 1) * grille.Ni + i0];
+        const v11 = valeurs[(j0 + 1) * grille.Ni + i0 + 1];
+
+        const haut = v00 * (1 - tx) + v10 * tx;
+        const bas = v01 * (1 - tx) + v11 * tx;
+
+        return haut * (1 - ty) + bas * ty;
+    }
+
+    const dateModele = cache.modele.replace(
+        /T(\d{2})\.(\d{2})\.(\d{2})Z$/,
+        "T$1:$2:$3Z"
+    );
+    const dateInitialisation = new Date(dateModele);
+
+    if (Number.isNaN(dateInitialisation.getTime())) {
+        throw new Error("Date du modèle AROME invalide");
+    }
+
+    const previsions = [];
+    const erreurs = [];
+
+    for (let h = 1; h <= 51; h++) {
+        const seconde = h * 3600;
+        const donnees = cache.previsions.find(p => p.seconde === seconde);
+
+        if (!donnees || !donnees.U || !donnees.V) {
+            continue;
+        }
+
+        try {
+            const u = interpoler(
+                donnees.U.grille,
+                donnees.U.valeurs,
+                latitude,
+                longitude
+            );
+            const v = interpoler(
+                donnees.V.grille,
+                donnees.V.valeurs,
+                latitude,
+                longitude
+            );
+            const vitesse = Math.sqrt(u * u + v * v);
+            let rafale = null;
+
+            if (donnees.RAFALE) {
+                rafale = interpoler(
+                    donnees.RAFALE.grille,
+                    donnees.RAFALE.valeurs,
+                    latitude,
+                    longitude
+                );
+            }
+
+            const direction = (
+                Math.atan2(-u, -v) * 180 / Math.PI + 360
+            ) % 360;
+            const dateValide = new Date(
+                dateInitialisation.getTime() + seconde * 1000
+            );
+
+            previsions.push({
+                echeance: "H+" + h,
+                date: dateValide.toISOString(),
+                vitesse: Number(vitesse.toFixed(2)),
+                rafale: Number.isFinite(rafale)
+                    ? Number(rafale.toFixed(2))
+                    : null,
+                direction: Number(direction.toFixed(1)),
+                composante_U: Number(u.toFixed(3)),
+                composante_V: Number(v.toFixed(3))
+            });
+        } catch (error) {
+            erreurs.push({
+                echeance: "H+" + h,
+                erreur: error.message
+            });
+        }
+    }
+
+    const erreursCache = Array.isArray(cache.erreurs)
+        ? cache.erreurs
+        : [];
+
+    return {
+        succes: true,
+        coordonnees: {
+            latitude,
+            longitude
+        },
+        modele: cache.modele,
+        hauteur: "10 m",
+        nombre_echeances: previsions.length,
+        nombre_erreurs: erreursCache.length + erreurs.length,
+        methode: "Interpolation bilinéaire des composantes U/V",
+        previsions,
+        erreurs: [...erreursCache, ...erreurs]
+    };
+}
+
+function demarrerActualisationArome(lat, lon) {
+    if (AROME_REFRESH_PROMISE) return;
+
+    AROME_REFRESH_STATE = {
+        status: "running",
+        modele: null,
+        erreur: null
+    };
+
+    const url = new URL(
+        "/api/arome/previsions",
+        `http://127.0.0.1:${PORT}`
+    );
+    url.searchParams.set("lat", String(lat));
+    url.searchParams.set("lon", String(lon));
+    url.searchParams.set("refresh", "1");
+
+    AROME_REFRESH_PROMISE = (async () => {
+        try {
+            const reponse = await fetch(url);
+            const resultat = await reponse.json();
+
+            if (
+                !reponse.ok ||
+                !resultat.succes ||
+                !resultat.modele ||
+                resultat.catalogue_indisponible ||
+                resultat.ancien_modele
+            ) {
+                throw new Error(
+                    resultat.erreur ||
+                    "Echec de la vérification du catalogue AROME"
+                );
+            }
+
+            AROME_REFRESH_STATE = {
+                status: "complete",
+                modele: resultat.modele,
+                erreur: null
+            };
+        } catch (error) {
+            console.error("Erreur actualisation AROME en arrière-plan :", error);
+
+            AROME_REFRESH_STATE = {
+                status: "failed",
+                modele: null,
+                erreur: error.message
+            };
+        } finally {
+            AROME_REFRESH_PROMISE = null;
+        }
+    })();
+}
+
+function verifierAromeEnArrierePlan(lat, lon) {
+    const maintenant = Date.now();
+    const intervalleVerification = 15 * 60 * 1000;
+
+    if (
+        AROME_REFRESH_PROMISE ||
+        maintenant - AROME_DERNIERE_VERIFICATION < intervalleVerification
+    ) {
+        return false;
+    }
+
+    AROME_DERNIERE_VERIFICATION = maintenant;
+    demarrerActualisationArome(lat, lon);
+    return true;
 }
 
 // -------------------------------------------------
@@ -733,14 +934,9 @@ async function obtenirCatalogueArome() {
 // --------------------------------------------------
 
 app.get("/api/arome/previsions", async (req, res) => {
-    try {
-        if (!AROME_API_KEY) {
-            return res.status(500).json({
-                succes: false,
-                erreur: "Variable METEO_AROME_API_KEY absente dans Render"
-            });
-        }
+    res.set("Cache-Control", "no-store");
 
+    try {
         const lat = Number(req.query.lat ?? 46.178);
         const lon = Number(req.query.lon ?? -1.193167);
         const forceIncompleteRefresh = req.query.refresh === "1";
@@ -767,6 +963,55 @@ app.get("/api/arome/previsions", async (req, res) => {
             lat <= cache.zone.latMax &&
             lon >= cache.zone.lonMin &&
             lon <= cache.zone.lonMax;
+
+        if (
+            !forceIncompleteRefresh &&
+            cache &&
+            pointDansZone &&
+            Array.isArray(cache.previsions) &&
+            cache.previsions.length > 0
+        ) {
+            const resultat = calculerPrevisionsArome(cache, lat, lon);
+
+            if (resultat.previsions.length > 0) {
+                const verificationEnArrierePlan =
+                    verifierAromeEnArrierePlan(
+                        cache.zone.centreLat,
+                        cache.zone.centreLon
+                    );
+
+                console.log(
+                    "AROME : réponse immédiate depuis le cache",
+                    AROME_CACHE_SOURCE,
+                    "vérification en arrière-plan :",
+                    verificationEnArrierePlan ||
+                    Boolean(AROME_REFRESH_PROMISE)
+                );
+
+                return res.json({
+                    ...resultat,
+                    cache: true,
+                    origine_cache: AROME_CACHE_SOURCE || "Render",
+                    verification_en_arriere_plan:
+                        verificationEnArrierePlan ||
+                        Boolean(AROME_REFRESH_PROMISE),
+                    actualisation_en_cours:
+                        Boolean(AROME_REFRESH_PROMISE),
+                    actualisation_statut: AROME_REFRESH_STATE.status,
+                    erreur_actualisation:
+                        AROME_REFRESH_STATE.status === "failed"
+                            ? AROME_REFRESH_STATE.erreur
+                            : null
+                });
+            }
+        }
+
+        if (!AROME_API_KEY) {
+            return res.status(500).json({
+                succes: false,
+                erreur: "Variable METEO_AROME_API_KEY absente dans Render"
+            });
+        }
 
         // --------------------------------------------------
         // RECUPERATION DU MODELE AROME
@@ -873,143 +1118,6 @@ app.get("/api/arome/previsions", async (req, res) => {
             (forceIncompleteRefresh && cacheIncomplet);
 
         // --------------------------------------------------
-        // SI LE CACHE EST VALIDE : INTERPOLATION DIRECTE
-        // --------------------------------------------------
-
-        function interpoler(grille, valeurs, latitude, longitude) {
-            const x =
-                (longitude - grille.longitude_depart) /
-                grille.resolution_longitude;
-
-            const y =
-                (grille.latitude_depart - latitude) /
-                grille.resolution_latitude;
-
-            if (
-                x < 0 || y < 0 ||
-                x > grille.Ni - 1 ||
-                y > grille.Nj - 1
-            ) {
-                throw new Error(
-                    "Point GPS hors de la grille AROME"
-                );
-            }
-
-            const i0 = Math.min(Math.floor(x), grille.Ni - 2);
-            const j0 = Math.min(Math.floor(y), grille.Nj - 2);
-
-            const tx = x - i0;
-            const ty = y - j0;
-
-            const v00 = valeurs[j0 * grille.Ni + i0];
-            const v10 = valeurs[j0 * grille.Ni + i0 + 1];
-            const v01 = valeurs[(j0 + 1) * grille.Ni + i0];
-            const v11 = valeurs[(j0 + 1) * grille.Ni + i0 + 1];
-
-            const haut = v00 * (1 - tx) + v10 * tx;
-            const bas = v01 * (1 - tx) + v11 * tx;
-
-            return haut * (1 - ty) + bas * ty;
-        }
-
-        function calculerPrevisions(cache, latitude, longitude) {
-            const dateModele = cache.modele.replace(
-                /T(\d{2})\.(\d{2})\.(\d{2})Z$/,
-                "T$1:$2:$3Z"
-            );
-
-            const dateInitialisation = new Date(dateModele);
-
-            if (Number.isNaN(dateInitialisation.getTime())) {
-                throw new Error("Date du modèle AROME invalide");
-            }
-
-            const previsions = [];
-            const erreurs = [];
-
-            for (let h = 1; h <= 51; h++) {
-                const seconde = h * 3600;
-                const donnees = cache.previsions.find(
-                    p => p.seconde === seconde
-                );
-
-                if (!donnees || !donnees.U || !donnees.V) {
-                    continue;
-                }
-
-                try {
-                    const u = interpoler(
-                        donnees.U.grille,
-                        donnees.U.valeurs,
-                        latitude,
-                        longitude
-                    );
-
-                    const v = interpoler(
-                        donnees.V.grille,
-                        donnees.V.valeurs,
-                        latitude,
-                        longitude
-                    );
-
-                    const vitesse = Math.sqrt(u * u + v * v);
-
-                    let rafale = null;
-
-                    if (donnees.RAFALE) {
-                        rafale = interpoler(
-                            donnees.RAFALE.grille,
-                            donnees.RAFALE.valeurs,
-                            latitude,
-                            longitude
-                        );
-                    }
-
-                    const direction = (
-                        Math.atan2(-u, -v) * 180 / Math.PI + 360
-                    ) % 360;
-
-                    const dateValide = new Date(
-                        dateInitialisation.getTime() + seconde * 1000
-                    );
-
-                    previsions.push({
-                        echeance: "H+" + h,
-                        date: dateValide.toISOString(),
-                        vitesse: Number(vitesse.toFixed(2)),
-                        rafale: Number.isFinite(rafale)
-                            ? Number(rafale.toFixed(2))
-                            : null,
-                        direction: Number(direction.toFixed(1)),
-                        composante_U: Number(u.toFixed(3)),
-                        composante_V: Number(v.toFixed(3))
-                    });
-
-                } catch (error) {
-                    erreurs.push({
-                        echeance: "H+" + h,
-                        erreur: error.message
-                    });
-                }
-            }
-
-            return {
-                succes: true,
-                coordonnees: {
-                    latitude,
-                    longitude
-                },
-                modele: cache.modele,
-                hauteur: "10 m",
-                nombre_echeances: previsions.length,
-                nombre_erreurs: cache.erreurs.length + erreurs.length,
-                methode: "Interpolation bilinéaire des composantes U/V",
-                previsions,
-                erreurs: [...cache.erreurs, ...erreurs]
-            };
-        }
-
-        // --------------------------------------------------
         // SECOURS : UTILISATION DU CACHE SI LE CATALOGUE EST HS
         // --------------------------------------------------
 
@@ -1021,7 +1129,7 @@ app.get("/api/arome/previsions", async (req, res) => {
                     "AROME : utilisation du cache malgré l'indisponibilité du catalogue"
                 );
 
-                const resultat = calculerPrevisions(
+                const resultat = calculerPrevisionsArome(
                     cache,
                     lat,
                     lon
@@ -1030,7 +1138,8 @@ app.get("/api/arome/previsions", async (req, res) => {
                 return res.json({
                     ...resultat,
                     cache: true,
-                    catalogue_indisponible: true
+                    catalogue_indisponible: true,
+                    origine_cache: AROME_CACHE_SOURCE || "Render"
                 });
             }
             if (cache) {
@@ -1040,7 +1149,7 @@ app.get("/api/arome/previsions", async (req, res) => {
                 );
 
                 const resultat =
-                    calculerPrevisions(
+                    calculerPrevisionsArome(
                         cache,
                         lat,
                         lon
@@ -1049,7 +1158,8 @@ app.get("/api/arome/previsions", async (req, res) => {
                 return res.json({
                     ...resultat,
                     cache: true,
-                    catalogue_indisponible: true
+                    catalogue_indisponible: true,
+                    origine_cache: AROME_CACHE_SOURCE || "Render"
                 });
             }
             throw erreurCatalogue || new Error(
@@ -1058,7 +1168,7 @@ app.get("/api/arome/previsions", async (req, res) => {
         }
 
         if (!telechargementNecessaire) {
-            const resultat = calculerPrevisions(cache, lat, lon);
+            const resultat = calculerPrevisionsArome(cache, lat, lon);
 
             console.log(
                 "AROME : utilisation du cache spatial",
@@ -1068,7 +1178,8 @@ app.get("/api/arome/previsions", async (req, res) => {
 
             return res.json({
                 ...resultat,
-                cache: true
+                cache: true,
+                origine_cache: AROME_CACHE_SOURCE || "Render"
             });
         }
 
@@ -1481,7 +1592,7 @@ app.get("/api/arome/previsions", async (req, res) => {
                     "échec de validation du nouveau modèle"
                 );
         
-                const resultatSecours = calculerPrevisions(
+                const resultatSecours = calculerPrevisionsArome(
                     cache,
                     lat,
                     lon
@@ -1495,7 +1606,8 @@ app.get("/api/arome/previsions", async (req, res) => {
                     actualisation_incomplete: true,
                     echeances_nouveau_modele: previsionsCache.length,
                     echeances_minimum: echeancesMinimum,
-                    erreurs_telechargement: erreurs
+                    erreurs_telechargement: erreurs,
+                    origine_cache: AROME_CACHE_SOURCE || "Render"
                 });
             }
         
@@ -1528,7 +1640,7 @@ app.get("/api/arome/previsions", async (req, res) => {
         // CALCUL POUR LE POINT DEMANDE
         // --------------------------------------------------
 
-        const resultat = calculerPrevisions(
+        const resultat = calculerPrevisionsArome(
             nouveauCache,
             lat,
             lon
@@ -1564,51 +1676,7 @@ app.get("/api/arome/previsions", async (req, res) => {
 app.post("/api/arome/cache/refresh", async (req, res) => {
     if (!verifierJetonActualisation(req, res)) return;
 
-    if (!AROME_REFRESH_PROMISE) {
-        AROME_REFRESH_STATE = {
-            status: "running",
-            modele: null,
-            erreur: null
-        };
-
-        const url = new URL(
-            "/api/arome/previsions",
-            `http://127.0.0.1:${PORT}`
-        );
-        url.searchParams.set("lat", "46.178");
-        url.searchParams.set("lon", "-1.193167");
-        url.searchParams.set("refresh", "1");
-
-        AROME_REFRESH_PROMISE = (async () => {
-            try {
-                const reponse = await fetch(url);
-                const resultat = await reponse.json();
-
-                if (!reponse.ok || !resultat.succes || !resultat.modele) {
-                    throw new Error(
-                        resultat.erreur ||
-                        "Echec de l'actualisation du cache AROME"
-                    );
-                }
-
-                AROME_REFRESH_STATE = {
-                    status: "complete",
-                    modele: resultat.modele,
-                    erreur: null
-                };
-            } catch (error) {
-                console.error("Erreur actualisation planifiée AROME :", error);
-
-                AROME_REFRESH_STATE = {
-                    status: "failed",
-                    modele: null,
-                    erreur: error.message
-                };
-            } finally {
-                AROME_REFRESH_PROMISE = null;
-            }
-        })();
-    }
+    demarrerActualisationArome(46.178, -1.193167);
 
     return res.status(202).json(AROME_REFRESH_STATE);
 });

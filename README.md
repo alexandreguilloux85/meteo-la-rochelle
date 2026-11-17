@@ -9,6 +9,10 @@ This application uses Render for its API and data processing:
 - GitHub Pages hosts a persistent JSON copy of the scheduled AROME cache. After
   a Render restart, Render can reload the cache instead of downloading the
   same model again.
+- When a requested point is inside the cached area, Render serves those
+  forecasts immediately and checks the AROME catalogue in the background.
+  The forecast status identifies whether that response came from GitHub Pages
+  or Render's cache.
 
 GitHub Pages is static hosting; it does not fetch or update forecasts itself.
 GitHub Actions runs the schedule, asks Render to update the cache, and
@@ -50,6 +54,13 @@ empty or invalid cache.
 5. GitHub Actions deploys `arome-cache.json` to GitHub Pages.
 6. On startup, Render first tries its local cache file. If it is absent, Render
    downloads and validates the JSON from Pages.
+
+For locations inside the cached area, the normal forecast endpoint returns
+the cached predictions without waiting for a catalogue check. It starts at most
+one background refresh/check every fifteen minutes. The status below the
+forecast table reports the cache source and whether a background check is
+running. A cold Render instance with no local cache must first download the
+published Pages cache before it can return cached predictions.
 
 The cache includes the model identifier, forecast zone, forecast grid values,
 and any download errors. The published file is publicly readable. It does not
