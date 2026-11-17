@@ -1,0 +1,121 @@
+name: Publish AROME cache
+
+on:
+  schedule:
+    - cron: "15 0,3,6,9,12,15,18,21 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  refresh-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Validate Render configuration
+        env:
+          RENDER_BASE_URL: ${{ vars.RENDER_BASE_URL }}
+          RENDER_REFRESH_TOKEN: ${{ secrets.RENDER_REFRESH_TOKEN }}
+        run: |
+          if [ -z "$RENDER_BASE_URL" ] || [ -z "$RENDER_REFRESH_TOKEN" ]; then
+            echo "Configure the RENDER_BASE_URL variable and RENDER_REFRESH_TOKEN secret."
+            exit 1
+          fi
+
+      - name: Start the scheduled AROME refresh
+        env:
+          RENDER_BASE_URL: ${{ vars.RENDER_BASE_URL }}
+          RENDER_REFRESH_TOKEN: ${{ secrets.RENDER_REFRESH_TOKEN }}
+        run: |
+          base_url="${RENDER_BASE_URL%/}"
+          curl --fail --silent --show-error --retry 3 --retry-all-errors \
+            --max-time 120 \
+            --request POST \
+            --header "Authorization: Bearer $RENDER_REFRESH_TOKEN" \
+            "$base_url/api/arome/cache/refresh"
+
+      - name: Wait for the scheduled AROME refresh
+        env:
+          RENDER_BASE_URL: ${{ vars.RENDER_BASE_URL }}
+          RENDER_REFRESH_TOKEN: ${{ secrets.RENDER_REFRESH_TOKEN }}
+        run: |
+          base_url="${RENDER_BASE_URL%/}"
+          for attempt in $(seq 1 340); do
+            curl --fail --silent --show-error --retry 2 --retry-all-errors \
+              --max-time 30 \
+              --header "Authorization: Bearer $RENDER_REFRESH_TOKEN" \
+              "$base_url/api/arome/cache/status" \
+              --output /tmp/arome-status.json
+
+            status="$(node -e '
+              const fs = require("node:fs");
+              const result = JSON.parse(fs.readFileSync("/tmp/arome-status.json", "utf8"));
+              if (result.erreur) console.error(result.erreur);
+              process.stdout.write(result.status || "invalid");
+            ')"
+
+            case "$status" in
+              complete)
+                echo "AROME refresh completed."
+                exit 0
+                ;;
+              failed|invalid)
+                echo "AROME refresh failed with status: $status"
+                exit 1
+                ;;
+              running|idle)
+                sleep 15
+                ;;
+              *)
+                echo "Unexpected AROME refresh status: $status"
+                exit 1
+                ;;
+            esac
+          done
+
+          echo "Timed out waiting for the AROME refresh."
+          exit 1
+
+      - name: Download the prepared cache
+        env:
+          RENDER_BASE_URL: ${{ vars.RENDER_BASE_URL }}
+          RENDER_REFRESH_TOKEN: ${{ secrets.RENDER_REFRESH_TOKEN }}
+        run: |
+          base_url="${RENDER_BASE_URL%/}"
+          mkdir -p site
+          curl --fail --silent --show-error --retry 3 --retry-all-errors \
+            --max-time 120 \
+            --header "Authorization: Bearer $RENDER_REFRESH_TOKEN" \
+            "$base_url/api/arome/cache/export" \
+            --output site/arome-cache.json
+          node -e '
+            const fs = require("node:fs");
+            const cache = JSON.parse(fs.readFileSync("site/arome-cache.json", "utf8"));
+            if (!cache.modele || !cache.zone || !Array.isArray(cache.previsions) || cache.previsions.length === 0) {
+              console.error("Render returned an invalid AROME cache.");
+              process.exit(1);
+            }
+            console.log("Publishing", cache.previsions.length, "forecast steps for model", cache.modele);
+          '
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
