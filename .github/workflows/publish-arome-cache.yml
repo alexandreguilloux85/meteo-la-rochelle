@@ -102,22 +102,24 @@ jobs:
             const fs = require("node:fs");
             const cache = JSON.parse(fs.readFileSync("site/arome-cache.json", "utf8"));
             const expectedSteps = 51;
-            const minimumSteps = Math.ceil(expectedSteps * 0.8);
+            const minimumSteps = 1;
             const stepCount = Array.isArray(cache?.previsions)
               ? cache.previsions.length
               : 0;
             if (!cache?.modele || !cache.zone || stepCount < minimumSteps) {
               console.error(
-                `Refusing to publish incomplete AROME cache: ${stepCount}/${expectedSteps} forecast steps; ${minimumSteps} required.`
+                `Refusing to publish empty or invalid AROME cache: ${stepCount}/${expectedSteps} forecast steps.`
               );
               process.exit(1);
             }
-            console.log(
-              "Publishing",
-              cache.previsions.length,
-              "forecast steps for model",
-              cache.modele
-            );
+            const message = `Publishing ${stepCount}/${expectedSteps} forecast steps for model ${cache.modele}.`;
+            if (stepCount < expectedSteps) {
+              console.warn(
+                `${message} The next refresh will resume missing forecast steps.`
+              );
+            } else {
+              console.log(message);
+            }
           '
 
       - name: Configure GitHub Pages

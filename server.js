@@ -490,9 +490,7 @@ const AROME_WCS_BASE =
     "https://public-api.meteofrance.fr/public/arome/1.0/wcs/" +
     "MF-NWP-HIGHRES-AROME-001-FRANCE-WCS";
 const AROME_ECHEANCES_ATTENDUES = 51;
-const AROME_ECHEANCES_MINIMUM = Math.ceil(
-    AROME_ECHEANCES_ATTENDUES * 0.8
-);
+const AROME_ECHEANCES_MINIMUM = 1;
 
 
 // --------------------------------------------------
@@ -846,16 +844,17 @@ app.get("/api/arome/previsions", async (req, res) => {
 
         const nouveauModele = !cache || cache.modele !== modele;
         const nouvelleZone = !pointDansZone;
-        const cacheSansRafales = Boolean(
+        const cacheAvecRafalesManquantes = Boolean(
             coverageRafale &&
             cache &&
-            !cache.previsions?.some(p => p.RAFALE)
+            Array.isArray(cache.previsions) &&
+            cache.previsions.some(p => !p?.RAFALE)
         );
         const echeancesMinimum = AROME_ECHEANCES_MINIMUM;
         const cacheIncomplet =
             !cache ||
             !Array.isArray(cache.previsions) ||
-            cache.previsions.length < echeancesMinimum;
+            cache.previsions.length < AROME_ECHEANCES_ATTENDUES;
 
         // Si le modèle change et que le point est dans l'ancienne
         // zone, on conserve le centre de cette zone.
@@ -870,7 +869,7 @@ app.get("/api/arome/previsions", async (req, res) => {
         const telechargementNecessaire =
             nouveauModele ||
             nouvelleZone ||
-            cacheSansRafales ||
+            cacheAvecRafalesManquantes ||
             (forceIncompleteRefresh && cacheIncomplet);
 
         // --------------------------------------------------
@@ -1317,22 +1316,41 @@ app.get("/api/arome/previsions", async (req, res) => {
         }
 
         const donneesPrevisions = new Map();
+
+        if (
+            !nouveauModele &&
+            !nouvelleZone &&
+            Array.isArray(cache.previsions)
+        ) {
+            for (const donnees of cache.previsions) {
+                if (donnees && Number.isInteger(donnees.seconde)) {
+                    donneesPrevisions.set(donnees.seconde, { ...donnees });
+                }
+            }
+        }
+
         const taches = [];
 
         for (const seconde of echeances) {
-            taches.push({
-                seconde,
-                parametre: "U",
-                coverageId: coverageU
-            });
+            const donnees = donneesPrevisions.get(seconde);
 
-            taches.push({
-                seconde,
-                parametre: "V",
-                coverageId: coverageV
-            });
+            if (!donnees?.U) {
+                taches.push({
+                    seconde,
+                    parametre: "U",
+                    coverageId: coverageU
+                });
+            }
 
-            if (coverageRafale) {
+            if (!donnees?.V) {
+                taches.push({
+                    seconde,
+                    parametre: "V",
+                    coverageId: coverageV
+                });
+            }
+
+            if (coverageRafale && !donnees?.RAFALE) {
                 taches.push({
                     seconde,
                     parametre: "RAFALE",
@@ -1526,7 +1544,11 @@ app.get("/api/arome/previsions", async (req, res) => {
 
         res.json({
             ...resultat,
-            cache: false
+            cache: false,
+            actualisation_incomplete:
+                previsionsCache.length < AROME_ECHEANCES_ATTENDUES,
+            echeances_nouveau_modele: previsionsCache.length,
+            echeances_minimum: echeancesMinimum
         });
 
     } catch (error) {
@@ -1566,20 +1588,6 @@ app.post("/api/arome/cache/refresh", async (req, res) => {
                     throw new Error(
                         resultat.erreur ||
                         "Echec de l'actualisation du cache AROME"
-                    );
-                }
-
-                if (resultat.actualisation_incomplete) {
-                    const nombreEcheances =
-                        resultat.echeances_nouveau_modele ?? 0;
-                    const detailErreur =
-                        resultat.erreurs_telechargement?.[0]?.erreur;
-
-                    throw new Error(
-                        `Actualisation AROME incomplète : ${nombreEcheances}/` +
-                        `${AROME_ECHEANCES_ATTENDUES} échéances valides; ` +
-                        `${AROME_ECHEANCES_MINIMUM} minimum requis.` +
-                        (detailErreur ? ` ${detailErreur}` : "")
                     );
                 }
 

@@ -141,10 +141,10 @@ leaving the previously deployed Pages artifact in place.
   and restart/redeploy the service.
 - **Refresh fails because the AROME key is missing:** configure
   `METEO_AROME_API_KEY` on Render.
-- **Workflow rejects an incomplete cache (for example, 3/51):** deploy the
-  latest server code to Render, then rerun the workflow. Render now reports an
-  incomplete refresh as failed and refuses to export caches with fewer than
-  41 valid forecast steps; GitHub Pages keeps the last valid cache.
+- **Workflow publishes an incomplete cache (for example, 33/51):** the next
+  refresh for the same model resumes by downloading only missing forecast
+  fields. A cache with no valid forecast steps is rejected so the last valid
+  GitHub Pages deployment remains available.
 - **Cache is not loaded after a Render restart:** check that the Pages
   deployment succeeded, that `AROME_CACHE_URL` is correct, and that Render can
   fetch that public URL.
@@ -192,20 +192,18 @@ publication times:
 | 21:00 | 21:15 |
 
 If Météo-France has not published the new model yet, Render may retain or
-download the previous available model. A cache must contain at least 41 of the
-51 requested forecast steps (80%) before it is accepted. If a refresh is less
-complete, Render keeps using its previous cache when available, and the
-next scheduled refresh retries even if that model is already cached. The
-workflow refuses to publish the incomplete result. A failed publication leaves
-the previous Pages deployment in place.
+download the previous available model. A cache can be published as soon as it
+contains one valid forecast step. If a refresh is incomplete, Render keeps the
+successful steps and the next refresh downloads only the missing fields for
+the same model and area. A cache with no valid forecast steps is not published,
+so the previous Pages deployment remains available.
 
 ## Data flow
 
 1. The workflow sends an authenticated refresh request to Render.
 2. Render starts a background forecast request for the La Rochelle center. It
-   checks the AROME catalogue, downloads the model fields when needed, and
-   validates that at least 41 of 51 forecast steps are available before saving
-   the prepared cache to its local filesystem and memory.
+   checks the AROME catalogue, downloads missing model fields, and saves each
+   successful forecast step to its local cache.
 3. The workflow polls Render until the refresh completes or fails.
 4. The workflow requests the cache from Render using the same bearer token.
 5. GitHub Actions deploys `arome-cache.json` to GitHub Pages.
