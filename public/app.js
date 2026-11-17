@@ -141,28 +141,18 @@ function reconstruireRadarGraphique(
     const couleurRadar = "#ff9999";
     const rayonRadar = 15 * 1852;
 
-    etiquette5Nm =
-        creerEtiquette(
-            centreLat,
-            centreLon,
-            5 * 1852,
-            "5 nm",
-            couleurRadar
-        );
-
-    etiquette15Nm =
-        creerEtiquette(
-            centreLat,
-            centreLon,
-            rayonRadar,
-            "15 nm",
-            couleurRadar
-        );
     centreRadarActuel = {
         lat: centreLat,
         lon: centreLon
     };
 
+    if (etiquette5Nm) {
+        carteRadar.removeLayer(etiquette5Nm);
+    }
+
+    if (etiquette15Nm) {
+        carteRadar.removeLayer(etiquette15Nm);
+    }
 
     if (cercle5Nm) {
         carteRadar.removeLayer(
@@ -187,6 +177,24 @@ function reconstruireRadarGraphique(
             axeEstOuest
         );
     }
+
+    etiquette5Nm =
+        creerEtiquette(
+            centreLat,
+            centreLon,
+            5 * 1852,
+            "5 nm",
+            couleurRadar
+        );
+
+    etiquette15Nm =
+        creerEtiquette(
+            centreLat,
+            centreLon,
+            rayonRadar,
+            "15 nm",
+            couleurRadar
+        );
 
     cercle5Nm = L.circle(
         [centreLat, centreLon],
@@ -397,11 +405,6 @@ function initialiserCarteRadar() {
                 [lat, lon]
             );
 
-            await chargerPrevisionsArome(
-                lat,
-                lon
-            );
-
             if (
                 !dansZoneRadar(
                     lat,
@@ -416,6 +419,11 @@ function initialiserCarteRadar() {
 
                 await chargerRadar();
             }
+
+            await chargerPrevisionsArome(
+                lat,
+                lon
+            );
         }
     );
 
