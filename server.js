@@ -479,6 +479,7 @@ app.get("/api/radar/image", async (req, res) => {
 // AROME - TEST DU CATALOGUE WCS
 // --------------------------------------------------
 
+
 const AROME_API_KEY = process.env.METEO_AROME_API_KEY;
 const AROME_REFRESH_TOKEN = process.env.AROME_REFRESH_TOKEN;
 const AROME_CACHE_URL =
