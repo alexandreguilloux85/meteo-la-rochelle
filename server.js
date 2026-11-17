@@ -491,6 +491,7 @@ const AROME_WCS_BASE =
     "MF-NWP-HIGHRES-AROME-001-FRANCE-WCS";
 
 
+const test = null;    
 // --------------------------------------------------
 // AROME - CACHE SPATIAL DES PREVISIONS
 // --------------------------------------------------
