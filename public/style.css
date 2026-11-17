@@ -252,8 +252,8 @@ main {
 
 .fleche {
     display: block;
-    font-size: 54px;
-    line-height: 1;
+    font-size: 76px;
+    line-height: 2;
     color: #1685c8;
     transform-origin: center;
     transition: transform 0.5s ease;
@@ -390,6 +390,10 @@ tbody tr:hover {
 .table-previsions td {
     text-align: center;
     padding: 9px 7px;
+}
+
+.table-previsions .separateur-jour {
+    border-left: 1px solid rgba(20, 40, 63, 0.12);
 }
 
 .table-previsions .cellule-direction {

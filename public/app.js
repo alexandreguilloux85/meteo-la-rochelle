@@ -619,16 +619,14 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
         // Première ligne : les jours
         let ligneJours = `
             <tr>
-                <th rowspan="2" class="colonne-parametre">
-                    Paramètre
-                </th>
+                <th rowspan="2" class="colonne-parametre"></th>
         `;
 
-        groupesJours.forEach(groupe => {
+        groupesJours.forEach((groupe, index) => {
 
             ligneJours += `
                 <th colspan="${groupe.heures.length}"
-                    class="jour-prevision">
+                    class="jour-prevision${index > 0 ? " separateur-jour" : ""}">
                     ${groupe.nom}
                 </th>
             `;
@@ -639,13 +637,16 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
 
         // Deuxième ligne : les heures
         let ligneHeures = `<tr>`;
+        groupesJours.forEach((groupe, groupeIndex) => {
 
-        groupesJours.forEach(groupe => {
-
-            groupe.heures.forEach(element => {
+            groupe.heures.forEach((element, heureIndex) => {
 
                 ligneHeures += `
-                    <th class="heure-prevision">
+                    <th class="heure-prevision${
+                        groupeIndex > 0 && heureIndex === 0
+                            ? " separateur-jour"
+                            : ""
+                    }">
                         ${element.heure}
                     </th>
                 `;
@@ -657,6 +658,9 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
         ligneHeures += `</tr>`;
 
         entete.innerHTML = ligneJours + ligneHeures;
+        const separateursJours = new Set(
+            groupesJours.slice(1).map(groupe => groupe.heures[0].index)
+        );
 
         // ------------------------------------------
         // LIGNE VITESSE DU VENT
@@ -667,7 +671,7 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
                 <td class="cellule-parametre">Vent (kt)</td>
         `;
 
-        previsions.forEach(p => {
+        previsions.forEach((p, index) => {
 
             const vitesseKt = Number(p.vitesse) * 1.94384;
 
@@ -680,7 +684,9 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
                 : "#dce3eb";
 
             ligneVent += `
-                <td class="cellule-vent"
+                <td class="cellule-vent${
+                    separateursJours.has(index) ? " separateur-jour" : ""
+                }"
                     style="background-color: ${couleur}">
                     ${vitesseTexte}
                 </td>
@@ -699,7 +705,7 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
                 <td class="cellule-parametre">Rafales (kt)</td>
         `;
 
-        previsions.forEach(p => {
+        previsions.forEach((p, index) => {
             const rafaleMs = p.rafale == null
                 ? NaN
                 : Number(p.rafale);
@@ -717,7 +723,9 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
                 : "#dce3eb";
 
             ligneRafales += `
-                <td class="cellule-vent cellule-rafale"
+                <td class="cellule-vent cellule-rafale${
+                    separateursJours.has(index) ? " separateur-jour" : ""
+                }"
                     style="background-color: ${couleur}">
                     ${rafaleTexte}
                 </td>
@@ -735,7 +743,7 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
                 <td class="cellule-parametre">Direction</td>
         `;
 
-        previsions.forEach(p => {
+        previsions.forEach((p, index) => {
 
             const direction = Number(p.direction);
 
@@ -744,7 +752,9 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
                 const directionCardinale = directionTexte(direction);
 
                 ligneDirection += `
-                    <td class="cellule-direction">
+                    <td class="cellule-direction${
+                        separateursJours.has(index) ? " separateur-jour" : ""
+                    }">
                         <span class="fleche-prevision"
                             style="transform: rotate(${direction + 180}deg)">
                             ↑
@@ -756,7 +766,9 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
 
             } else {
                 ligneDirection += `
-                    <td class="cellule-direction">--</td>
+                    <td class="cellule-direction${
+                        separateursJours.has(index) ? " separateur-jour" : ""
+                    }">--</td>
                 `;
             }
 
