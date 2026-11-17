@@ -1069,6 +1069,17 @@ app.get("/api/arome/previsions", async (req, res) => {
             });
         }
 
+        const dateInitialisationModele = new Date(
+            modele.replace(
+                /T(\d{2})\.(\d{2})\.(\d{2})Z$/,
+                "T$1:$2:$3Z"
+            )
+        );
+
+        if (Number.isNaN(dateInitialisationModele.getTime())) {
+            throw new Error("Date du modèle AROME invalide");
+        }
+
         // --------------------------------------------------
         // TELECHARGEMENT D'UNE NOUVELLE ZONE
         // --------------------------------------------------
@@ -1249,7 +1260,11 @@ app.get("/api/arome/previsions", async (req, res) => {
             url.searchParams.set("request", "GetCoverage");
             url.searchParams.set("coverageId", coverageId);
 
-            url.searchParams.append("subset", `time(${echeance})`);
+            const dateEcheance = new Date(
+                dateInitialisationModele.getTime() + echeance
+            ).toISOString().replace(".000Z", "Z");
+
+            url.searchParams.append("subset", `time(${dateEcheance})`);
             url.searchParams.append("subset", "height(10)");
             url.searchParams.append(
                 "subset",
