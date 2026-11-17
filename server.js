@@ -480,6 +480,10 @@ app.get("/api/radar/image", async (req, res) => {
 // --------------------------------------------------
 
 const AROME_API_KEY = process.env.METEO_AROME_API_KEY;
+const AROME_REFRESH_TOKEN = process.env.AROME_REFRESH_TOKEN;
+const AROME_CACHE_URL =
+    process.env.AROME_CACHE_URL ||
+    "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json";
 
 const AROME_WCS_BASE =
     "https://public-api.meteofrance.fr/public/arome/1.0/wcs/" +
@@ -495,8 +499,45 @@ const AROME_CACHE_FILE = path.join(__dirname, "arome-cache.json");
 let AROME_CACHE_ZONE = null;
 let AROME_CACHE_CHARGEMENT = null;
 let AROME_OPERATION_EN_COURS = false;
+let AROME_REFRESH_PROMISE = null;
+let AROME_REFRESH_STATE = {
+    status: "idle",
+    modele: null,
+    erreur: null
+};
 let AROME_CATALOGUE_CACHE = null;
 let AROME_CATALOGUE_DATE = 0;
+
+function verifierJetonActualisation(req, res) {
+    if (!AROME_REFRESH_TOKEN) {
+        res.status(503).json({
+            succes: false,
+            erreur: "Variable AROME_REFRESH_TOKEN absente dans Render"
+        });
+        return false;
+    }
+
+    const authorization = req.get("authorization") || "";
+    const tokenFourni = authorization.startsWith("Bearer ")
+        ? authorization.slice("Bearer ".length)
+        : "";
+    const tokenAttendu = Buffer.from(AROME_REFRESH_TOKEN);
+    const tokenRecu = Buffer.from(tokenFourni);
+
+    if (
+        tokenRecu.length !== tokenAttendu.length ||
+        !crypto.timingSafeEqual(tokenRecu, tokenAttendu)
+    ) {
+        res.status(401).json({
+            succes: false,
+            erreur: "Authentification requise"
+        });
+        return false;
+    }
+
+    return true;
+}
+
 // Chargement du cache depuis le disque Render
 async function chargerCacheArome() {
     if (AROME_CACHE_ZONE) return AROME_CACHE_ZONE;
@@ -523,6 +564,51 @@ async function chargerCacheArome() {
             }
 
             AROME_CACHE_ZONE = null;
+        }
+
+        if (!AROME_CACHE_ZONE && AROME_CACHE_URL) {
+            try {
+                const url = new URL(AROME_CACHE_URL);
+                url.searchParams.set("t", Date.now());
+
+                const reponse = await fetch(url, {
+                    headers: {
+                        accept: "application/json",
+                        "cache-control": "no-cache"
+                    }
+                });
+
+                if (!reponse.ok) {
+                    throw new Error(
+                        "Erreur cache Pages : " + reponse.status
+                    );
+                }
+
+                const cache = await reponse.json();
+
+                if (
+                    !cache ||
+                    typeof cache.modele !== "string" ||
+                    !cache.zone ||
+                    !Array.isArray(cache.previsions)
+                ) {
+                    throw new Error("Format de cache AROME invalide");
+                }
+
+                AROME_CACHE_ZONE = cache;
+
+                console.log(
+                    "Cache AROME chargé depuis GitHub Pages :",
+                    cache.modele,
+                    cache.previsions.length,
+                    "échéances"
+                );
+            } catch (error) {
+                console.error(
+                    "Erreur chargement du cache AROME depuis GitHub Pages :",
+                    error
+                );
+            }
         }
 
         return AROME_CACHE_ZONE;
@@ -575,7 +661,7 @@ async function obtenirCatalogueArome() {
     if (
         AROME_CATALOGUE_CACHE &&
         maintenant - AROME_CATALOGUE_DATE <
-        6 * 3600 * 1000
+        5 * 60 * 1000
     ) {
         return AROME_CATALOGUE_CACHE;
     }
@@ -689,28 +775,6 @@ app.get("/api/arome/previsions", async (req, res) => {
         let erreurCatalogue = null;
 
         try {
-            const urlCatalogue = new URL(
-                AROME_WCS_BASE + "/GetCapabilities"
-            );
-
-            urlCatalogue.searchParams.set("service", "WCS");
-            urlCatalogue.searchParams.set("version", "2.0.1");
-            urlCatalogue.searchParams.set("request", "GetCapabilities");
-
-            const reponseCatalogue = await fetch(urlCatalogue, {
-                headers: {
-                    apikey: AROME_API_KEY,
-                    accept: "application/xml, text/xml, */*"
-                }
-            });
-
-            if (!reponseCatalogue.ok) {
-                throw new Error(
-                    "Erreur catalogue AROME : " +
-                    reponseCatalogue.status
-                );
-            }
-
             const xmlCatalogue =
                 await obtenirCatalogueArome();
 
@@ -1427,6 +1491,88 @@ app.get("/api/arome/previsions", async (req, res) => {
         console.error("Erreur prévisions AROME :", error);
 
         res.status(502).json({
+            succes: false,
+            erreur: error.message
+        });
+    }
+});
+
+app.post("/api/arome/cache/refresh", async (req, res) => {
+    if (!verifierJetonActualisation(req, res)) return;
+
+    if (!AROME_REFRESH_PROMISE) {
+        AROME_REFRESH_STATE = {
+            status: "running",
+            modele: null,
+            erreur: null
+        };
+
+        const url = new URL(
+            "/api/arome/previsions",
+            `http://127.0.0.1:${PORT}`
+        );
+        url.searchParams.set("lat", "46.178");
+        url.searchParams.set("lon", "-1.193167");
+
+        AROME_REFRESH_PROMISE = (async () => {
+            try {
+                const reponse = await fetch(url);
+                const resultat = await reponse.json();
+
+                if (!reponse.ok || !resultat.succes || !resultat.modele) {
+                    throw new Error(
+                        resultat.erreur ||
+                        "Echec de l'actualisation du cache AROME"
+                    );
+                }
+
+                AROME_REFRESH_STATE = {
+                    status: "complete",
+                    modele: resultat.modele,
+                    erreur: null
+                };
+            } catch (error) {
+                console.error("Erreur actualisation planifiée AROME :", error);
+
+                AROME_REFRESH_STATE = {
+                    status: "failed",
+                    modele: null,
+                    erreur: error.message
+                };
+            } finally {
+                AROME_REFRESH_PROMISE = null;
+            }
+        })();
+    }
+
+    return res.status(202).json(AROME_REFRESH_STATE);
+});
+
+app.get("/api/arome/cache/status", (req, res) => {
+    if (!verifierJetonActualisation(req, res)) return;
+
+    return res.json(AROME_REFRESH_STATE);
+});
+
+app.get("/api/arome/cache/export", async (req, res) => {
+    if (!verifierJetonActualisation(req, res)) return;
+
+    try {
+        const cache = await chargerCacheArome();
+
+        if (!cache) {
+            return res.status(404).json({
+                succes: false,
+                erreur: "Aucun cache AROME disponible"
+            });
+        }
+
+        res.set("Cache-Control", "no-store");
+        return res.json(cache);
+    } catch (error) {
+        console.error("Erreur export du cache AROME :", error);
+
+        return res.status(502).json({
             succes: false,
             erreur: error.message
         });
