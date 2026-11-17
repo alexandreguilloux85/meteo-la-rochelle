@@ -489,6 +489,10 @@ const AROME_CACHE_URL =
 const AROME_WCS_BASE =
     "https://public-api.meteofrance.fr/public/arome/1.0/wcs/" +
     "MF-NWP-HIGHRES-AROME-001-FRANCE-WCS";
+const AROME_ECHEANCES_ATTENDUES = 51;
+const AROME_ECHEANCES_MINIMUM = Math.ceil(
+    AROME_ECHEANCES_ATTENDUES * 0.8
+);
 
 
 // --------------------------------------------------
@@ -847,7 +851,7 @@ app.get("/api/arome/previsions", async (req, res) => {
             cache &&
             !cache.previsions?.some(p => p.RAFALE)
         );
-        const echeancesMinimum = Math.ceil(51 * 0.8);
+        const echeancesMinimum = AROME_ECHEANCES_MINIMUM;
         const cacheIncomplet =
             !cache ||
             !Array.isArray(cache.previsions) ||
@@ -1261,7 +1265,7 @@ app.get("/api/arome/previsions", async (req, res) => {
             url.searchParams.set("coverageId", coverageId);
 
             const dateEcheance = new Date(
-                dateInitialisationModele.getTime() + echeance
+                dateInitialisationModele.getTime() + echeance * 1000
             ).toISOString().replace(".000Z", "Z");
 
             url.searchParams.append("subset", `time(${dateEcheance})`);
@@ -1565,6 +1569,20 @@ app.post("/api/arome/cache/refresh", async (req, res) => {
                     );
                 }
 
+                if (resultat.actualisation_incomplete) {
+                    const nombreEcheances =
+                        resultat.echeances_nouveau_modele ?? 0;
+                    const detailErreur =
+                        resultat.erreurs_telechargement?.[0]?.erreur;
+
+                    throw new Error(
+                        `Actualisation AROME incomplète : ${nombreEcheances}/` +
+                        `${AROME_ECHEANCES_ATTENDUES} échéances valides; ` +
+                        `${AROME_ECHEANCES_MINIMUM} minimum requis.` +
+                        (detailErreur ? ` ${detailErreur}` : "")
+                    );
+                }
+
                 AROME_REFRESH_STATE = {
                     status: "complete",
                     modele: resultat.modele,
@@ -1603,6 +1621,24 @@ app.get("/api/arome/cache/export", async (req, res) => {
             return res.status(404).json({
                 succes: false,
                 erreur: "Aucun cache AROME disponible"
+            });
+        }
+
+        const nombreEcheances = Array.isArray(cache.previsions)
+            ? cache.previsions.length
+            : 0;
+
+        if (
+            typeof cache.modele !== "string" ||
+            !cache.zone ||
+            nombreEcheances < AROME_ECHEANCES_MINIMUM
+        ) {
+            return res.status(503).json({
+                succes: false,
+                erreur:
+                    `Cache AROME incomplet : ${nombreEcheances}/` +
+                    `${AROME_ECHEANCES_ATTENDUES} échéances valides; ` +
+                    `${AROME_ECHEANCES_MINIMUM} minimum requis`
             });
         }
 

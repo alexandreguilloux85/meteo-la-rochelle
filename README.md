@@ -141,6 +141,10 @@ leaving the previously deployed Pages artifact in place.
   and restart/redeploy the service.
 - **Refresh fails because the AROME key is missing:** configure
   `METEO_AROME_API_KEY` on Render.
+- **Workflow rejects an incomplete cache (for example, 3/51):** deploy the
+  latest server code to Render, then rerun the workflow. Render now reports an
+  incomplete refresh as failed and refuses to export caches with fewer than
+  41 valid forecast steps; GitHub Pages keeps the last valid cache.
 - **Cache is not loaded after a Render restart:** check that the Pages
   deployment succeeded, that `AROME_CACHE_URL` is correct, and that Render can
   fetch that public URL.
