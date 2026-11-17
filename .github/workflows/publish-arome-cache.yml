@@ -101,11 +101,23 @@ jobs:
           node -e '
             const fs = require("node:fs");
             const cache = JSON.parse(fs.readFileSync("site/arome-cache.json", "utf8"));
-            if (!cache.modele || !cache.zone || !Array.isArray(cache.previsions) || cache.previsions.length === 0) {
-              console.error("Render returned an invalid AROME cache.");
+            const expectedSteps = 51;
+            const minimumSteps = Math.ceil(expectedSteps * 0.8);
+            const stepCount = Array.isArray(cache?.previsions)
+              ? cache.previsions.length
+              : 0;
+            if (!cache?.modele || !cache.zone || stepCount < minimumSteps) {
+              console.error(
+                `Refusing to publish incomplete AROME cache: ${stepCount}/${expectedSteps} forecast steps; ${minimumSteps} required.`
+              );
               process.exit(1);
             }
-            console.log("Publishing", cache.previsions.length, "forecast steps for model", cache.modele);
+            console.log(
+              "Publishing",
+              cache.previsions.length,
+              "forecast steps for model",
+              cache.modele
+            );
           '
 
       - name: Configure GitHub Pages

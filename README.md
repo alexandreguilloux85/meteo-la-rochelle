@@ -36,15 +36,20 @@ publication times:
 | 21:00 | 21:15 |
 
 If Météo-France has not published the new model yet, Render may retain or
-download the previous available model. The scheduled job does not publish an
-empty or invalid cache.
+download the previous available model. A cache must contain at least 41 of the
+51 requested forecast steps (80%) before it is accepted. If a refresh is less
+complete, Render keeps using its previous cache when available, and the
+next scheduled refresh retries even if that model is already cached. The
+workflow refuses to publish the incomplete result. A failed publication leaves
+the previous Pages deployment in place.
 
 ## Data flow
 
 1. The workflow sends an authenticated refresh request to Render.
 2. Render starts a background forecast request for the La Rochelle center. It
    checks the AROME catalogue, downloads the model fields when needed, and
-   writes the prepared cache to its local filesystem and memory.
+   validates that at least 41 of 51 forecast steps are available before saving
+   the prepared cache to its local filesystem and memory.
 3. The workflow polls Render until the refresh completes or fails.
 4. The workflow requests the cache from Render using the same bearer token.
 5. GitHub Actions deploys `arome-cache.json` to GitHub Pages.
@@ -52,8 +57,9 @@ empty or invalid cache.
    downloads and validates the JSON from Pages.
 
 The cache includes the model identifier, forecast zone, forecast grid values,
-and any download errors. The published file is publicly readable. It does not
-contain API keys or the Render refresh token.
+and any download errors. GitHub Actions independently checks the forecast-step
+count before deploying it. The published file is publicly readable. It does
+not contain API keys or the Render refresh token.
 
 ## Configuration
 
