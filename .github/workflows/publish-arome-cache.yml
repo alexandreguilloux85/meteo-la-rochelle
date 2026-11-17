@@ -17,7 +17,7 @@ concurrency:
 jobs:
   refresh-and-publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -50,7 +50,9 @@ jobs:
           RENDER_REFRESH_TOKEN: ${{ secrets.RENDER_REFRESH_TOKEN }}
         run: |
           base_url="${RENDER_BASE_URL%/}"
-          for attempt in $(seq 1 340); do
+          max_refresh_attempts=2
+          for refresh_attempt in $(seq 1 "$max_refresh_attempts"); do
+            for attempt in $(seq 1 340); do
             curl --fail --silent --show-error --retry 2 --retry-all-errors \
               --max-time 30 \
               --header "Authorization: Bearer $RENDER_REFRESH_TOKEN" \
@@ -69,7 +71,21 @@ jobs:
                 echo "AROME refresh completed."
                 exit 0
                 ;;
-              failed|invalid)
+              failed)
+                if [ "$refresh_attempt" -lt "$max_refresh_attempts" ]; then
+                  echo "AROME refresh failed; retrying once in 60 seconds."
+                  sleep 60
+                  curl --fail --silent --show-error --retry 3 --retry-all-errors \
+                    --max-time 120 \
+                    --request POST \
+                    --header "Authorization: Bearer $RENDER_REFRESH_TOKEN" \
+                    "$base_url/api/arome/cache/refresh"
+                  break
+                fi
+                echo "AROME refresh failed after $refresh_attempt attempts."
+                exit 1
+                ;;
+              invalid)
                 echo "AROME refresh failed with status: $status"
                 exit 1
                 ;;
@@ -81,9 +97,15 @@ jobs:
                 exit 1
                 ;;
             esac
+            done
+
+            if [ "$status" != "failed" ]; then
+              echo "Timed out waiting for the AROME refresh."
+              exit 1
+            fi
           done
 
-          echo "Timed out waiting for the AROME refresh."
+          echo "AROME refresh failed after $max_refresh_attempts attempts."
           exit 1
 
       - name: Download the prepared cache
