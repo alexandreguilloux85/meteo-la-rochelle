@@ -77,6 +77,18 @@ jobs:
             console.log("Observations récupérées :", rows.length);
           '
 
+      - name: Préserver les tuiles radar XYZ déjà publiées
+        run: |
+          mkdir -p site/radar-xyz
+          if curl --fail --silent --show-error --retry 3 --retry-all-errors \
+            --max-time 120 \
+            "https://alexandreguilloux85.github.io/meteo-la-rochelle/radar-xyz/tiles.zip" \
+            --output /tmp/radar-xyz-tiles.zip; then
+            unzip -q /tmp/radar-xyz-tiles.zip -d site/radar-xyz
+          else
+            echo "Aucun jeu de tuiles radar précédent à préserver."
+          fi
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
