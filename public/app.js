@@ -9,7 +9,6 @@ let graphiqueTemperature = null;
 
 let carteRadar = null;
 let coucheRadar = null;
-let urlImageRadar = null;
 let cercle5Nm = null;
 let cercle15Nm = null;
 let etiquette5Nm = null;
@@ -18,6 +17,7 @@ let axeNordSud = null;
 let axeEstOuest = null;
 
 let masqueRadarCourant = null;
+const URL_RADAR_TUILES = "https://alexandreguilloux85.github.io/meteo-la-rochelle/radar-xyz";
 // --------------------------------------------------
 // PREVISIONS AROME
 // --------------------------------------------------
@@ -330,7 +330,9 @@ function initialiserCarteRadar() {
         positionCourante.lon;
     const rayonRadar = 15 * 1852;
 
-    carteRadar = L.map("carteRadar").setView(
+    carteRadar = L.map("carteRadar", {
+        maxZoom: 12
+    }).setView(
         [centreLat, centreLon],
         9
     );
@@ -405,20 +407,11 @@ function initialiserCarteRadar() {
                 [lat, lon]
             );
 
-            if (
-                !dansZoneRadar(
-                    lat,
-                    lon
-                )
-            ) {
-
-                reconstruireRadarGraphique(
-                    lat,
-                    lon
-                );
-
-                await chargerRadar();
-            }
+            // Le radar couvre toute la France : seul le centre des repères change.
+            reconstruireRadarGraphique(
+                lat,
+                lon
+            );
 
             await chargerPrevisionsArome(
                 lat,
@@ -1028,97 +1021,57 @@ async function chargerRadar() {
     const statut = document.getElementById("radarMiseAJour");
 
     try {
-
         statut.textContent = "Actualisation du radar...";
 
         const reponse = await fetch(
-            URL_SERVEUR_RENDER + "/api/radar/image?lat="
-                + encodeURIComponent(
-                    centreRadarActuel.lat
-                )
-                + "&lon="
-                + encodeURIComponent(
-                    centreRadarActuel.lon
-                )
-                + "&t="
-                + Date.now()
-
+            URL_RADAR_TUILES + "/metadata.json?t=" + Date.now(),
+            { cache: "no-store" }
         );
 
         if (!reponse.ok) {
-            throw new Error("Erreur radar : " + reponse.status);
+            throw new Error("Métadonnées radar : HTTP " + reponse.status);
         }
 
-        // Récupération des coordonnées géographiques
-        const boundsTexte = reponse.headers.get("X-Radar-Bounds");
-
-        if (!boundsTexte) {
-            throw new Error("Coordonnées radar absentes");
+        const metadata = await reponse.json();
+        if (!metadata.date || metadata.zoom_max !== 9 || metadata.tile_size !== 256) {
+            throw new Error("Métadonnées des tuiles radar invalides");
         }
 
-        const bounds = JSON.parse(boundsTexte);
+        const dateRadar = metadata.date;
+        const urlTuiles = URL_RADAR_TUILES +
+            "/{z}/{x}/{y}.png?v=" + encodeURIComponent(dateRadar);
 
-        const limites = [
-            [bounds.sud, bounds.ouest],
-            [bounds.nord, bounds.est]
-        ];
-
-        // Récupération de la date du produit
-        const dateRadar = reponse.headers.get("X-Radar-Date");
-
-        // Image PNG
-        const blob = await reponse.blob();
-        const nouvelleUrl = URL.createObjectURL(blob);
-
-        // Suppression de l'ancienne image
-        if (coucheRadar) {
-            carteRadar.removeLayer(coucheRadar);
-        }
-
-        if (urlImageRadar) {
-            URL.revokeObjectURL(urlImageRadar);
-        }
-
-        urlImageRadar = nouvelleUrl;
-
-        // Affichage de l'image radar
-        coucheRadar = L.imageOverlay(
-            urlImageRadar,
-            limites,
-            {
+        if (!coucheRadar) {
+            coucheRadar = L.tileLayer(urlTuiles, {
+                minZoom: 4,
+                maxNativeZoom: 9,
+                maxZoom: 12,
+                tileSize: 256,
                 opacity: 0.95,
-                interactive: false,
-                pane: "radarImagePane"
-            }
-        );
-
-        coucheRadar.addTo(carteRadar);
-
-        // Mise à jour de l'affichage de la date
-        if (dateRadar) {
-
-            const date = new Date(dateRadar);
-
-            statut.textContent =
-                "Radar : " +
-                date.toLocaleString("fr-FR", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit"
-                });
-
+                tms: false,
+                errorTileUrl: "",
+                pane: "radarImagePane",
+                updateWhenIdle: true,
+                keepBuffer: 2
+            }).addTo(carteRadar);
         } else {
-            statut.textContent = "Radar actualisé";
+            // Au-delà du zoom 9, Leaflet agrandit les tuiles existantes.
+            coucheRadar.setUrl(urlTuiles);
         }
 
-        console.log("Radar actualisé :", dateRadar);
+        const date = new Date(dateRadar);
+        statut.textContent = "Radar : " + date.toLocaleString("fr-FR", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit"
+        });
+
+        console.log("Radar XYZ actualisé :", dateRadar, metadata.total_tiles, "tuiles");
 
     } catch (erreur) {
-
-        console.error("Erreur chargement radar :", erreur);
-
-        statut.textContent = "Radar indisponible";
+        console.error("Erreur chargement radar XYZ :", erreur);
+        statut.textContent = "Radar indisponible (dernière image conservée)";
     }
 }
 
@@ -1609,20 +1562,6 @@ function distanceMetres(
         )
     );
 }
-
-function dansZoneRadar(lat, lon) {
-
-    const distance =
-        distanceMetres(
-            lat,
-            lon,
-            centreRadarActuel.lat,
-            centreRadarActuel.lon
-        );
-
-    return distance <= 25000;
-}
-
 
 
 // --------------------------------------------------
