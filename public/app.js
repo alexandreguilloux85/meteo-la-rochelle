@@ -17,6 +17,7 @@ let axeNordSud = null;
 let axeEstOuest = null;
 
 let masqueRadarCourant = null;
+let actualiserMasqueRadarListener = null;
 const URL_RADAR_TUILES = "https://alexandreguilloux85.github.io/meteo-la-rochelle/radar-xyz";
 // --------------------------------------------------
 // PREVISIONS AROME
@@ -69,6 +70,11 @@ function destinationGeographique(lat, lon, distance, azimut) {
 // --------------------------------------------------
 
 function ajouterMasqueRadar(centreLat, centreLon, rayonRadar) {
+
+    // Évite d'empiler plusieurs écouteurs lors des clics sur la carte.
+    if (actualiserMasqueRadarListener) {
+        carteRadar.off("moveend", actualiserMasqueRadarListener);
+    }
 
         if (masqueRadarCourant) {
             carteRadar.removeLayer(
@@ -129,7 +135,8 @@ function ajouterMasqueRadar(centreLat, centreLon, rayonRadar) {
     actualiserMasque();
 
     // Mise à jour lorsque la carte est déplacée ou zoomée
-    carteRadar.on("moveend", actualiserMasque);
+    actualiserMasqueRadarListener = actualiserMasque;
+    carteRadar.on("moveend", actualiserMasqueRadarListener);
 }
 
 
