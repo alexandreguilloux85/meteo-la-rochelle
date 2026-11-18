@@ -491,6 +491,9 @@ function couleurVent(vitesse) {
 
 const URL_SERVEUR_RENDER = "https://station-meteo-lr-test.onrender.com";
 
+const URL_OBSERVATIONS_PAGES =
+    "https://alexandreguilloux85.github.io/meteo-la-rochelle/observations.json";
+
 const URL_CACHE_AROME =
     "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json";
 
@@ -1417,7 +1420,9 @@ async function chargerDonnees() {
 
     try {
 
-        const reponse = await fetch(URL_SERVEUR_RENDER + "/api/observations");
+        const reponse = await fetch(URL_OBSERVATIONS_PAGES, {
+            cache: "no-store"
+        });
 
         if (!reponse.ok) {
             throw new Error("Erreur API : " + reponse.status);
