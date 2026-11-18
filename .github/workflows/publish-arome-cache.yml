@@ -13,140 +13,299 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  refresh-and-publish:
+  build-test-cache:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref }}
+          ref: Test_fonction
 
-      - name: Prepare AROME data
+      - name: Préparer le dossier de publication
         run: mkdir -p data-arome
 
-      - name: Validate Render configuration
+      - name: Vérifier la clé API AROME
         env:
-          RENDER_BASE_URL: ${{ vars.RENDER_BASE_URL }}
-          RENDER_REFRESH_TOKEN: ${{ secrets.RENDER_REFRESH_TOKEN }}
+          AROME_API_KEY: ${{ secrets.METEO_AROME_API_KEY }}
         run: |
-          if [ -z "$RENDER_BASE_URL" ] || [ -z "$RENDER_REFRESH_TOKEN" ]; then
-            echo "Configure the RENDER_BASE_URL variable and RENDER_REFRESH_TOKEN secret."
+          if [ -z "$AROME_API_KEY" ]; then
+            echo "::error::Le secret METEO_AROME_API_KEY est absent des secrets GitHub."
             exit 1
           fi
 
-      - name: Start the scheduled AROME refresh
+      - name: Télécharger les 51 échéances et construire le cache JSON de test
         env:
-          RENDER_BASE_URL: ${{ vars.RENDER_BASE_URL }}
-          RENDER_REFRESH_TOKEN: ${{ secrets.RENDER_REFRESH_TOKEN }}
+          AROME_API_KEY: ${{ secrets.METEO_AROME_API_KEY }}
         run: |
-          base_url="${RENDER_BASE_URL%/}"
-          curl --fail --silent --show-error --retry 3 --retry-all-errors \
-            --max-time 120 \
-            --request POST \
-            --header "Authorization: Bearer $RENDER_REFRESH_TOKEN" \
-            "$base_url/api/arome/cache/refresh"
+          node <<'NODE'
+          const fs = require("node:fs");
+          const { performance } = require("node:perf_hooks");
 
-      - name: Wait for the scheduled AROME refresh
-        env:
-          RENDER_BASE_URL: ${{ vars.RENDER_BASE_URL }}
-          RENDER_REFRESH_TOKEN: ${{ secrets.RENDER_REFRESH_TOKEN }}
+          const base = "https://public-api.meteofrance.fr/public/arome/1.0/wcs/MF-NWP-HIGHRES-AROME-001-FRANCE-WCS";
+          // Zone de 15 x 15 km centrée sur La Rochelle.
+          const centreLat = 46.178;
+          const centreLon = -1.193167;
+          const demiTailleKm = 7.5;
+          const kmParDegre = 111.32;
+          const ecartLat = demiTailleKm / kmParDegre;
+          const ecartLon = ecartLat / Math.cos(centreLat * Math.PI / 180);
+          const bbox = {
+            latMin: centreLat - ecartLat,
+            latMax: centreLat + ecartLat,
+            lonMin: centreLon - ecartLon,
+            lonMax: centreLon + ecartLon
+          };
+          const zone = { centreLat, centreLon, ...bbox };
+          const started = performance.now();
+
+          async function get(url, accept, label) {
+            let lastError;
+            for (let attempt = 1; attempt <= 4; attempt++) {
+              try {
+                const response = await fetch(url, {
+                  headers: { apikey: process.env.AROME_API_KEY, accept },
+                  signal: AbortSignal.timeout(120000)
+                });
+                if (!response.ok) {
+                  const detail = await response.text();
+                  throw new Error(`HTTP ${response.status}: ${detail.slice(0, 350)}`);
+                }
+                return response;
+              } catch (error) {
+                lastError = error;
+                if (attempt < 4) {
+                  const delay = attempt * 5000;
+                  console.warn(`${label}: tentative ${attempt}/4 échouée (${error.message}); nouvelle tentative dans ${delay / 1000}s`);
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                }
+              }
+            }
+            throw new Error(`${label}: échec après 4 tentatives: ${lastError.message}`);
+          }
+
+          function decodeGrib(buffer, label) {
+            if (
+              buffer.length < 20 ||
+              buffer.subarray(0, 4).toString("ascii") !== "GRIB" ||
+              buffer[7] !== 2 ||
+              buffer.subarray(buffer.length - 4).toString("ascii") !== "7777"
+            ) {
+              throw new Error(`${label}: fichier GRIB2 invalide (${buffer.length} octets)`);
+            }
+
+            const sections = {};
+            let offset = 16;
+            while (offset < buffer.length - 4) {
+              if (offset + 5 > buffer.length - 4) throw new Error(`${label}: en-tête de section tronqué`);
+              const length = buffer.readUInt32BE(offset);
+              const number = buffer[offset + 4];
+              if (length < 5 || offset + length > buffer.length - 4) {
+                throw new Error(`${label}: longueur de section invalide à l'octet ${offset}`);
+              }
+              sections[number] = buffer.subarray(offset, offset + length);
+              offset += length;
+            }
+
+            const s3 = sections[3], s5 = sections[5], s6 = sections[6], s7 = sections[7];
+            if (!s3 || !s5 || !s6 || !s7) throw new Error(`${label}: section GRIB manquante`);
+            if (s3.length < 72 || s3.readUInt16BE(12) !== 0) {
+              throw new Error(`${label}: template de grille non pris en charge`);
+            }
+
+            const grille = {
+              modele: s3.readUInt16BE(12),
+              Ni: s3.readUInt32BE(30),
+              Nj: s3.readUInt32BE(34),
+              latitude_depart: s3.readInt32BE(46) / 1e6,
+              longitude_depart: s3.readInt32BE(50) / 1e6,
+              resolution_longitude: s3.readUInt32BE(63) / 1e6,
+              resolution_latitude: s3.readUInt32BE(67) / 1e6,
+              mode_balaye: s3[71]
+            };
+            if (grille.longitude_depart > 180) grille.longitude_depart -= 360;
+            if (grille.mode_balaye !== 0) throw new Error(`${label}: mode de balayage non pris en charge`);
+
+            const count = s5.readUInt32BE(5);
+            const packing = s5.readUInt16BE(9);
+            if (packing !== 0) throw new Error(`${label}: compression GRIB non prise en charge (${packing})`);
+            const reference = s5.readFloatBE(11);
+            const signedFactor = value => (value & 0x8000) ? -(value & 0x7fff) : value;
+            const binaryFactor = signedFactor(s5.readUInt16BE(15));
+            const decimalFactor = signedFactor(s5.readUInt16BE(17));
+            const bits = s5[19];
+            if (s6[5] !== 255) throw new Error(`${label}: bitmap GRIB non pris en charge`);
+
+            const packed = s7.subarray(5);
+            const values = new Array(count);
+            function readBits(bitPosition, bitCount) {
+              let result = 0;
+              for (let b = 0; b < bitCount; b++) {
+                const p = bitPosition + b;
+                result = result * 2 + ((packed[Math.floor(p / 8)] >> (7 - p % 8)) & 1);
+              }
+              return result;
+            }
+
+            for (let i = 0; i < count; i++) {
+              const integer = bits === 0 ? 0 : readBits(i * bits, bits);
+              values[i] = (reference + integer * Math.pow(2, binaryFactor)) * Math.pow(10, -decimalFactor);
+            }
+
+            if (values.length !== grille.Ni * grille.Nj) {
+              throw new Error(`${label}: ${values.length} valeurs pour une grille ${grille.Ni}x${grille.Nj}`);
+            }
+            return { grille, valeurs: values };
+          }
+
+          async function main() {
+            const catalogueUrl = new URL(base + "/GetCapabilities");
+            catalogueUrl.searchParams.set("service", "WCS");
+            catalogueUrl.searchParams.set("version", "2.0.1");
+            catalogueUrl.searchParams.set("request", "GetCapabilities");
+            const xml = await (await get(catalogueUrl, "application/xml, text/xml, */*", "Catalogue")).text();
+            const ids = [...xml.matchAll(/<wcs:CoverageId>([\s\S]*?)<\/wcs:CoverageId>/g)].map(m => m[1].trim());
+
+            const prefixes = {
+              U: "U_COMPONENT_OF_WIND__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___",
+              V: "V_COMPONENT_OF_WIND__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___",
+              RAFALE: "WIND_SPEED_GUST__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___"
+            };
+            const candidates = ids.filter(id => id.startsWith(prefixes.U)).sort().reverse();
+            let selected = null;
+            for (const u of candidates) {
+              const suffix = u.slice(prefixes.U.length);
+              const v = prefixes.V + suffix;
+              if (ids.includes(v)) {
+                selected = {
+                  suffix, U: u, V: v,
+                  RAFALE: ids.includes(prefixes.RAFALE + suffix) ? prefixes.RAFALE + suffix : null
+                };
+                break;
+              }
+            }
+            if (!selected) throw new Error("Aucun couple de couvertures AROME U/V commun trouvé.");
+            if (!selected.RAFALE) throw new Error("Couverture de rafales absente pour ce modèle : test complet interrompu.");
+
+            const dateModele = new Date(selected.suffix.replace(/T(\d{2})\.(\d{2})\.(\d{2})Z$/, "T$1:$2:$3Z"));
+            if (Number.isNaN(dateModele.getTime())) throw new Error("Date du modèle illisible : " + selected.suffix);
+            const modelIso = dateModele.toISOString().replace(".000Z", "Z");
+
+            console.log("Modèle AROME :", selected.suffix);
+            console.log("Zone :", JSON.stringify(zone));
+            console.log("Échéances à télécharger : H+1 à H+51");
+            console.log("Variables : U, V, RAFALE");
+            console.log("Nombre de téléchargements prévus : 153");
+
+            async function download(coverageId, seconds, name) {
+              const validTime = new Date(dateModele.getTime() + seconds * 1000).toISOString().replace(".000Z", "Z");
+              const url = new URL(base + "/GetCoverage");
+              url.searchParams.set("service", "WCS");
+              url.searchParams.set("version", "2.0.1");
+              url.searchParams.set("request", "GetCoverage");
+              url.searchParams.set("coverageId", coverageId);
+              url.searchParams.append("subset", `time(${validTime})`);
+              url.searchParams.append("subset", "height(10)");
+              url.searchParams.append("subset", `lat(${bbox.latMin},${bbox.latMax})`);
+              url.searchParams.append("subset", `long(${bbox.lonMin},${bbox.lonMax})`);
+              url.searchParams.set("format", "application/wmo-grib");
+
+              const response = await get(url, "application/octet-stream", name);
+              const buffer = Buffer.from(await response.arrayBuffer());
+              const decoded = decodeGrib(buffer, name);
+              return { decoded, bytes: buffer.length };
+            }
+
+            const forecasts = [];
+            let totalGribBytes = 0;
+            let referenceGrid = null;
+            let completed = 0;
+            let nextHour = 1;
+
+            async function worker() {
+              while (true) {
+                const hour = nextHour++;
+                if (hour > 51) return;
+                const seconds = hour * 3600;
+                const step = { seconde: seconds, U: null, V: null, RAFALE: null };
+
+                for (const variable of ["U", "V", "RAFALE"]) {
+                  const label = `${variable} H+${hour}`;
+                  const result = await download(selected[variable], seconds, label);
+                  const grid = result.decoded.grille;
+                  if (!referenceGrid) referenceGrid = grid;
+                  if (
+                    grid.Ni !== referenceGrid.Ni ||
+                    grid.Nj !== referenceGrid.Nj ||
+                    Math.abs(grid.latitude_depart - referenceGrid.latitude_depart) > 1e-6 ||
+                    Math.abs(grid.longitude_depart - referenceGrid.longitude_depart) > 1e-6 ||
+                    Math.abs(grid.resolution_latitude - referenceGrid.resolution_latitude) > 1e-9 ||
+                    Math.abs(grid.resolution_longitude - referenceGrid.resolution_longitude) > 1e-9
+                  ) {
+                    throw new Error(`${label}: grille différente des autres échéances`);
+                  }
+                  step[variable] = result.decoded;
+                  totalGribBytes += result.bytes;
+                }
+
+                forecasts.push(step);
+                completed++;
+                if (completed % 5 === 0 || completed === 51) {
+                  console.log(`Progression : ${completed}/51 échéances | ${(totalGribBytes / 1048576).toFixed(2)} Mo GRIB téléchargés`);
+                }
+              }
+            }
+
+            // Deux travailleurs : limiter la pression sur l'API WCS.
+            await Promise.all([worker(), worker()]);
+            forecasts.sort((a, b) => a.seconde - b.seconde);
+
+            if (forecasts.length !== 51 || forecasts.some(p => !p.U || !p.V || !p.RAFALE)) {
+              throw new Error("Cache incomplet : les 51 échéances et les 3 variables sont obligatoires.");
+            }
+
+            const cache = {
+              modele: modelIso,
+              date: Date.now(),
+              zone,
+              previsions: forecasts,
+              erreurs: []
+            };
+            const json = JSON.stringify(cache);
+            fs.writeFileSync("data-arome/arome-cache.json", json);
+
+            const elapsedSeconds = (performance.now() - started) / 1000;
+            const stats = fs.statSync("data-arome/arome-cache.json");
+            console.log("Échéances JSON :", forecasts.length);
+            console.log("Grille commune :", JSON.stringify(referenceGrid));
+            console.log("Volume GRIB total :", (totalGribBytes / 1048576).toFixed(2), "Mo");
+            console.log("Taille JSON cache :", (stats.size / 1048576).toFixed(2), "Mo");
+            console.log("Durée totale :", (elapsedSeconds / 60).toFixed(1), "minutes");
+            console.log("Cache AROME complet généré directement depuis l'API Météo-France.");
+          }
+
+          main().catch(error => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Vérifier le JSON et afficher sa taille
         run: |
-          base_url="${RENDER_BASE_URL%/}"
-          max_refresh_attempts=2
-          for refresh_attempt in $(seq 1 "$max_refresh_attempts"); do
-            for attempt in $(seq 1 340); do
-            curl --fail --silent --show-error --retry 2 --retry-all-errors \
-              --max-time 30 \
-              --header "Authorization: Bearer $RENDER_REFRESH_TOKEN" \
-              "$base_url/api/arome/cache/status" \
-              --output /tmp/arome-status.json
-
-            status="$(node -e '
-              const fs = require("node:fs");
-              const result = JSON.parse(fs.readFileSync("/tmp/arome-status.json", "utf8"));
-              if (result.erreur) console.error(result.erreur);
-              process.stdout.write(result.status || "invalid");
-            ')"
-
-            case "$status" in
-              complete)
-                echo "AROME refresh completed."
-                exit 0
-                ;;
-              failed)
-                if [ "$refresh_attempt" -lt "$max_refresh_attempts" ]; then
-                  echo "AROME refresh failed; retrying once in 60 seconds."
-                  sleep 60
-                  curl --fail --silent --show-error --retry 3 --retry-all-errors \
-                    --max-time 120 \
-                    --request POST \
-                    --header "Authorization: Bearer $RENDER_REFRESH_TOKEN" \
-                    "$base_url/api/arome/cache/refresh"
-                  break
-                fi
-                echo "AROME refresh failed after $refresh_attempt attempts."
-                exit 1
-                ;;
-              invalid)
-                echo "AROME refresh failed with status: $status"
-                exit 1
-                ;;
-              running|idle)
-                sleep 15
-                ;;
-              *)
-                echo "Unexpected AROME refresh status: $status"
-                exit 1
-                ;;
-            esac
-            done
-
-            if [ "$status" != "failed" ]; then
-              echo "Timed out waiting for the AROME refresh."
-              exit 1
-            fi
-          done
-
-          echo "AROME refresh failed after $max_refresh_attempts attempts."
-          exit 1
-
-      - name: Download the prepared cache
-        env:
-          RENDER_BASE_URL: ${{ vars.RENDER_BASE_URL }}
-          RENDER_REFRESH_TOKEN: ${{ secrets.RENDER_REFRESH_TOKEN }}
-        run: |
-          base_url="${RENDER_BASE_URL%/}"
-          mkdir -p data-arome
-          curl --fail --silent --show-error --retry 3 --retry-all-errors \
-            --max-time 120 \
-            --header "Authorization: Bearer $RENDER_REFRESH_TOKEN" \
-            "$base_url/api/arome/cache/export" \
-            --output data-arome/arome-cache.json
           node -e '
             const fs = require("node:fs");
             const cache = JSON.parse(fs.readFileSync("data-arome/arome-cache.json", "utf8"));
-            const expectedSteps = 51;
-            const minimumSteps = 1;
-            const stepCount = Array.isArray(cache?.previsions)
-              ? cache.previsions.length
-              : 0;
-            if (!cache?.modele || !cache.zone || stepCount < minimumSteps) {
-              console.error(
-                `Refusing to publish empty or invalid AROME cache: ${stepCount}/${expectedSteps} forecast steps.`
-              );
-              process.exit(1);
+            if (!cache.modele || !cache.zone || cache.previsions?.length !== 51) {
+              throw new Error("Cache de test invalide ou incomplet.");
             }
-            const message = `Publishing ${stepCount}/${expectedSteps} forecast steps for model ${cache.modele}.`;
-            if (stepCount < expectedSteps) {
-              console.warn(
-                `${message} The next refresh will resume missing forecast steps.`
-              );
-            } else {
-              console.log(message);
+            for (const p of cache.previsions) {
+              if (!p.U?.valeurs || !p.V?.valeurs || !p.RAFALE?.valeurs) {
+                throw new Error("Variable manquante à H+" + p.seconde / 3600);
+              }
             }
+            console.log("JSON valide :", cache.previsions.length, "échéances, 3 variables.");
+            console.log("Taille :", fs.statSync("data-arome/arome-cache.json").size, "octets.");
           '
 
-      - name: Publish AROME data branch
+      - name: Publier le cache AROME
         run: bash .github/scripts/publish-data-branch.sh arome-data data-arome
-
