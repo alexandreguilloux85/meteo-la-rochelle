@@ -9,6 +9,24 @@ const proj4 = require("proj4");
 const { PNG } = require("pngjs");
 
 const app = express();
+
+// Autoriser l'interface GitHub Pages à appeler les API hébergées sur Render.
+app.use((req, res, next) => {
+    const origineAutorisee =
+        "https://alexandreguilloux85.github.io";
+
+    if (req.headers.origin === origineAutorisee) {
+        res.setHeader("Access-Control-Allow-Origin", origineAutorisee);
+        res.setHeader(
+            "Access-Control-Expose-Headers",
+            "X-Radar-Bounds, X-Radar-Date"
+        );
+        res.vary("Origin");
+    }
+
+    next();
+});
+
 const PORT = process.env.PORT || 3000;
 
 const API_KEY = process.env.METEO_API_KEY;
