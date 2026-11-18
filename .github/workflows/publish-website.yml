@@ -1,6 +1,12 @@
 name: Publish website
 
 on:
+  push:
+    branches:
+      - Test_fonction
+    paths:
+      - 'public/**'
+      - '.github/workflows/publish-website.yml'
   workflow_dispatch:
   workflow_run:
     workflows:
