@@ -112,11 +112,48 @@ jobs:
                 throw new Error(`${name}: réponse non GRIB2 (taille ${data.length} octets)`);
               }
 
-              const section3Length = data.readUInt32BE(16);
-              if (section3Length < 72 || data[20] !== 3) {
-                throw new Error(`${name}: section GRIB 3 invalide`);
+              // Parcourir les sections GRIB2 : la section 3 n'est pas nécessairement
+              // la première section après l'en-tête (section 0).
+              let offset = 16;
+              let s3 = null;
+
+              while (offset < data.length - 4) {
+                if (offset + 5 > data.length - 4) {
+                  throw new Error(`${name}: en-tête de section GRIB2 tronqué`);
+                }
+
+                const sectionLength = data.readUInt32BE(offset);
+                const sectionNumber = data[offset + 4];
+
+                if (
+                  sectionLength < 5 ||
+                  offset + sectionLength > data.length - 4
+                ) {
+                  throw new Error(`${name}: longueur de section GRIB2 invalide à l'octet ${offset}`);
+                }
+
+                if (sectionNumber === 3) {
+                  s3 = data.subarray(offset, offset + sectionLength);
+                  break;
+                }
+
+                offset += sectionLength;
               }
-              const s3 = data.subarray(16, 16 + section3Length);
+
+              if (!s3) {
+                throw new Error(`${name}: section GRIB 3 introuvable`);
+              }
+
+              if (s3.length < 72) {
+                throw new Error(`${name}: section GRIB 3 trop courte (${s3.length} octets)`);
+              }
+
+              // Le template 3.0 correspond à une grille latitude/longitude régulière.
+              const gridTemplate = s3.readUInt16BE(12);
+              if (gridTemplate !== 0) {
+                throw new Error(`${name}: template de grille non pris en charge (${gridTemplate})`);
+              }
+
               const ni = s3.readUInt32BE(30);
               const nj = s3.readUInt32BE(34);
               const grid = {
