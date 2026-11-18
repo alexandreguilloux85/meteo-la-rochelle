@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: radar-data-publish
+  cancel-in-progress: false
+
 jobs:
   generate-tiles:
     runs-on: ubuntu-latest
