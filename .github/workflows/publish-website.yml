@@ -72,11 +72,18 @@ jobs:
             --max-time 120 \
             "https://alexandreguilloux85.github.io/meteo-la-rochelle/radar-xyz/tiles.zip" \
             --output /tmp/radar-xyz-tiles.zip
-          unzip -q /tmp/radar-xyz-tiles.zip -d site/radar-xyz
 
+          unzip -q /tmp/radar-xyz-tiles.zip -d site/radar-xyz
           test -s site/radar-xyz/metadata.json
-          test -d site/radar-xyz/9
-          echo "Tuiles radar XYZ précédemment publiées restaurées."
+          for zoom in 4 5 6 7 8 9; do
+            test -d "site/radar-xyz/$zoom"
+          done
+
+          # Garder l'archive disponible pour les publications suivantes.
+          cd site/radar-xyz
+          zip -qr tiles.zip 4 5 6 7 8 9 metadata.json
+          test -s tiles.zip
+          echo "Tuiles radar XYZ restaurées et archive conservée."
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
