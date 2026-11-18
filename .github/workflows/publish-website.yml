@@ -1,0 +1,91 @@
+name: Publish website
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  publish-website:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Prepare website files
+        run: |
+          mkdir -p site
+          cp -R public/. site/
+
+      - name: Restore the published AROME cache
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-all-errors \
+            --max-time 60 \
+            "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json" \
+            --output site/arome-cache.json
+
+          node -e '
+            const fs = require("node:fs");
+            const cache = JSON.parse(fs.readFileSync("site/arome-cache.json", "utf8"));
+            if (!cache?.modele || !cache?.zone || !Array.isArray(cache.previsions) || cache.previsions.length === 0) {
+              console.error("Le cache AROME publié est absent ou invalide.");
+              process.exit(1);
+            }
+            console.log("Cache AROME conservé :", cache.previsions.length, "échéances.");
+          '
+
+      - name: Restore the published weather observations
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-all-errors \
+            --max-time 60 \
+            "https://alexandreguilloux85.github.io/meteo-la-rochelle/observations.json" \
+            --output site/observations.json
+
+          node -e '
+            const fs = require("node:fs");
+            const data = JSON.parse(fs.readFileSync("site/observations.json", "utf8"));
+            const rows = Array.isArray(data) ? data : data.features || data.data || [];
+            if (!Array.isArray(rows) || rows.length === 0) {
+              console.error("Les observations publiées sont absentes ou invalides.");
+              process.exit(1);
+            }
+            console.log("Observations météo conservées :", rows.length);
+          '
+
+      - name: Restore the published radar XYZ tiles
+        run: |
+          mkdir -p site/radar-xyz
+          curl --fail --silent --show-error --retry 3 --retry-all-errors \
+            --max-time 120 \
+            "https://alexandreguilloux85.github.io/meteo-la-rochelle/radar-xyz/tiles.zip" \
+            --output /tmp/radar-xyz-tiles.zip
+          unzip -q /tmp/radar-xyz-tiles.zip -d site/radar-xyz
+
+          test -s site/radar-xyz/metadata.json
+          test -d site/radar-xyz/9
+          echo "Tuiles radar XYZ précédemment publiées restaurées."
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
