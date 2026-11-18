@@ -8,14 +8,12 @@ redéploie le site. Aucun serveur backend n'est nécessaire.
 
 | Données | Fréquence | Source |
 | --- | --- | --- |
-| Observations de la station de La Rochelle | Toutes les 6 minutes, à partir de la minute UTC 3 | API Météo-France, observations infra-horaires |
-| Radar | Toutes les 10 minutes, à partir de la minute UTC 4 | Mosaïque radar Météo-France, tuiles XYZ |
+| Observations de la station de La Rochelle | Toutes les 6 minutes (`*/6`) | API Météo-France, observations infra-horaires |
+| Radar | Toutes les 10 minutes (`*/10`) | Mosaïque radar Météo-France, tuiles XYZ |
 | Prévisions AROME | 8 fois par jour, à `00:15`, `03:15`, `06:15`, `09:15`, `12:15`, `15:15`, `18:15` et `21:15` UTC | API WCS Météo-France |
 
-Les horaires de départ des observations et du radar sont décalés afin de limiter
-les retards de démarrage d'Actions aux minutes les plus chargées. GitHub peut
-toutefois retarder ou ignorer une exécution planifiée en période de forte
-charge.
+GitHub peut toutefois retarder ou ignorer une exécution planifiée en période de
+forte charge.
 
 À l'ouverture ou au rechargement de la page, le navigateur vérifie les dernières
 observations et les métadonnées radar publiées. Il vérifie ensuite les
