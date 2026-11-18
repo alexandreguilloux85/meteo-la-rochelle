@@ -9,6 +9,7 @@ let graphiqueTemperature = null;
 
 let carteRadar = null;
 let coucheRadar = null;
+let urlImageRadar = null;
 let cercle5Nm = null;
 let cercle15Nm = null;
 let etiquette5Nm = null;
@@ -16,8 +17,8 @@ let etiquette15Nm = null;
 let axeNordSud = null;
 let axeEstOuest = null;
 
-const URL_RADAR_TUILES = "https://alexandreguilloux85.github.io/meteo-la-rochelle/radar-xyz";
 const URL_SERVEUR_RENDER = "https://station-meteo-lr-test.onrender.com";
+const URL_OBSERVATIONS_RENDER = URL_SERVEUR_RENDER + "/api/observations";
 // --------------------------------------------------
 // PREVISIONS AROME
 // --------------------------------------------------
@@ -350,7 +351,7 @@ function initialiserCarteRadar() {
     // Chargement radar
     chargerRadar();
 
-    // Actualisation toutes les 10 minutes
+    // Actualisation directe depuis Render toutes les 10 minutes.
     setInterval(chargerRadar, 10 * 60 * 1000);
 }
 
@@ -402,9 +403,6 @@ function couleurVent(vitesse) {
 // --------------------------------------------------
 // CACHE AROME ET INTERPOLATION LOCALE DANS LE NAVIGATEUR
 // --------------------------------------------------
-
-const URL_OBSERVATIONS_PAGES =
-    "https://alexandreguilloux85.github.io/meteo-la-rochelle/observations.json";
 
 const URL_CACHE_AROME =
     "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json";
@@ -935,44 +933,7 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
 // CHARGEMENT DE L'IMAGE RADAR
 // --------------------------------------------------
 
-async function appliquerMetadataRadar(metadata) {
-    if (!metadata || !metadata.date || metadata.zoom_max !== 9 || metadata.tile_size !== 256) {
-        throw new Error("Métadonnées des tuiles radar invalides");
-    }
-
-    const dateRadar = metadata.date;
-    if (dateRadarAffichee === dateRadar && coucheRadar) return;
-
-    const urlTuiles = URL_RADAR_TUILES +
-        "/{z}/{x}/{y}.png?v=" + encodeURIComponent(dateRadar);
-
-    if (!coucheRadar) {
-        coucheRadar = L.tileLayer(urlTuiles, {
-            minZoom: 4,
-            maxNativeZoom: 9,
-            maxZoom: 12,
-            tileSize: 256,
-            opacity: 0.95,
-            tms: false,
-            errorTileUrl: "",
-            pane: "radarImagePane",
-            updateWhenIdle: true,
-            keepBuffer: 2
-        }).addTo(carteRadar);
-    } else if (coucheRadar.options && coucheRadar.options._url !== urlTuiles) {
-        coucheRadar.setUrl(urlTuiles);
-    }
-
-    dateRadarAffichee = dateRadar;
-    const date = new Date(dateRadar);
-    document.getElementById("radarMiseAJour").textContent =
-        "Radar : " + date.toLocaleString("fr-FR", {
-            day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
-        });
-}
-
 let chargementRadarEnCours = false;
-let dateRadarAffichee = null;
 
 async function chargerRadar() {
     if (chargementRadarEnCours) return;
@@ -980,33 +941,55 @@ async function chargerRadar() {
     const statut = document.getElementById("radarMiseAJour");
 
     try {
-        const cache = lireCacheLocal(CLE_CACHE_RADAR);
-        if (cache && cache.date) {
-            await appliquerMetadataRadar(cache);
+        const url = new URL(URL_SERVEUR_RENDER + "/api/radar/image");
+        url.searchParams.set("lat", String(centreRadarActuel.lat));
+        url.searchParams.set("lon", String(centreRadarActuel.lon));
+        url.searchParams.set("t", String(Date.now()));
+
+        const reponse = await fetch(url, { cache: "no-store" });
+        if (!reponse.ok) {
+            throw new Error("Image radar Render : HTTP " + reponse.status);
         }
 
-        const reponse = await fetch(URL_RADAR_TUILES + "/metadata.json", {
-            cache: "no-cache"
+        const boundsTexte = reponse.headers.get("X-Radar-Bounds");
+        const dateRadar = reponse.headers.get("X-Radar-Date");
+        if (!boundsTexte) throw new Error("Coordonnées de l'image radar absentes");
+
+        const bounds = JSON.parse(boundsTexte);
+        if (![bounds.sud, bounds.ouest, bounds.nord, bounds.est]
+            .every(Number.isFinite)) {
+            throw new Error("Coordonnées de l'image radar invalides");
+        }
+        const limites = [
+            [bounds.sud, bounds.ouest],
+            [bounds.nord, bounds.est]
+        ];
+        const nouvelleUrl = URL.createObjectURL(await reponse.blob());
+        const nouvelleCouche = L.imageOverlay(nouvelleUrl, limites, {
+            opacity: 0.95,
+            interactive: false,
+            pane: "radarImagePane"
         });
-        if (!reponse.ok) throw new Error("Métadonnées radar : HTTP " + reponse.status);
 
-        const metadata = await reponse.json();
-        if (!metadata.date || metadata.zoom_max !== 9 || metadata.tile_size !== 256) {
-            throw new Error("Métadonnées des tuiles radar invalides");
-        }
+        if (coucheRadar) carteRadar.removeLayer(coucheRadar);
+        if (urlImageRadar) URL.revokeObjectURL(urlImageRadar);
+        urlImageRadar = nouvelleUrl;
+        coucheRadar = nouvelleCouche.addTo(carteRadar);
 
-        if (!cache || cache.date !== metadata.date) {
-            ecrireCacheLocal(CLE_CACHE_RADAR, metadata);
-            await appliquerMetadataRadar(metadata);
-            console.log("Nouveau produit radar chargé :", metadata.date);
-        } else {
-            console.log("Radar inchangé :", metadata.date);
-        }
+        const date = dateRadar ? new Date(dateRadar) : null;
+        statut.textContent = date && !Number.isNaN(date.getTime())
+            ? "Radar : " + date.toLocaleString("fr-FR", {
+                day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
+            })
+            : "Radar actualisé";
+        console.log("Radar Render actualisé :", dateRadar);
+        return true;
     } catch (erreur) {
-        console.error("Erreur chargement radar XYZ :", erreur);
-        if (!lireCacheLocal(CLE_CACHE_RADAR)) {
-            statut.textContent = "Radar indisponible · aucune image en cache";
-        }
+        console.error("Erreur chargement radar depuis Render :", erreur);
+        statut.textContent = coucheRadar
+            ? "Radar indisponible · dernière image conservée"
+            : "Radar indisponible";
+        return false;
     } finally {
         chargementRadarEnCours = false;
     }
@@ -1307,7 +1290,6 @@ function creerGraphiques(donnees) {
 // --------------------------------------------------
 
 const CLE_CACHE_OBSERVATIONS = "meteo_observations_v1";
-const CLE_CACHE_RADAR = "meteo_radar_metadata_v1";
 
 function lireCacheLocal(cle) {
     try {
@@ -1406,7 +1388,7 @@ function afficherDonnees(donnees) {
 let chargementObservationsEnCours = false;
 
 async function chargerDonnees() {
-    if (chargementObservationsEnCours) return;
+    if (chargementObservationsEnCours) return false;
     chargementObservationsEnCours = true;
 
     // Afficher immédiatement les dernières observations sauvegardées localement.
@@ -1416,10 +1398,12 @@ async function chargerDonnees() {
     }
 
     try {
-        const reponse = await fetch(URL_OBSERVATIONS_PAGES, {
-            cache: "no-cache"
+        const reponse = await fetch(URL_OBSERVATIONS_RENDER, {
+            cache: "no-store"
         });
-        if (!reponse.ok) throw new Error("Erreur HTTP : " + reponse.status);
+        if (!reponse.ok) {
+            throw new Error("Render observations : HTTP " + reponse.status);
+        }
 
         const nouvellesDonnees = normaliserObservations(await reponse.json());
         if (nouvellesDonnees.length === 0) {
@@ -1441,17 +1425,19 @@ async function chargerDonnees() {
                 donnees: nouvellesDonnees
             });
             afficherDonnees(nouvellesDonnees);
-            console.log("Nouveaux relevés météo chargés :", nouvellesDonnees.length);
+            console.log("Nouveaux relevés météo reçus de Render :", nouvellesDonnees.length);
         } else {
             console.log("Relevés météo inchangés : cache local conservé.");
         }
+        return true;
     } catch (erreur) {
-        console.error("Vérification des relevés météo impossible :", erreur);
+        console.error("Vérification des relevés météo via Render impossible :", erreur);
         const cache = lireCacheLocal(CLE_CACHE_OBSERVATIONS);
         if (!cache || !Array.isArray(cache.donnees) || cache.donnees.length === 0) {
             document.getElementById("miseAJour").textContent =
                 "Relevés indisponibles · aucune donnée en cache";
         }
+        return false;
     } finally {
         chargementObservationsEnCours = false;
     }
@@ -1493,15 +1479,30 @@ function distanceMetres(
 // --------------------------------------------------
 // DEMARRAGE
 // --------------------------------------------------
-async function declencherWorkflowDepuisInterface(workflow, bouton) {
+async function actualiserDepuisInterface(action, bouton) {
     const statut = document.getElementById("workflowTriggerStatus");
 
     bouton.disabled = true;
-    statut.textContent = "Connexion à Render…";
+    statut.textContent = "Actualisation en cours…";
 
     try {
+        if (action === "observations" || action === "radar") {
+            const actualisationReussie = action === "observations"
+                ? await chargerDonnees()
+                : await chargerRadar();
+
+            if (!actualisationReussie) {
+                throw new Error("La récupération a échoué. Consultez le statut des données.");
+            }
+
+            statut.textContent = action === "observations"
+                ? "Mesures de la station actualisées depuis Render."
+                : "Image radar actualisée depuis Render.";
+            return;
+        }
+
         const reponse = await fetch(
-            `${URL_SERVEUR_RENDER}/api/workflows/${encodeURIComponent(workflow)}`,
+            `${URL_SERVEUR_RENDER}/api/workflows/arome`,
             {
                 method: "POST",
                 cache: "no-store"
@@ -1514,9 +1515,9 @@ async function declencherWorkflowDepuisInterface(workflow, bouton) {
         }
 
         statut.textContent =
-            "Demande envoyée. Les données apparaîtront après le téléchargement et la publication du site.";
+            "Demande AROME envoyée. Les prévisions apparaîtront après leur téléchargement et publication sur GitHub Pages.";
     } catch (erreur) {
-        console.error("Déclenchement du workflow impossible :", erreur);
+        console.error("Actualisation demandée impossible :", erreur);
         statut.textContent = erreur.message ||
             "Impossible de contacter Render. Le service peut être en veille.";
     } finally {
@@ -1524,9 +1525,9 @@ async function declencherWorkflowDepuisInterface(workflow, bouton) {
     }
 }
 
-document.querySelectorAll("[data-workflow]").forEach(bouton => {
+document.querySelectorAll("[data-refresh]").forEach(bouton => {
     bouton.addEventListener("click", () => {
-        declencherWorkflowDepuisInterface(bouton.dataset.workflow, bouton);
+        actualiserDepuisInterface(bouton.dataset.refresh, bouton);
     });
 });
 
@@ -1535,7 +1536,7 @@ function demarrerApplication() {
     initialiserCarteRadar();
     chargerDonnees();
 
-    // Les mises à jour sont automatisées par GitHub Actions.
+    // Les observations et le radar sont récupérés directement depuis Render.
 }
 
 demarrerApplication();

@@ -443,8 +443,6 @@ const GITHUB_REPOSITORY = "alexandreguilloux85/meteo-la-rochelle";
 const GITHUB_BRANCH = "main";
 const DELAI_MINIMUM_ACTUALISATION_METEO = 10 * 60 * 1000;
 const DECLENCHEMENTS_WORKFLOWS = Object.freeze({
-    observations: "publish-observations.yml",
-    radar: "publish-radar-xyz.yml",
     arome: "publish-arome-cache.yml"
 });
 const declenchementsWorkflowsEnCours = new Set();
