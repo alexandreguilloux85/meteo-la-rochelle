@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-test-cache:
+  download-and-publish:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -34,7 +34,7 @@ jobs:
             exit 1
           fi
 
-      - name: Télécharger les 51 échéances et construire le cache JSON de test
+      - name: Télécharger les 51 échéances et construire le cache AROME
         env:
           AROME_API_KEY: ${{ secrets.METEO_AROME_API_KEY }}
         run: |
