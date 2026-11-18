@@ -1,8 +1,6 @@
 name: Publish website
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
   workflow_run:
     workflows:
