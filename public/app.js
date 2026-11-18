@@ -17,6 +17,7 @@ let axeNordSud = null;
 let axeEstOuest = null;
 
 const URL_RADAR_TUILES = "https://alexandreguilloux85.github.io/meteo-la-rochelle/radar-xyz";
+const URL_SERVEUR_RENDER = "https://station-meteo-lr-test.onrender.com";
 // --------------------------------------------------
 // PREVISIONS AROME
 // --------------------------------------------------
@@ -1492,6 +1493,54 @@ function distanceMetres(
 // --------------------------------------------------
 // DEMARRAGE
 // --------------------------------------------------
+async function declencherWorkflowDepuisInterface(workflow, bouton) {
+    const champJeton = document.getElementById("workflowTriggerToken");
+    const statut = document.getElementById("workflowTriggerStatus");
+    const jeton = champJeton.value.trim();
+
+    if (!jeton) {
+        statut.textContent = "Saisis le code d'accès Render.";
+        champJeton.focus();
+        return;
+    }
+
+    bouton.disabled = true;
+    statut.textContent = "Connexion à Render…";
+
+    try {
+        const reponse = await fetch(
+            `${URL_SERVEUR_RENDER}/api/workflows/${encodeURIComponent(workflow)}`,
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${jeton}`
+                },
+                cache: "no-store"
+            }
+        );
+        const resultat = await reponse.json();
+
+        if (!reponse.ok) {
+            throw new Error(resultat.erreur || `Erreur HTTP ${reponse.status}`);
+        }
+
+        statut.textContent =
+            "Demande envoyée. Les données apparaîtront après le téléchargement et la publication du site.";
+    } catch (erreur) {
+        console.error("Déclenchement du workflow impossible :", erreur);
+        statut.textContent = erreur.message ||
+            "Impossible de contacter Render. Le service peut être en veille.";
+    } finally {
+        bouton.disabled = false;
+    }
+}
+
+document.querySelectorAll("[data-workflow]").forEach(bouton => {
+    bouton.addEventListener("click", () => {
+        declencherWorkflowDepuisInterface(bouton.dataset.workflow, bouton);
+    });
+});
+
 function demarrerApplication() {
     // Afficher la carte et les données en cache sans attendre le serveur.
     initialiserCarteRadar();

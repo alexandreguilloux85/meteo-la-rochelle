@@ -17,11 +17,17 @@ app.use((req, res, next) => {
 
     if (req.headers.origin === origineAutorisee) {
         res.setHeader("Access-Control-Allow-Origin", origineAutorisee);
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Authorization");
         res.setHeader(
             "Access-Control-Expose-Headers",
             "X-Radar-Bounds, X-Radar-Date"
         );
         res.vary("Origin");
+    }
+
+    if (req.method === "OPTIONS") {
+        return res.sendStatus(204);
     }
 
     next();
@@ -433,19 +439,57 @@ app.get("/api/observations", async (req, res) => {
 // --------------------------------------------------
 
 const GITHUB_ACTIONS_TOKEN = process.env.GITHUB_ACTIONS_TOKEN;
+const WORKFLOW_TRIGGER_TOKEN = process.env.WORKFLOW_TRIGGER_TOKEN;
 const GITHUB_REPOSITORY = "alexandreguilloux85/meteo-la-rochelle";
-const GITHUB_BRANCH = "Test_fonction";
+const GITHUB_BRANCH = "main";
 const DELAI_MINIMUM_ACTUALISATION_METEO = 5 * 60 * 1000;
-let derniereDemandeActualisationMeteo = 0;
-let actualisationMeteoEnCours = null;
+const DECLENCHEMENTS_WORKFLOWS = Object.freeze({
+    observations: "publish-observations.yml",
+    radar: "publish-radar-xyz.yml",
+    arome: "publish-arome-cache.yml"
+});
+const derniersDeclenchementsWorkflows = new Map();
+const declenchementsWorkflowsEnCours = new Set();
 
-app.get("/api/refresh-weather", async (req, res) => {
+function verifierJetonDeclenchementWorkflow(req) {
+    const autorisation = req.get("authorization") || "";
+    const correspondance = autorisation.match(/^Bearer (.+)$/);
+
+    if (!WORKFLOW_TRIGGER_TOKEN || !correspondance) {
+        return false;
+    }
+
+    const jetonAttendu = Buffer.from(WORKFLOW_TRIGGER_TOKEN);
+    const jetonRecu = Buffer.from(correspondance[1]);
+
+    return jetonAttendu.length === jetonRecu.length &&
+        crypto.timingSafeEqual(jetonAttendu, jetonRecu);
+}
+
+app.post("/api/workflows/:workflow", async (req, res) => {
     res.set("Cache-Control", "no-store");
 
     if (req.get("origin") !== "https://alexandreguilloux85.github.io") {
         return res.status(403).json({
             succes: false,
             erreur: "Origine non autorisée"
+        });
+    }
+
+    if (!Object.hasOwn(DECLENCHEMENTS_WORKFLOWS, req.params.workflow)) {
+        return res.status(404).json({
+            succes: false,
+            erreur: "Workflow inconnu"
+        });
+    }
+    const fichierWorkflow = DECLENCHEMENTS_WORKFLOWS[req.params.workflow];
+
+    if (!verifierJetonDeclenchementWorkflow(req)) {
+        return res.status(WORKFLOW_TRIGGER_TOKEN ? 401 : 503).json({
+            succes: false,
+            erreur: WORKFLOW_TRIGGER_TOKEN
+                ? "Code d'accès invalide"
+                : "Variable WORKFLOW_TRIGGER_TOKEN absente dans Render"
         });
     }
 
@@ -457,75 +501,75 @@ app.get("/api/refresh-weather", async (req, res) => {
     }
 
     const maintenant = Date.now();
+    const dernierDeclenchement =
+        derniersDeclenchementsWorkflows.get(fichierWorkflow) || 0;
     const delaiRestant = DELAI_MINIMUM_ACTUALISATION_METEO -
-        (maintenant - derniereDemandeActualisationMeteo);
+        (maintenant - dernierDeclenchement);
 
     if (delaiRestant > 0) {
-        return res.status(202).json({
-            succes: true,
-            deja_demande: true,
-            prochain_declenchement_possible:
-                new Date(derniereDemandeActualisationMeteo +
-                    DELAI_MINIMUM_ACTUALISATION_METEO).toISOString()
+        return res.status(429).json({
+            succes: false,
+            erreur: "Ce workflow a été demandé récemment. Réessaie dans quelques minutes.",
+            prochain_declenchement_possible: new Date(
+                dernierDeclenchement + DELAI_MINIMUM_ACTUALISATION_METEO
+            ).toISOString()
         });
     }
 
-    if (actualisationMeteoEnCours) {
-        return res.status(202).json({
-            succes: true,
-            deja_demande: true,
-            message: "Mise à jour déjà en cours de déclenchement."
+    if (declenchementsWorkflowsEnCours.has(fichierWorkflow)) {
+        return res.status(409).json({
+            succes: false,
+            erreur: "Ce workflow est déjà en cours de déclenchement."
         });
     }
 
-    actualisationMeteoEnCours = (async () => {
-        const workflows = [
-            "publish-observations.yml",
-            "publish-radar-xyz.yml"
-        ];
-
-        const resultats = await Promise.all(workflows.map(async workflow => {
-            const url = `https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches`;
-            const response = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "Accept": "application/vnd.github+json",
-                    "Authorization": `Bearer ${GITHUB_ACTIONS_TOKEN}`,
-                    "X-GitHub-Api-Version": "2022-11-28",
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ ref: GITHUB_BRANCH })
-            });
-
-            if (response.status !== 204) {
-                const details = await response.text();
-                throw new Error(
-                    `Déclenchement ${workflow} impossible : HTTP ${response.status} ${details}`
-                );
-            }
-            return workflow;
-        }));
-
-        derniereDemandeActualisationMeteo = Date.now();
-        return resultats;
-    })();
+    declenchementsWorkflowsEnCours.add(fichierWorkflow);
 
     try {
-        const workflows = await actualisationMeteoEnCours;
+        const url = `https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/${fichierWorkflow}/dispatches`;
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Accept": "application/vnd.github+json",
+                "Authorization": `Bearer ${GITHUB_ACTIONS_TOKEN}`,
+                "X-GitHub-Api-Version": "2022-11-28",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ ref: GITHUB_BRANCH })
+        });
+
+        if (response.status !== 204) {
+            console.error(
+                `Échec du déclenchement ${fichierWorkflow} : HTTP ${response.status}`
+            );
+            return res.status(502).json({
+                succes: false,
+                erreur: `GitHub n'a pas accepté le déclenchement (${response.status}).`
+            });
+        }
+
+        derniersDeclenchementsWorkflows.set(fichierWorkflow, Date.now());
         return res.status(202).json({
             succes: true,
-            message: "Mises à jour demandées.",
-            workflows
+            message: "Workflow déclenché.",
+            workflow: fichierWorkflow
         });
     } catch (error) {
-        console.error("Erreur déclenchement mises à jour météo :", error);
+        console.error(`Erreur déclenchement ${fichierWorkflow} :`, error);
         return res.status(502).json({
             succes: false,
-            erreur: error.message
+            erreur: "Impossible de joindre GitHub pour déclencher le workflow."
         });
     } finally {
-        actualisationMeteoEnCours = null;
+        declenchementsWorkflowsEnCours.delete(fichierWorkflow);
     }
+});
+
+app.get("/api/refresh-weather", (req, res) => {
+    return res.status(410).json({
+        succes: false,
+        erreur: "Utilise un bouton d'actualisation du site."
+    });
 });
 
 // Vérification légère pour maintenir Render actif
