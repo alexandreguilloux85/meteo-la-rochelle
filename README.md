@@ -26,8 +26,8 @@ les mesures les plus récentes en premier.
 Les workflows publient leurs résultats sur les branches `observations-data`,
 `radar-data` et `arome-data`. Le workflow **Publish website** rassemble ces
 fichiers avec `public/` et déploie l'ensemble sur GitHub Pages. Le dépôt utilise
-`Test_fonction` comme branche par défaut, nécessaire au déclenchement des
-workflows planifiés.
+`main` comme branche par défaut : les tâches planifiées et le déploiement Pages
+partent de cette branche.
 
 Dans **Settings → Secrets and variables → Actions**, configurer les secrets
 suivants :
@@ -39,7 +39,9 @@ suivants :
 | `METEO_AROME_API_KEY` | Téléchargement des prévisions AROME |
 
 Dans **Settings → Pages**, sélectionner **GitHub Actions** comme source de
-publication.
+publication. Dans **Settings → Environments → github-pages**, autoriser la
+branche `main` dans **Deployment branches and tags** ; sinon GitHub refusera le
+déploiement même si le workflow se termine correctement.
 
 ## Vérification manuelle
 
