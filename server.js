@@ -439,32 +439,15 @@ app.get("/api/observations", async (req, res) => {
 // --------------------------------------------------
 
 const GITHUB_ACTIONS_TOKEN = process.env.GITHUB_ACTIONS_TOKEN;
-const WORKFLOW_TRIGGER_TOKEN = process.env.WORKFLOW_TRIGGER_TOKEN;
 const GITHUB_REPOSITORY = "alexandreguilloux85/meteo-la-rochelle";
 const GITHUB_BRANCH = "main";
-const DELAI_MINIMUM_ACTUALISATION_METEO = 5 * 60 * 1000;
+const DELAI_MINIMUM_ACTUALISATION_METEO = 10 * 60 * 1000;
 const DECLENCHEMENTS_WORKFLOWS = Object.freeze({
     observations: "publish-observations.yml",
     radar: "publish-radar-xyz.yml",
     arome: "publish-arome-cache.yml"
 });
-const derniersDeclenchementsWorkflows = new Map();
 const declenchementsWorkflowsEnCours = new Set();
-
-function verifierJetonDeclenchementWorkflow(req) {
-    const autorisation = req.get("authorization") || "";
-    const correspondance = autorisation.match(/^Bearer (.+)$/);
-
-    if (!WORKFLOW_TRIGGER_TOKEN || !correspondance) {
-        return false;
-    }
-
-    const jetonAttendu = Buffer.from(WORKFLOW_TRIGGER_TOKEN);
-    const jetonRecu = Buffer.from(correspondance[1]);
-
-    return jetonAttendu.length === jetonRecu.length &&
-        crypto.timingSafeEqual(jetonAttendu, jetonRecu);
-}
 
 app.post("/api/workflows/:workflow", async (req, res) => {
     res.set("Cache-Control", "no-store");
@@ -484,35 +467,10 @@ app.post("/api/workflows/:workflow", async (req, res) => {
     }
     const fichierWorkflow = DECLENCHEMENTS_WORKFLOWS[req.params.workflow];
 
-    if (!verifierJetonDeclenchementWorkflow(req)) {
-        return res.status(WORKFLOW_TRIGGER_TOKEN ? 401 : 503).json({
-            succes: false,
-            erreur: WORKFLOW_TRIGGER_TOKEN
-                ? "Code d'accès invalide"
-                : "Variable WORKFLOW_TRIGGER_TOKEN absente dans Render"
-        });
-    }
-
     if (!GITHUB_ACTIONS_TOKEN) {
         return res.status(503).json({
             succes: false,
             erreur: "Variable GITHUB_ACTIONS_TOKEN absente dans Render"
-        });
-    }
-
-    const maintenant = Date.now();
-    const dernierDeclenchement =
-        derniersDeclenchementsWorkflows.get(fichierWorkflow) || 0;
-    const delaiRestant = DELAI_MINIMUM_ACTUALISATION_METEO -
-        (maintenant - dernierDeclenchement);
-
-    if (delaiRestant > 0) {
-        return res.status(429).json({
-            succes: false,
-            erreur: "Ce workflow a été demandé récemment. Réessaie dans quelques minutes.",
-            prochain_declenchement_possible: new Date(
-                dernierDeclenchement + DELAI_MINIMUM_ACTUALISATION_METEO
-            ).toISOString()
         });
     }
 
@@ -526,6 +484,64 @@ app.post("/api/workflows/:workflow", async (req, res) => {
     declenchementsWorkflowsEnCours.add(fichierWorkflow);
 
     try {
+        const workflowUrl =
+            `https://api.github.com/repos/${GITHUB_REPOSITORY}` +
+            `/actions/workflows/${fichierWorkflow}`;
+        const runsResponse = await fetch(
+            `${workflowUrl}/runs?branch=${GITHUB_BRANCH}&per_page=20`,
+            {
+                headers: {
+                    "Accept": "application/vnd.github+json",
+                    "Authorization": `Bearer ${GITHUB_ACTIONS_TOKEN}`,
+                    "X-GitHub-Api-Version": "2022-11-28"
+                }
+            }
+        );
+
+        if (!runsResponse.ok) {
+            console.error(
+                `Vérification des exécutions ${fichierWorkflow} impossible : HTTP ${runsResponse.status}`
+            );
+            return res.status(502).json({
+                succes: false,
+                erreur: "Impossible de vérifier l'état du workflow sur GitHub."
+            });
+        }
+
+        const runsResult = await runsResponse.json();
+        const runs = Array.isArray(runsResult.workflow_runs)
+            ? runsResult.workflow_runs
+            : [];
+        const runActive = runs.find(run =>
+            run.status === "queued" || run.status === "in_progress"
+        );
+
+        if (runActive) {
+            return res.status(409).json({
+                succes: false,
+                erreur: "Ce workflow est déjà en attente ou en cours sur GitHub."
+            });
+        }
+
+        const derniereDemande = runs.find(run =>
+            run.event === "workflow_dispatch"
+        );
+        const ageDerniereDemande = derniereDemande
+            ? Date.now() - new Date(derniereDemande.created_at).getTime()
+            : Number.POSITIVE_INFINITY;
+
+        if (ageDerniereDemande < DELAI_MINIMUM_ACTUALISATION_METEO) {
+            const prochainDeclenchement = new Date(
+                new Date(derniereDemande.created_at).getTime() +
+                    DELAI_MINIMUM_ACTUALISATION_METEO
+            );
+            return res.status(429).json({
+                succes: false,
+                erreur: "Ce workflow a été demandé récemment. Réessaie dans quelques minutes.",
+                prochain_declenchement_possible: prochainDeclenchement.toISOString()
+            });
+        }
+
         const url = `https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/${fichierWorkflow}/dispatches`;
         const response = await fetch(url, {
             method: "POST",
@@ -548,7 +564,6 @@ app.post("/api/workflows/:workflow", async (req, res) => {
             });
         }
 
-        derniersDeclenchementsWorkflows.set(fichierWorkflow, Date.now());
         return res.status(202).json({
             succes: true,
             message: "Workflow déclenché.",

@@ -1494,15 +1494,7 @@ function distanceMetres(
 // DEMARRAGE
 // --------------------------------------------------
 async function declencherWorkflowDepuisInterface(workflow, bouton) {
-    const champJeton = document.getElementById("workflowTriggerToken");
     const statut = document.getElementById("workflowTriggerStatus");
-    const jeton = champJeton.value.trim();
-
-    if (!jeton) {
-        statut.textContent = "Saisis le code d'accès Render.";
-        champJeton.focus();
-        return;
-    }
 
     bouton.disabled = true;
     statut.textContent = "Connexion à Render…";
@@ -1512,9 +1504,6 @@ async function declencherWorkflowDepuisInterface(workflow, bouton) {
             `${URL_SERVEUR_RENDER}/api/workflows/${encodeURIComponent(workflow)}`,
             {
                 method: "POST",
-                headers: {
-                    Authorization: `Bearer ${jeton}`
-                },
                 cache: "no-store"
             }
         );

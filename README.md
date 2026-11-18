@@ -47,27 +47,28 @@ déploiement même si le workflow se termine correctement.
 ## Déclenchement manuel depuis le site
 
 Les boutons d'actualisation appellent le service Render, qui déclenche le
-workflow GitHub Actions sélectionné. Le jeton GitHub reste côté serveur et ne
-doit jamais être ajouté au site statique.
+workflow GitHub Actions sélectionné, sans code à saisir. Le jeton GitHub reste
+côté serveur et ne doit jamais être ajouté au site statique. Ces boutons sont
+publics : toute personne connaissant l'adresse peut les appeler.
 
-Configurer ces variables dans **Render → Environment** :
+Configurer cette variable dans **Render → Environment** :
 
 | Variable | Utilisation |
 | --- | --- |
 | `GITHUB_ACTIONS_TOKEN` | Jeton GitHub avec l'autorisation Actions: write sur ce dépôt |
-| `WORKFLOW_TRIGGER_TOKEN` | Secret aléatoire long demandé par les boutons du site |
 
 Le service Render doit déployer la branche `main` pour inclure cet endpoint.
-Utiliser un secret aléatoire d'au moins 32 caractères pour
-`WORKFLOW_TRIGGER_TOKEN`. Il est saisi dans le champ du site et transmis à
-Render uniquement pour l'appel ; il n'est pas enregistré dans le stockage local
-du navigateur.
-Chaque workflow a un délai minimal de cinq minutes entre deux déclenchements.
+Chaque workflow refuse une nouvelle demande pendant qu'une exécution est en
+attente/en cours et impose dix minutes entre deux lancements manuels. La limite
+est vérifiée auprès de GitHub, elle reste donc active même après la mise en
+veille ou le redémarrage de Render.
 
 Le service Render gratuit peut être en veille : le premier appel peut alors
 prendre du temps ou expirer pendant le réveil. Une fois le workflow déclenché,
 le déploiement GitHub Pages se lance après sa réussite. Les prévisions AROME
 peuvent prendre beaucoup plus longtemps que les observations ou le radar.
+L'endpoint étant public, ces limites réduisent les déclenchements accidentels,
+mais ne remplacent pas une authentification.
 
 ## Vérification manuelle
 
