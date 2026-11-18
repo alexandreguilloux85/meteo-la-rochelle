@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: observations-data-publish
+  cancel-in-progress: false
+
 jobs:
   refresh-and-publish:
     runs-on: ubuntu-latest
