@@ -349,8 +349,8 @@ function initialiserCarteRadar() {
     // Chargement radar
     chargerRadar();
 
-    // Actualisation toutes les 5 minutes
-    setInterval(chargerRadar, 5 * 60 * 1000);
+    // Actualisation toutes les 10 minutes
+    setInterval(chargerRadar, 10 * 60 * 1000);
 }
 
 // --------------------------------------------------
