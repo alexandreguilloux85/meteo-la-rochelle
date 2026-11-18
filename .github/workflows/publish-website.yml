@@ -54,7 +54,7 @@ jobs:
             local destination="$2"
             mkdir -p "$destination"
             if git fetch --no-tags origin "$branch"; then
-              git archive FETCH_HEAD | tar -x -C "$destination"
+              git archive FETCH_HEAD | tar -x -C "$destination" || return 1
               echo "Données restaurées depuis $branch."
               return 0
             fi
