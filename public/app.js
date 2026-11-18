@@ -1293,7 +1293,7 @@ async function chargerDonnees() {
 
     try {
 
-        const reponse = await fetch(URL_OBSERVATIONS_PAGES, {
+        const reponse = await fetch(URL_OBSERVATIONS_PAGES + "?t=" + Date.now(), {
             cache: "no-store"
         });
 
