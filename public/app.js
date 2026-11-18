@@ -1494,33 +1494,21 @@ function distanceMetres(
 // --------------------------------------------------
 // DEMARRAGE
 // --------------------------------------------------
-async function demarrerApplication() {
-    try {
-        const reponse = await fetch(
-            URL_SERVEUR_RENDER + "/api/keepalive?t=" + Date.now(),
-            {
-                cache: "no-store"
-            }
-        );
-
+function demarrerApplication() {
+    // Le keepalive Render est lancé en arrière-plan : il ne bloque plus l'affichage.
+    fetch(URL_SERVEUR_RENDER + "/api/keepalive", {
+        cache: "no-cache"
+    }).then(reponse => {
         if (!reponse.ok) {
-            console.warn(
-                "Keepalive indisponible :",
-                reponse.status
-            );
+            console.warn("Keepalive indisponible :", reponse.status);
         }
-    } catch (erreur) {
-        console.warn(
-            "Erreur pendant la vérification du serveur :",
-            erreur.message
-        );
-    }
+    }).catch(erreur => {
+        console.warn("Erreur pendant la vérification du serveur :", erreur.message);
+    });
 
-    // Initialisation de la carte, du radar et des prévisions
+    // L'interface et les caches locaux sont affichés sans attendre Render.
     initialiserCarteRadar();
-
-    // Chargement des observations
-    await chargerDonnees();
+    chargerDonnees();
 }
 
 demarrerApplication();
