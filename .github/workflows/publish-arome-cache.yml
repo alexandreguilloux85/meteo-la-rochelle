@@ -121,7 +121,7 @@ jobs:
             --output data-arome/arome-cache.json
           node -e '
             const fs = require("node:fs");
-            const cache = JSON.parse(fs.readFileSync("site/arome-cache.json", "utf8"));
+            const cache = JSON.parse(fs.readFileSync("data-arome/arome-cache.json", "utf8"));
             const expectedSteps = 51;
             const minimumSteps = 1;
             const stepCount = Array.isArray(cache?.previsions)
