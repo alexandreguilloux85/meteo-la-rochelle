@@ -942,6 +942,8 @@ async function appliquerMetadataRadar(metadata) {
     }
 
     const dateRadar = metadata.date;
+    if (dateRadarAffichee === dateRadar && coucheRadar) return;
+
     const urlTuiles = URL_RADAR_TUILES +
         "/{z}/{x}/{y}.png?v=" + encodeURIComponent(dateRadar);
 
@@ -962,6 +964,7 @@ async function appliquerMetadataRadar(metadata) {
         coucheRadar.setUrl(urlTuiles);
     }
 
+    dateRadarAffichee = dateRadar;
     const date = new Date(dateRadar);
     document.getElementById("radarMiseAJour").textContent =
         "Radar : " + date.toLocaleString("fr-FR", {
@@ -970,6 +973,7 @@ async function appliquerMetadataRadar(metadata) {
 }
 
 let chargementRadarEnCours = false;
+let dateRadarAffichee = null;
 
 async function chargerRadar() {
     if (chargementRadarEnCours) return;
@@ -1405,6 +1409,12 @@ let chargementObservationsEnCours = false;
 async function chargerDonnees() {
     if (chargementObservationsEnCours) return;
     chargementObservationsEnCours = true;
+
+    // Afficher immédiatement les dernières observations sauvegardées localement.
+    const cacheInitial = lireCacheLocal(CLE_CACHE_OBSERVATIONS);
+    if (cacheInitial && Array.isArray(cacheInitial.donnees) && cacheInitial.donnees.length) {
+        afficherDonnees(cacheInitial.donnees);
+    }
 
     try {
         const reponse = await fetch(URL_OBSERVATIONS_PAGES, {
