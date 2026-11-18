@@ -55,6 +55,21 @@
 
     <main>
 
+        <section class="bloc declencheurs">
+            <div class="entete-bloc">
+                <div>
+                    <h2>Actualiser les données</h2>
+                    <p>Lance la récupération des dernières données via Render et GitHub Actions.</p>
+                </div>
+            </div>
+            <div class="commandes-actualisation">
+                <button type="button" data-workflow="observations">Station de vent</button>
+                <button type="button" data-workflow="radar">Radar</button>
+                <button type="button" data-workflow="arome">Prévisions AROME</button>
+            </div>
+            <p id="workflowTriggerStatus" class="statut-actualisation" role="status" aria-live="polite"></p>
+        </section>
+
         <!-- Valeurs actuelles -->
         <section class="cartes">
 
