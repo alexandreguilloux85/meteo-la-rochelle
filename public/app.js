@@ -402,8 +402,6 @@ function couleurVent(vitesse) {
 // CACHE AROME ET INTERPOLATION LOCALE DANS LE NAVIGATEUR
 // --------------------------------------------------
 
-const URL_SERVEUR_RENDER = "https://station-meteo-lr-test.onrender.com";
-
 const URL_OBSERVATIONS_PAGES =
     "https://alexandreguilloux85.github.io/meteo-la-rochelle/observations.json";
 
@@ -879,7 +877,7 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
         if (resultat.cache === true) {
             origine = resultat.origine_cache === "GitHub Pages"
                 ? "Prévisions depuis le cache GitHub Pages"
-                : "Prévisions depuis le cache Render";
+                : "Prévisions depuis le cache local";
         }
 
         let statutActualisation = "";
@@ -1499,20 +1497,7 @@ function demarrerApplication() {
     initialiserCarteRadar();
     chargerDonnees();
 
-    // Demander ensuite à Render de déclencher les workflows météo et radar.
-    fetch(URL_SERVEUR_RENDER + "/api/refresh-weather", {
-        cache: "no-store"
-    }).then(async reponse => {
-        const resultat = await reponse.json().catch(() => ({}));
-        if (!reponse.ok) {
-            console.warn("Déclenchement des mises à jour impossible :",
-                resultat.erreur || reponse.status);
-            return;
-        }
-        console.log(resultat.message || "Mises à jour météo demandées.");
-    }).catch(erreur => {
-        console.warn("Erreur pendant la demande de mise à jour météo :", erreur.message);
-    });
+    // Les mises à jour sont automatisées par GitHub Actions.
 }
 
 demarrerApplication();
