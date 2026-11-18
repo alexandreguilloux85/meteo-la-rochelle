@@ -6,31 +6,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: github-pages
-  cancel-in-progress: false
+  contents: write
 
 jobs:
   generate-tiles:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
-
-      - name: Préparer le site GitHub Pages
-        run: |
-          mkdir -p site
-          cp -R public/. site/
 
       - name: Installer les outils Python
         run: python -m pip install --disable-pip-version-check numpy pillow h5py pyproj rasterio requests
@@ -237,32 +223,6 @@ jobs:
               raise RuntimeError("Aucune tuile radar non vide n'a été générée.")
           PY
 
-      - name: Préserver les données AROME et les observations déjà publiées
-        run: |
-          curl --fail --silent --show-error --retry 3 --retry-all-errors \
-            --max-time 60 \
-            "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json" \
-            --output site/arome-cache.json
-          curl --fail --silent --show-error --retry 3 --retry-all-errors \
-            --max-time 60 \
-            "https://alexandreguilloux85.github.io/meteo-la-rochelle/observations.json" \
-            --output site/observations.json
+      - name: Publish radar data branch
+        run: bash .github/scripts/publish-data-branch.sh radar-data radar-xyz
 
-      - name: Préparer les tuiles radar pour GitHub Pages
-        run: |
-          mkdir -p site/radar-xyz
-          cp -R radar-xyz/. site/radar-xyz/
-          cd site/radar-xyz
-          zip -qr tiles.zip 4 5 6 7 8 9 metadata.json
-
-      - name: Configurer GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Envoyer l'artefact GitHub Pages
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-
-      - name: Déployer sur GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
