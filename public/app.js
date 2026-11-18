@@ -1495,20 +1495,24 @@ function distanceMetres(
 // DEMARRAGE
 // --------------------------------------------------
 function demarrerApplication() {
-    // Le keepalive Render est lancé en arrière-plan : il ne bloque plus l'affichage.
-    fetch(URL_SERVEUR_RENDER + "/api/keepalive", {
-        cache: "no-cache"
-    }).then(reponse => {
-        if (!reponse.ok) {
-            console.warn("Keepalive indisponible :", reponse.status);
-        }
-    }).catch(erreur => {
-        console.warn("Erreur pendant la vérification du serveur :", erreur.message);
-    });
-
-    // L'interface et les caches locaux sont affichés sans attendre Render.
+    // Afficher la carte et les données en cache sans attendre le serveur.
     initialiserCarteRadar();
     chargerDonnees();
+
+    // Demander ensuite à Render de déclencher les workflows météo et radar.
+    fetch(URL_SERVEUR_RENDER + "/api/refresh-weather", {
+        cache: "no-store"
+    }).then(async reponse => {
+        const resultat = await reponse.json().catch(() => ({}));
+        if (!reponse.ok) {
+            console.warn("Déclenchement des mises à jour impossible :",
+                resultat.erreur || reponse.status);
+            return;
+        }
+        console.log(resultat.message || "Mises à jour météo demandées.");
+    }).catch(erreur => {
+        console.warn("Erreur pendant la demande de mise à jour météo :", erreur.message);
+    });
 }
 
 demarrerApplication();
