@@ -113,7 +113,7 @@ jobs:
           RENDER_REFRESH_TOKEN: ${{ secrets.RENDER_REFRESH_TOKEN }}
         run: |
           base_url="${RENDER_BASE_URL%/}"
-          mkdir -p site
+          mkdir -p data-arome
           curl --fail --silent --show-error --retry 3 --retry-all-errors \
             --max-time 120 \
             --header "Authorization: Bearer $RENDER_REFRESH_TOKEN" \
