@@ -16,8 +16,6 @@ let etiquette15Nm = null;
 let axeNordSud = null;
 let axeEstOuest = null;
 
-let masqueRadarCourant = null;
-let actualiserMasqueRadarListener = null;
 const URL_RADAR_TUILES = "https://alexandreguilloux85.github.io/meteo-la-rochelle/radar-xyz";
 // --------------------------------------------------
 // PREVISIONS AROME
@@ -64,81 +62,6 @@ function destinationGeographique(lat, lon, distance, azimut) {
         lon2 * 180 / Math.PI
     ];
 }
-
-// --------------------------------------------------
-// MASQUE SOMBRE EN DEHORS DU CERCLE RADAR
-// --------------------------------------------------
-
-function ajouterMasqueRadar(centreLat, centreLon, rayonRadar) {
-
-    // Évite d'empiler plusieurs écouteurs lors des clics sur la carte.
-    if (actualiserMasqueRadarListener) {
-        carteRadar.off("moveend", actualiserMasqueRadarListener);
-    }
-
-        if (masqueRadarCourant) {
-            carteRadar.removeLayer(
-                masqueRadarCourant
-            );
-        }
-
-    function actualiserMasque() {
-
-        if (masqueRadarCourant) {
-            carteRadar.removeLayer(masqueRadarCourant);
-        }
-
-        const limites = carteRadar.getBounds();
-
-        // Rectangle extérieur avec une marge
-        const sud = Math.max(-89, limites.getSouth() - 20);
-        const nord = Math.min(89, limites.getNorth() + 20);
-        const ouest = Math.max(-180, limites.getWest() - 20);
-        const est = Math.min(180, limites.getEast() + 20);
-
-        const rectangle = [
-            [sud, ouest],
-            [nord, ouest],
-            [nord, est],
-            [sud, est]
-        ];
-
-        // Contour circulaire de 15 milles nautiques
-        const cercle = [];
-
-        for (let angle = 0; angle <= 360; angle += 2) {
-            cercle.push(
-                destinationGeographique(
-                    centreLat,
-                    centreLon,
-                    rayonRadar,
-                    angle
-                )
-            );
-        }
-
-        // Polygone avec un trou circulaire transparent
-        masqueRadarCourant = L.polygon(
-            [rectangle, cercle],
-            {
-                pane: "radarMaskPane",
-                stroke: false,
-                fillColor: "#172333",
-                fillOpacity: 0.25,
-                fillRule: "evenodd",
-                interactive: false
-            }
-        ).addTo(carteRadar);
-    }
-
-    // Création initiale
-    actualiserMasque();
-
-    // Mise à jour lorsque la carte est déplacée ou zoomée
-    actualiserMasqueRadarListener = actualiserMasque;
-    carteRadar.on("moveend", actualiserMasqueRadarListener);
-}
-
 
 function reconstruireRadarGraphique(
     centreLat,
@@ -315,11 +238,6 @@ function reconstruireRadarGraphique(
                 }
             ).addTo(carteRadar);
         }
-    ajouterMasqueRadar(
-        centreLat,
-        centreLon,
-        rayonRadar
-    );
 }
 
 
@@ -347,11 +265,6 @@ function initialiserCarteRadar() {
     // Couche réservée à l'image radar
     carteRadar.createPane("radarImagePane");
     carteRadar.getPane("radarImagePane").style.zIndex = 350;
-
-    // Couche du masque sombre, au-dessus du radar
-    // mais en dessous des cercles et des axes
-    carteRadar.createPane("radarMaskPane");
-    carteRadar.getPane("radarMaskPane").style.zIndex = 375;
 
     // Fond de carte actuel
     L.tileLayer("https://basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png?key=cb1_57wq_1_07826fc0a0495a659d44fac5", {
