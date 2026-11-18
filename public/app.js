@@ -936,62 +936,76 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
 // CHARGEMENT DE L'IMAGE RADAR
 // --------------------------------------------------
 
-async function chargerRadar() {
+async function appliquerMetadataRadar(metadata) {
+    if (!metadata || !metadata.date || metadata.zoom_max !== 9 || metadata.tile_size !== 256) {
+        throw new Error("Métadonnées des tuiles radar invalides");
+    }
 
+    const dateRadar = metadata.date;
+    const urlTuiles = URL_RADAR_TUILES +
+        "/{z}/{x}/{y}.png?v=" + encodeURIComponent(dateRadar);
+
+    if (!coucheRadar) {
+        coucheRadar = L.tileLayer(urlTuiles, {
+            minZoom: 4,
+            maxNativeZoom: 9,
+            maxZoom: 12,
+            tileSize: 256,
+            opacity: 0.95,
+            tms: false,
+            errorTileUrl: "",
+            pane: "radarImagePane",
+            updateWhenIdle: true,
+            keepBuffer: 2
+        }).addTo(carteRadar);
+    } else if (coucheRadar.options && coucheRadar.options._url !== urlTuiles) {
+        coucheRadar.setUrl(urlTuiles);
+    }
+
+    const date = new Date(dateRadar);
+    document.getElementById("radarMiseAJour").textContent =
+        "Radar : " + date.toLocaleString("fr-FR", {
+            day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
+        });
+}
+
+let chargementRadarEnCours = false;
+
+async function chargerRadar() {
+    if (chargementRadarEnCours) return;
+    chargementRadarEnCours = true;
     const statut = document.getElementById("radarMiseAJour");
 
     try {
-        statut.textContent = "Actualisation du radar...";
-
-        const reponse = await fetch(
-            URL_RADAR_TUILES + "/metadata.json?t=" + Date.now(),
-            { cache: "no-store" }
-        );
-
-        if (!reponse.ok) {
-            throw new Error("Métadonnées radar : HTTP " + reponse.status);
+        const cache = lireCacheLocal(CLE_CACHE_RADAR);
+        if (cache && cache.date) {
+            await appliquerMetadataRadar(cache);
         }
+
+        const reponse = await fetch(URL_RADAR_TUILES + "/metadata.json", {
+            cache: "no-cache"
+        });
+        if (!reponse.ok) throw new Error("Métadonnées radar : HTTP " + reponse.status);
 
         const metadata = await reponse.json();
         if (!metadata.date || metadata.zoom_max !== 9 || metadata.tile_size !== 256) {
             throw new Error("Métadonnées des tuiles radar invalides");
         }
 
-        const dateRadar = metadata.date;
-        const urlTuiles = URL_RADAR_TUILES +
-            "/{z}/{x}/{y}.png?v=" + encodeURIComponent(dateRadar);
-
-        if (!coucheRadar) {
-            coucheRadar = L.tileLayer(urlTuiles, {
-                minZoom: 4,
-                maxNativeZoom: 9,
-                maxZoom: 12,
-                tileSize: 256,
-                opacity: 0.95,
-                tms: false,
-                errorTileUrl: "",
-                pane: "radarImagePane",
-                updateWhenIdle: true,
-                keepBuffer: 2
-            }).addTo(carteRadar);
+        if (!cache || cache.date !== metadata.date) {
+            ecrireCacheLocal(CLE_CACHE_RADAR, metadata);
+            await appliquerMetadataRadar(metadata);
+            console.log("Nouveau produit radar chargé :", metadata.date);
         } else {
-            // Au-delà du zoom 9, Leaflet agrandit les tuiles existantes.
-            coucheRadar.setUrl(urlTuiles);
+            console.log("Radar inchangé :", metadata.date);
         }
-
-        const date = new Date(dateRadar);
-        statut.textContent = "Radar : " + date.toLocaleString("fr-FR", {
-            day: "2-digit",
-            month: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit"
-        });
-
-        console.log("Radar XYZ actualisé :", dateRadar, metadata.total_tiles, "tuiles");
-
     } catch (erreur) {
         console.error("Erreur chargement radar XYZ :", erreur);
-        statut.textContent = "Radar indisponible (dernière image conservée)";
+        if (!lireCacheLocal(CLE_CACHE_RADAR)) {
+            statut.textContent = "Radar indisponible · aucune image en cache";
+        }
+    } finally {
+        chargementRadarEnCours = false;
     }
 }
 
@@ -1289,165 +1303,148 @@ function creerGraphiques(donnees) {
 // CHARGEMENT DES DONNEES METEO
 // --------------------------------------------------
 
+const CLE_CACHE_OBSERVATIONS = "meteo_observations_v1";
+const CLE_CACHE_RADAR = "meteo_radar_metadata_v1";
+
+function lireCacheLocal(cle) {
+    try {
+        const valeur = localStorage.getItem(cle);
+        return valeur ? JSON.parse(valeur) : null;
+    } catch (erreur) {
+        console.warn("Cache local illisible :", cle, erreur);
+        return null;
+    }
+}
+
+function ecrireCacheLocal(cle, valeur) {
+    try {
+        localStorage.setItem(cle, JSON.stringify(valeur));
+    } catch (erreur) {
+        console.warn("Impossible d'enregistrer le cache local :", cle, erreur);
+    }
+}
+
+function normaliserObservations(resultat) {
+    const lignes = Array.isArray(resultat)
+        ? resultat
+        : resultat.features || resultat.data || [];
+
+    return lignes.map(item => {
+        const d = item.properties || item;
+        return {
+            date: d.validity_time,
+            ff: d.ff == null ? null : Number(d.ff),
+            raf10: d.raf10 == null ? null : Number(d.raf10),
+            dd: d.dd == null ? null : Number(d.dd),
+            pmer: d.pmer == null ? null : Number(d.pmer),
+            t: d.t == null ? null : Number(d.t)
+        };
+    }).filter(d =>
+        d.date &&
+        Number.isFinite(new Date(d.date).getTime()) &&
+        Number.isFinite(d.ff)
+    ).sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
+function afficherDonnees(donnees) {
+    if (!Array.isArray(donnees) || donnees.length === 0) return;
+
+    const dernier = donnees[donnees.length - 1];
+
+    document.getElementById("ventActuel").textContent =
+        noeuds(dernier.ff).toFixed(1);
+    document.getElementById("rafaleActuelle").textContent =
+        Number.isFinite(dernier.raf10) ? noeuds(dernier.raf10).toFixed(1) : "--";
+
+    if (Number.isFinite(dernier.dd)) {
+        document.getElementById("directionActuelle").textContent =
+            dernier.dd.toFixed(0) + "°";
+        document.getElementById("directionCardinale").textContent =
+            directionTexte(dernier.dd);
+        document.getElementById("flecheDirection").style.transform =
+            "rotate(" + (dernier.dd + 180) + "deg)";
+    } else {
+        document.getElementById("directionActuelle").textContent = "--°";
+        document.getElementById("directionCardinale").textContent = "--";
+    }
+
+    document.getElementById("pressionActuelle").textContent =
+        Number.isFinite(dernier.pmer) ? (dernier.pmer / 100).toFixed(1) : "----";
+
+    const limite = Date.now() - 24 * 60 * 60 * 1000;
+    const donnees24h = donnees.filter(d => {
+        const temps = new Date(d.date).getTime();
+        return temps >= limite && temps <= Date.now();
+    });
+
+    if (donnees24h.length === 0) {
+        console.warn("Aucune donnée météo disponible sur les dernières 24 h.");
+        return;
+    }
+
+    creerGraphiques(donnees24h);
+
+    document.getElementById("tableau").innerHTML = donnees24h
+        .slice().reverse().slice(0, 30).map(d => `
+            <tr>
+                <td>${new Date(d.date).toLocaleString("fr-FR")}</td>
+                <td>${noeuds(d.ff).toFixed(1)}</td>
+                <td>${Number.isFinite(d.raf10) ? noeuds(d.raf10).toFixed(1) : "--"}</td>
+                <td>${Number.isFinite(d.dd) ? d.dd.toFixed(0) + "° " + directionTexte(d.dd) : "--"}</td>
+                <td>${Number.isFinite(d.pmer) ? (d.pmer / 100).toFixed(1) : "--"}</td>
+                <td>${Number.isFinite(d.t) ? (d.t - 273.15).toFixed(1) : "--"}</td>
+            </tr>
+        `).join("");
+
+    document.getElementById("miseAJour").textContent =
+        "Dernier relevé : " + new Date(dernier.date).toLocaleString("fr-FR");
+}
+
+let chargementObservationsEnCours = false;
+
 async function chargerDonnees() {
+    if (chargementObservationsEnCours) return;
+    chargementObservationsEnCours = true;
 
     try {
-
-        const reponse = await fetch(URL_OBSERVATIONS_PAGES + "?t=" + Date.now(), {
-            cache: "no-store"
+        const reponse = await fetch(URL_OBSERVATIONS_PAGES, {
+            cache: "no-cache"
         });
+        if (!reponse.ok) throw new Error("Erreur HTTP : " + reponse.status);
 
-        if (!reponse.ok) {
-            throw new Error("Erreur API : " + reponse.status);
-        }
-
-        const resultat = await reponse.json();
-
-        const lignes = Array.isArray(resultat)
-            ? resultat
-            : resultat.features || resultat.data || [];
-
-        if (!Array.isArray(lignes) || lignes.length === 0) {
-            throw new Error("Aucun relevé trouvé dans la réponse API");
-        }
-
-        // Extraction des données
-        const donnees = lignes
-            .map(item => {
-
-                const d = item.properties || item;
-
-                return {
-                    date: d.validity_time,
-                    ff: d.ff == null ? null : Number(d.ff),
-                    raf10: d.raf10 == null ? null : Number(d.raf10),
-                    dd: d.dd == null ? null : Number(d.dd),
-                    pmer: d.pmer == null ? null : Number(d.pmer),
-                    t: d.t == null ? null : Number(d.t)
-                };
-
-            })
-            .filter(d =>
-                d.date &&
-                Number.isFinite(new Date(d.date).getTime()) &&
-                Number.isFinite(d.ff)
-            )
-            .sort((a, b) =>
-                new Date(a.date) - new Date(b.date)
-            );
-
-        if (donnees.length === 0) {
+        const nouvellesDonnees = normaliserObservations(await reponse.json());
+        if (nouvellesDonnees.length === 0) {
             throw new Error("Aucune donnée météo exploitable");
         }
 
-        // Dernière valeur disponible
-        const dernier = donnees[donnees.length - 1];
+        const cache = lireCacheLocal(CLE_CACHE_OBSERVATIONS);
+        const anciennesDonnees = cache && Array.isArray(cache.donnees)
+            ? cache.donnees
+            : [];
+        const ancienneDate = anciennesDonnees.length
+            ? new Date(anciennesDonnees[anciennesDonnees.length - 1].date).getTime()
+            : 0;
+        const nouvelleDate = new Date(nouvellesDonnees[nouvellesDonnees.length - 1].date).getTime();
 
-        // Vent moyen
-        document.getElementById("ventActuel").textContent =
-            noeuds(dernier.ff).toFixed(1);
-
-        // Rafales
-        document.getElementById("rafaleActuelle").textContent =
-            Number.isFinite(dernier.raf10)
-                ? noeuds(dernier.raf10).toFixed(1)
-                : "--";
-
-        // Direction du vent
-        if (Number.isFinite(dernier.dd)) {
-
-            document.getElementById("directionActuelle").textContent =
-                dernier.dd.toFixed(0) + "°";
-
-            document.getElementById("directionCardinale").textContent =
-                directionTexte(dernier.dd);
-
-            // La flèche indique le sens dans lequel le vent souffle.
-            document.getElementById("flecheDirection").style.transform =
-                "rotate(" + (dernier.dd + 180) + "deg)";
-
+        if (nouvelleDate > ancienneDate || anciennesDonnees.length === 0) {
+            ecrireCacheLocal(CLE_CACHE_OBSERVATIONS, {
+                dateDernierReleve: nouvellesDonnees[nouvellesDonnees.length - 1].date,
+                donnees: nouvellesDonnees
+            });
+            afficherDonnees(nouvellesDonnees);
+            console.log("Nouveaux relevés météo chargés :", nouvellesDonnees.length);
         } else {
-
-            document.getElementById("directionActuelle").textContent = "--°";
-            document.getElementById("directionCardinale").textContent = "--";
+            console.log("Relevés météo inchangés : cache local conservé.");
         }
-
-        // Pression : pmer est en Pa, conversion en hPa
-        document.getElementById("pressionActuelle").textContent =
-            Number.isFinite(dernier.pmer)
-                ? (dernier.pmer / 100).toFixed(1)
-                : "----";
-
-        // Dernières 24 heures
-        const maintenant = Date.now();
-        const limite = maintenant - 24 * 60 * 60 * 1000;
-
-        const donnees24h = donnees.filter(d => {
-            const temps = new Date(d.date).getTime();
-            return temps >= limite && temps <= maintenant;
-        });
-
-        if (donnees24h.length === 0) {
-            throw new Error("Aucune donnée disponible sur les dernières 24 h");
-        }
-
-        // Création des graphiques
-        creerGraphiques(donnees24h);
-
-        // Tableau historique : 30 dernières mesures
-        const tableau = document.getElementById("tableau");
-
-        tableau.innerHTML = donnees24h
-            .slice()
-            .reverse()
-            .slice(0, 30)
-            .map(d => `
-                <tr>
-                    <td>${new Date(d.date).toLocaleString("fr-FR")}</td>
-
-                    <td>${noeuds(d.ff).toFixed(1)}</td>
-
-                    <td>
-                        ${Number.isFinite(d.raf10)
-                            ? noeuds(d.raf10).toFixed(1)
-                            : "--"}
-                    </td>
-
-                    <td>
-                        ${Number.isFinite(d.dd)
-                            ? d.dd.toFixed(0) + "° " + directionTexte(d.dd)
-                            : "--"}
-                    </td>
-
-                    <td>
-                        ${Number.isFinite(d.pmer)
-                            ? (d.pmer / 100).toFixed(1)
-                            : "--"}
-                    </td>
-
-                    <td>
-                        ${Number.isFinite(d.t)
-                            ? (d.t - 273.15).toFixed(1)
-                            : "--"}
-                    </td>
-                </tr>
-            `)
-            .join("");
-
-        // Date du dernier relevé
-        document.getElementById("miseAJour").textContent =
-            "Dernier relevé : " +
-            new Date(dernier.date).toLocaleString("fr-FR");
-
-        console.log("Nombre de relevés :", donnees.length);
-        console.log("Relevés sur 24 h :", donnees24h.length);
-
     } catch (erreur) {
-
-        console.error(erreur);
-
-        document.getElementById("miseAJour").textContent =
-            "Erreur : " + erreur.message;
+        console.error("Vérification des relevés météo impossible :", erreur);
+        const cache = lireCacheLocal(CLE_CACHE_OBSERVATIONS);
+        if (!cache || !Array.isArray(cache.donnees) || cache.donnees.length === 0) {
+            document.getElementById("miseAJour").textContent =
+                "Relevés indisponibles · aucune donnée en cache";
+        }
+    } finally {
+        chargementObservationsEnCours = false;
     }
 }
 
