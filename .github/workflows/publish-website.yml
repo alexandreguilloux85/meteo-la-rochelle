@@ -10,8 +10,6 @@ on:
   workflow_dispatch:
   workflow_run:
     workflows:
-      - Publish radar XYZ tiles
-      - Publish weather observations
       - Publish AROME cache
     types:
       - completed
@@ -45,9 +43,8 @@ jobs:
         run: |
           mkdir -p site
           cp -R public/. site/
-          mkdir -p site/radar-xyz
 
-      - name: Assemble latest observations, AROME and radar data
+      - name: Assemble latest AROME data
         run: |
           set -euo pipefail
           tmp="$(mktemp -d)"
@@ -66,16 +63,6 @@ jobs:
             return 1
           }
 
-          if restore_branch observations-data "$tmp/observations"; then
-            test -s "$tmp/observations/observations.json"
-            cp "$tmp/observations/observations.json" site/observations.json
-          else
-            curl --fail --silent --show-error --retry 3 --retry-all-errors \
-              --max-time 60 \
-              "https://alexandreguilloux85.github.io/meteo-la-rochelle/observations.json" \
-              --output site/observations.json
-          fi
-
           if restore_branch arome-data "$tmp/arome"; then
             test -s "$tmp/arome/arome-cache.json"
             cp "$tmp/arome/arome-cache.json" site/arome-cache.json
@@ -86,44 +73,14 @@ jobs:
               --output site/arome-cache.json
           fi
 
-          if restore_branch radar-data site/radar-xyz; then
-            test -s site/radar-xyz/metadata.json
-            test -s site/radar-xyz/tiles.zip
-          else
-            curl --fail --silent --show-error --retry 3 --retry-all-errors \
-              --max-time 120 \
-              "https://alexandreguilloux85.github.io/meteo-la-rochelle/radar-xyz/tiles.zip" \
-              --output "$tmp/radar-xyz-tiles.zip"
-            unzip -q "$tmp/radar-xyz-tiles.zip" -d site/radar-xyz
-          fi
-
-          for zoom in 4 5 6 7 8 9; do
-            test -d "site/radar-xyz/$zoom"
-          done
-
           node -e '
             const fs = require("node:fs");
-            const observations = JSON.parse(fs.readFileSync("site/observations.json", "utf8"));
-            const rows = Array.isArray(observations)
-              ? observations
-              : observations.features || observations.data || [];
-            if (!Array.isArray(rows) || rows.length === 0) {
-              throw new Error("Observations météo absentes ou invalides.");
-            }
-
             const cache = JSON.parse(fs.readFileSync("site/arome-cache.json", "utf8"));
             if (!cache?.modele || !cache?.zone || !Array.isArray(cache.previsions) || cache.previsions.length === 0) {
               throw new Error("Cache AROME absent ou invalide.");
             }
 
-            const radar = JSON.parse(fs.readFileSync("site/radar-xyz/metadata.json", "utf8"));
-            if (!radar?.date || !radar?.total_tiles) {
-              throw new Error("Métadonnées radar absentes ou invalides.");
-            }
-
-            console.log("Observations :", rows.length);
             console.log("Échéances AROME :", cache.previsions.length);
-            console.log("Tuiles radar :", radar.total_tiles, "Produit :", radar.date);
           '
 
       - name: Configure GitHub Pages
