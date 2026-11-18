@@ -6,31 +6,20 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: github-pages
-  cancel-in-progress: false
+  contents: write
 
 jobs:
   refresh-and-publish:
     runs-on: ubuntu-latest
     timeout-minutes: 180
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
 
-      - name: Prepare GitHub Pages site
-        run: |
-          mkdir -p site
-          cp -R public/. site/
+      - name: Prepare AROME data
+        run: mkdir -p data-arome
 
       - name: Validate Render configuration
         env:
@@ -129,7 +118,7 @@ jobs:
             --max-time 120 \
             --header "Authorization: Bearer $RENDER_REFRESH_TOKEN" \
             "$base_url/api/arome/cache/export" \
-            --output site/arome-cache.json
+            --output data-arome/arome-cache.json
           node -e '
             const fs = require("node:fs");
             const cache = JSON.parse(fs.readFileSync("site/arome-cache.json", "utf8"));
@@ -154,33 +143,6 @@ jobs:
             }
           '
 
-      - name: Préserver les observations météo déjà publiées
-        run: |
-          curl --fail --silent --show-error --retry 3 --retry-all-errors \
-            --max-time 60 \
-            "https://alexandreguilloux85.github.io/meteo-la-rochelle/observations.json" \
-            --output site/observations.json
+      - name: Publish AROME data branch
+        run: bash .github/scripts/publish-data-branch.sh arome-data data-arome
 
-      - name: Préserver les tuiles radar XYZ déjà publiées
-        run: |
-          mkdir -p site/radar-xyz
-          if curl --fail --silent --show-error --retry 3 --retry-all-errors \
-            --max-time 120 \
-            "https://alexandreguilloux85.github.io/meteo-la-rochelle/radar-xyz/tiles.zip" \
-            --output /tmp/radar-xyz-tiles.zip; then
-            unzip -q /tmp/radar-xyz-tiles.zip -d site/radar-xyz
-          else
-            echo "Aucun jeu de tuiles radar précédent à préserver."
-          fi
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
