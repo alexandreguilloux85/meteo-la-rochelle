@@ -489,6 +489,8 @@ function couleurVent(vitesse) {
 // CACHE AROME ET INTERPOLATION LOCALE DANS LE NAVIGATEUR
 // --------------------------------------------------
 
+const URL_SERVEUR_RENDER = "https://station-meteo-lr-test.onrender.com";
+
 const URL_CACHE_AROME =
     "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json";
 
@@ -1027,7 +1029,7 @@ async function chargerRadar() {
         statut.textContent = "Actualisation du radar...";
 
         const reponse = await fetch(
-            "/api/radar/image?lat="
+            URL_SERVEUR_RENDER + "/api/radar/image?lat="
                 + encodeURIComponent(
                     centreRadarActuel.lat
                 )
@@ -1415,7 +1417,7 @@ async function chargerDonnees() {
 
     try {
 
-        const reponse = await fetch("/api/observations");
+        const reponse = await fetch(URL_SERVEUR_RENDER + "/api/observations");
 
         if (!reponse.ok) {
             throw new Error("Erreur API : " + reponse.status);
@@ -1624,7 +1626,7 @@ function dansZoneRadar(lat, lon) {
 async function demarrerApplication() {
     try {
         const reponse = await fetch(
-            "/api/keepalive?t=" + Date.now(),
+            URL_SERVEUR_RENDER + "/api/keepalive?t=" + Date.now(),
             {
                 cache: "no-store"
             }
