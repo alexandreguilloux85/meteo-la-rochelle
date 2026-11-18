@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-18T17:00:00Z",
+  "tile_size": 256,
+  "zoom_min": 4,
+  "zoom_max": 9,
+  "crs": "EPSG:3857",
+  "source_crs": "+proj=stere +lat_0=90 +lon_0=0 +lat_ts=45 +ellps=WGS84 +x_0=619652.07 +y_0=5262818.34 +datum=WGS84 +units=m +no_defs +type=crs",
+  "source_size": [
+    3472,
+    3472
+  ],
+  "source_resolution_m": [
+    500.0,
+    500.0
+  ],
+  "source_origin_lower_left_projected_m": [
+    -0.004055909113958478,
+    0.002068156376481056
+  ],
+  "tile_counts": {
+    "4": 4,
+    "5": 9,
+    "6": 27,
+    "7": 86,
+    "8": 303,
+    "9": 1137
+  },
+  "total_tiles": 1566,
+  "palette": "identique \u00e0 couleurRadar() dans server.js",
+  "tile_url_template": "radar-xyz/{z}/{x}/{y}.png"
+}
