@@ -490,19 +490,22 @@ function couleurVent(vitesse) {
 // --------------------------------------------------
 
 
-async function chargerPrevisionsArome(lat, lon) {
+async function chargerPrevisionsArome(lat, lon, options = {}) {
 
     const statut = document.getElementById("previsionsMiseAJour");
     const tableau = document.getElementById("tableauPrevisions");
     const entete = document.getElementById("entetePrevisions");
 
     const numeroRequete = ++numeroRequetePrevisions;
+    const tentativesActualisation = options.tentativesActualisation || 0;
 
-    statut.textContent = "Récupération des prévisions AROME...";
+    if (!options.silencieux) {
+        statut.textContent = "Récupération des prévisions AROME...";
 
-    tableau.innerHTML = `
-        <tr><td colspan="2">Chargement des prévisions...</td></tr>
-    `;
+        tableau.innerHTML = `
+            <tr><td colspan="2">Chargement des prévisions...</td></tr>
+        `;
+    }
 
     try {
 
@@ -511,7 +514,9 @@ async function chargerPrevisionsArome(lat, lon) {
             + "&lon="
             + encodeURIComponent(lon);
 
-        const reponse = await fetch(url);
+        const reponse = await fetch(url, {
+            cache: "no-store"
+        });
 
         if (!reponse.ok) {
             throw new Error("Erreur API : " + reponse.status);
@@ -526,6 +531,23 @@ async function chargerPrevisionsArome(lat, lon) {
 
         if (!resultat.succes) {
             throw new Error("L'API AROME n'a pas pu calculer les prévisions");
+        }
+
+        if (
+            options.silencieux &&
+            resultat.actualisation_en_cours &&
+            tentativesActualisation < 30
+        ) {
+            setTimeout(() => {
+                if (numeroRequete === numeroRequetePrevisions) {
+                    chargerPrevisionsArome(lat, lon, {
+                        silencieux: true,
+                        tentativesActualisation:
+                            tentativesActualisation + 1
+                    });
+                }
+            }, 10000);
+            return;
         }
 
         if (!Array.isArray(resultat.previsions) ||
@@ -597,16 +619,14 @@ async function chargerPrevisionsArome(lat, lon) {
         // Première ligne : les jours
         let ligneJours = `
             <tr>
-                <th rowspan="2" class="colonne-parametre">
-                    Paramètre
-                </th>
+                <th rowspan="2" class="colonne-parametre"></th>
         `;
 
-        groupesJours.forEach(groupe => {
+        groupesJours.forEach((groupe, index) => {
 
             ligneJours += `
                 <th colspan="${groupe.heures.length}"
-                    class="jour-prevision">
+                    class="jour-prevision${index > 0 ? " separateur-jour" : ""}">
                     ${groupe.nom}
                 </th>
             `;
@@ -617,13 +637,16 @@ async function chargerPrevisionsArome(lat, lon) {
 
         // Deuxième ligne : les heures
         let ligneHeures = `<tr>`;
+        groupesJours.forEach((groupe, groupeIndex) => {
 
-        groupesJours.forEach(groupe => {
-
-            groupe.heures.forEach(element => {
+            groupe.heures.forEach((element, heureIndex) => {
 
                 ligneHeures += `
-                    <th class="heure-prevision">
+                    <th class="heure-prevision${
+                        groupeIndex > 0 && heureIndex === 0
+                            ? " separateur-jour"
+                            : ""
+                    }">
                         ${element.heure}
                     </th>
                 `;
@@ -635,6 +658,9 @@ async function chargerPrevisionsArome(lat, lon) {
         ligneHeures += `</tr>`;
 
         entete.innerHTML = ligneJours + ligneHeures;
+        const separateursJours = new Set(
+            groupesJours.slice(1).map(groupe => groupe.heures[0].index)
+        );
 
         // ------------------------------------------
         // LIGNE VITESSE DU VENT
@@ -645,7 +671,7 @@ async function chargerPrevisionsArome(lat, lon) {
                 <td class="cellule-parametre">Vent (kt)</td>
         `;
 
-        previsions.forEach(p => {
+        previsions.forEach((p, index) => {
 
             const vitesseKt = Number(p.vitesse) * 1.94384;
 
@@ -658,7 +684,9 @@ async function chargerPrevisionsArome(lat, lon) {
                 : "#dce3eb";
 
             ligneVent += `
-                <td class="cellule-vent"
+                <td class="cellule-vent${
+                    separateursJours.has(index) ? " separateur-jour" : ""
+                }"
                     style="background-color: ${couleur}">
                     ${vitesseTexte}
                 </td>
@@ -677,7 +705,7 @@ async function chargerPrevisionsArome(lat, lon) {
                 <td class="cellule-parametre">Rafales (kt)</td>
         `;
 
-        previsions.forEach(p => {
+        previsions.forEach((p, index) => {
             const rafaleMs = p.rafale == null
                 ? NaN
                 : Number(p.rafale);
@@ -695,7 +723,9 @@ async function chargerPrevisionsArome(lat, lon) {
                 : "#dce3eb";
 
             ligneRafales += `
-                <td class="cellule-vent cellule-rafale"
+                <td class="cellule-vent cellule-rafale${
+                    separateursJours.has(index) ? " separateur-jour" : ""
+                }"
                     style="background-color: ${couleur}">
                     ${rafaleTexte}
                 </td>
@@ -713,7 +743,7 @@ async function chargerPrevisionsArome(lat, lon) {
                 <td class="cellule-parametre">Direction</td>
         `;
 
-        previsions.forEach(p => {
+        previsions.forEach((p, index) => {
 
             const direction = Number(p.direction);
 
@@ -722,7 +752,9 @@ async function chargerPrevisionsArome(lat, lon) {
                 const directionCardinale = directionTexte(direction);
 
                 ligneDirection += `
-                    <td class="cellule-direction">
+                    <td class="cellule-direction${
+                        separateursJours.has(index) ? " separateur-jour" : ""
+                    }">
                         <span class="fleche-prevision"
                             style="transform: rotate(${direction + 180}deg)">
                             ↑
@@ -734,7 +766,9 @@ async function chargerPrevisionsArome(lat, lon) {
 
             } else {
                 ligneDirection += `
-                    <td class="cellule-direction">--</td>
+                    <td class="cellule-direction${
+                        separateursJours.has(index) ? " separateur-jour" : ""
+                    }">--</td>
                 `;
             }
 
@@ -755,13 +789,50 @@ async function chargerPrevisionsArome(lat, lon) {
                 .replace("Z", " UTC")
             : "--";
 
-        const origine = resultat.cache === true
-            ? "Calcul depuis le cache"
-            : "Téléchargement de nouveaux GRIB";
+        let origine = "Téléchargement de nouveaux GRIB";
+
+        if (resultat.cache === true) {
+            origine = resultat.origine_cache === "GitHub Pages"
+                ? "Prévisions depuis le cache GitHub Pages"
+                : "Prévisions depuis le cache Render";
+        }
+
+        let statutActualisation = "";
+
+        if (resultat.actualisation_statut === "failed") {
+            statutActualisation = " · vérification échouée, cache conservé";
+        } else if (resultat.catalogue_indisponible) {
+            statutActualisation =
+                " · catalogue indisponible, cache conservé";
+        }
 
         statut.textContent =
             origine + " · " +
-            previsions.length + " échéances · Modèle du " + modele;
+            previsions.length + " échéances · Modèle du " + modele +
+            (resultat.actualisation_incomplete
+                ? " · actualisation incomplète"
+                : "") +
+            (resultat.actualisation_en_cours
+                ? " · vérification des nouveautés en arrière-plan"
+                : "") +
+            statutActualisation;
+
+        if (
+            resultat.actualisation_en_cours &&
+            tentativesActualisation < 30
+        ) {
+            setTimeout(() => {
+                if (numeroRequete === numeroRequetePrevisions) {
+                    chargerPrevisionsArome(lat, lon, {
+                        silencieux: true,
+                        tentativesActualisation:
+                            tentativesActualisation + 1
+                    });
+                }
+            }, 10000);
+        } else if (resultat.actualisation_en_cours) {
+            statut.textContent += " · vérification toujours en cours";
+        }
 
         //console.log("Prévisions AROME chargées :", resultat);
         console.log("Nombre de prévisions :", resultat.previsions.length);
@@ -774,7 +845,11 @@ async function chargerPrevisionsArome(lat, lon) {
 
         console.error("Erreur prévisions AROME :", erreur);
 
-        statut.textContent = "Prévisions indisponibles";
+        statut.textContent = options.silencieux
+            ? "Anciennes prévisions conservées · vérification impossible"
+            : "Prévisions indisponibles";
+
+        if (options.silencieux) return;
 
         entete.innerHTML = `
             <tr><th>Prévisions AROME</th></tr>
