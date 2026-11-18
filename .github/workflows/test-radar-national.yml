@@ -1,0 +1,148 @@
+name: Test radar national
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Install inspection tools
+        run: python -m pip install --disable-pip-version-check h5py pyproj requests
+
+      - name: Download and inspect the national radar mosaic
+        env:
+          METEO_RADAR_API_KEY: ${{ secrets.METEO_RADAR_API_KEY }}
+        run: |
+          if [ -z "$METEO_RADAR_API_KEY" ]; then
+            echo "Le secret METEO_RADAR_API_KEY est absent."
+            exit 1
+          fi
+
+          python - <<'PY'
+          import json
+          import os
+          import tempfile
+          from pathlib import Path
+
+          import h5py
+          import requests
+          from pyproj import CRS, Transformer
+
+          api_key = os.environ["METEO_RADAR_API_KEY"]
+          catalogue_url = (
+              "https://public-api.meteofrance.fr/public/DPRadar/v1/"
+              "mosaiques/METROPOLE/observations/LAME_D_EAU"
+          )
+
+          headers = {"apikey": api_key, "accept": "application/json"}
+          catalogue_response = requests.get(
+              catalogue_url, headers=headers, timeout=60
+          )
+          catalogue_response.raise_for_status()
+          catalogue = catalogue_response.json()
+
+          produits = [
+              lien for lien in catalogue.get("links", [])
+              if "maille=500" in lien.get("href", "")
+          ]
+          if not produits:
+              raise RuntimeError("Aucun produit radar avec maille=500 trouvé.")
+
+          produit = produits[0]
+          print("Date du produit :", produit.get("validity_time", "non fournie"))
+          print("Téléchargement de la mosaïque nationale 500 m...")
+
+          response = requests.get(
+              produit["href"],
+              headers={"apikey": api_key, "accept": "*/*"},
+              timeout=(60, 300),
+          )
+          response.raise_for_status()
+          contenu = response.content
+          print(f"Taille du fichier HDF5 : {len(contenu) / 1024 / 1024:.1f} Mo")
+
+          with tempfile.NamedTemporaryFile(suffix=".h5") as fichier:
+              fichier.write(contenu)
+              fichier.flush()
+
+              with h5py.File(fichier.name, "r") as hdf:
+                  data = hdf["/dataset1/data1/data"]
+                  quality = hdf["/dataset1/data1/quality1/data"]
+                  where = hdf["/where"]
+
+                  print("Dimensions de la grille (lignes, colonnes) :", data.shape)
+                  print("Type des données pluie :", data.dtype)
+                  print("Dimensions qualité :", quality.shape)
+
+                  attrs = {
+                      nom: valeur.item() if hasattr(valeur, "item") else valeur
+                      for nom, valeur in where.attrs.items()
+                  }
+                  print("Métadonnées /where :", json.dumps(attrs, default=str))
+
+                  required = ("xscale", "yscale", "LL_lon", "LL_lat")
+                  missing = [nom for nom in required if nom not in attrs]
+                  if missing:
+                      raise RuntimeError(
+                          "Attributs géographiques manquants : " + ", ".join(missing)
+                      )
+
+                  projection_radar = CRS.from_proj4(
+                      "+proj=stere +lat_0=90 +lon_0=0 +lat_ts=45 "
+                      "+ellps=WGS84 +x_0=619652.07 +y_0=5262818.34 "
+                      "+datum=WGS84 +units=m +no_defs"
+                  )
+                  vers_radar = Transformer.from_crs(
+                      "EPSG:4326", projection_radar, always_xy=True
+                  )
+                  vers_geo = Transformer.from_crs(
+                      projection_radar, "EPSG:4326", always_xy=True
+                  )
+
+                  origine_x, origine_y = vers_radar.transform(
+                      float(attrs["LL_lon"]), float(attrs["LL_lat"])
+                  )
+                  hauteur, largeur = data.shape
+                  xscale = float(attrs["xscale"])
+                  yscale = float(attrs["yscale"])
+
+                  coins_xy = [
+                      (origine_x, origine_y),
+                      (origine_x + largeur * xscale, origine_y),
+                      (origine_x, origine_y + hauteur * yscale),
+                      (
+                          origine_x + largeur * xscale,
+                          origine_y + hauteur * yscale,
+                      ),
+                  ]
+                  coins_geo = [
+                      vers_geo.transform(x, y) for x, y in coins_xy
+                  ]
+                  longitudes = [point[0] for point in coins_geo]
+                  latitudes = [point[1] for point in coins_geo]
+
+                  print(
+                      "Emprise géographique approximative : "
+                      f"O={min(longitudes):.3f}°, E={max(longitudes):.3f}°, "
+                      f"S={min(latitudes):.3f}°, N={max(latitudes):.3f}°"
+                  )
+                  print(
+                      "Étendue projetée : "
+                      f"{largeur * xscale / 1000:.1f} km × "
+                      f"{hauteur * yscale / 1000:.1f} km"
+                  )
+
+                  pixels = hauteur * largeur
+                  print(f"Nombre de pixels source : {pixels:,}")
+                  print(
+                      "PNG RGBA brut à dimensions natives (ordre de grandeur) : "
+                      f"{pixels * 4 / 1024 / 1024:.1f} Mo"
+                  )
+
+          print("Inspection terminée : aucun fichier publié, aucun déploiement Pages.")
+          PY
