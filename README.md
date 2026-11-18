@@ -1,322 +1,48 @@
 # Météo La Rochelle
 
-This application uses Render for its API and data processing:
+Site météo statique hébergé sur GitHub Pages. GitHub Actions télécharge les
+données auprès de Météo-France, les publie sur des branches de données, puis
+redéploie le site. Aucun serveur backend n'est nécessaire.
 
-- Render calls the Météo-France APIs using credentials stored only in Render.
-- Render downloads and decodes AROME GRIB data, then interpolates the forecast
-  for the location selected on the map.
-- Render generates the radar image as a PNG.
-- GitHub Pages hosts a persistent JSON copy of the scheduled AROME cache. After
-  a Render restart, Render can reload the cache instead of downloading the
-  same model again.
-- When a requested point is inside the cached area, Render serves those
-  forecasts immediately and checks the AROME catalogue in the background.
-  The forecast status identifies whether that response came from GitHub Pages
-  or Render's cache.
+## Actualisation des données
 
-GitHub Pages is static hosting; it does not fetch or update forecasts itself.
-GitHub Actions runs the schedule, asks Render to update the cache, and
-publishes Render's result to Pages.
-
-## AROME coverage and refresh schedule
-
-The cache is a **15 × 15 km area centered on La Rochelle** (46.178, -1.193167).
-Render interpolates values for map clicks inside this area. A click outside the
-cached area can still make Render download another area, but the scheduled
-workflow always refreshes the La Rochelle area.
-
-The workflow is scheduled for 15 minutes after the expected AROME model
-publication times:
-
-| Model cycle (UTC) | Cache refresh (UTC) |
-| --- | --- |
-| 00:00 | 00:15 |
-| 03:00 | 03:15 |
-| 06:00 | 06:15 |
-| 09:00 | 09:15 |
-| 12:00 | 12:15 |
-| 15:00 | 15:15 |
-| 18:00 | 18:15 |
-| 21:00 | 21:15 |
-
-If Météo-France has not published the new model yet, Render may retain or
-download the previous available model. The scheduled job does not publish an
-empty or invalid cache.
-
-## Data flow
-
-1. The workflow sends an authenticated refresh request to Render.
-2. Render starts a background forecast request for the La Rochelle center. It
-   checks the AROME catalogue, downloads the model fields when needed, and
-   writes the prepared cache to its local filesystem and memory.
-3. The workflow polls Render until the refresh completes or fails.
-4. The workflow requests the cache from Render using the same bearer token.
-5. GitHub Actions deploys `arome-cache.json` to GitHub Pages.
-6. On startup, Render first tries its local cache file. If it is absent, Render
-   downloads and validates the JSON from Pages.
-
-For locations inside the cached area, the normal forecast endpoint returns
-the cached predictions without waiting for a catalogue check. It starts at most
-one background refresh/check every fifteen minutes. The status below the
-forecast table reports the cache source and whether a background check is
-running. A cold Render instance with no local cache must first download the
-published Pages cache before it can return cached predictions.
-
-The cache includes the model identifier, forecast zone, forecast grid values,
-and any download errors. The published file is publicly readable. It does not
-contain API keys or the Render refresh token.
-
-## Configuration
-
-### Render environment variables
-
-Keep the existing `METEO_AROME_API_KEY` set on Render. Add:
-
-| Variable | Required | Purpose |
+| Données | Fréquence | Source |
 | --- | --- | --- |
-| `AROME_REFRESH_TOKEN` | Yes | Long, random bearer token used to protect the refresh, status, and cache-export endpoints. |
-| `AROME_CACHE_URL` | No | Public URL of `arome-cache.json`. Defaults to `https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json`. Set this if the Pages URL differs. |
+| Observations de la station de La Rochelle | Toutes les 6 minutes (`*/6`) | API Météo-France, observations infra-horaires |
+| Radar | Toutes les 10 minutes (`*/10`) | Mosaïque radar Météo-France, tuiles XYZ |
+| Prévisions AROME | 8 fois par jour, à `00:15`, `03:15`, `06:15`, `09:15`, `12:15`, `15:15`, `18:15` et `21:15` UTC | API WCS Météo-France |
 
-Do not put `METEO_AROME_API_KEY` or `AROME_REFRESH_TOKEN` in the repository,
-the workflow file, the Pages artifact, or client-side code.
+GitHub peut toutefois retarder ou ignorer une exécution planifiée en période de
+forte charge.
 
-### GitHub repository settings
+À l'ouverture ou au rechargement de la page, le navigateur vérifie les dernières
+observations et les métadonnées radar publiées. Il vérifie ensuite les
+observations toutes les 6 minutes et le radar toutes les 10 minutes. Les
+observations sont affichées dans l'ordre chronologique, même si l'API renvoie
+les mesures les plus récentes en premier.
 
-Configure these values in **Settings → Secrets and variables → Actions**:
+## Publication
 
-| Name | Type | Value |
-| --- | --- | --- |
-| `RENDER_REFRESH_TOKEN` | Repository secret | The same value as Render's `AROME_REFRESH_TOKEN`. |
-| `RENDER_BASE_URL` | Repository variable | The Render service URL, for example `https://your-service.onrender.com`, without a trailing slash. |
+Les workflows publient leurs résultats sur les branches `observations-data`,
+`radar-data` et `arome-data`. Le workflow **Publish website** rassemble ces
+fichiers avec `public/` et déploie l'ensemble sur GitHub Pages. Le dépôt utilise
+`Test_fonction` comme branche par défaut, nécessaire au déclenchement des
+workflows planifiés.
 
-In **Settings → Pages**, choose **GitHub Actions** as the build and deployment
-source. The workflow requires permission to deploy Pages and uses the
-`github-pages` deployment environment.
+Dans **Settings → Secrets and variables → Actions**, configurer les secrets
+suivants :
 
-### Branch behavior
-
-The work is kept on the `Test_fonction` branch. GitHub scheduled workflows run
-from the repository's **default branch**, not an arbitrary feature branch.
-Therefore:
-
-- The cron schedule will not run while this workflow exists only on
-  `Test_fonction`.
-- To keep the application changes on `Test_fonction` and have the schedule run
-  from that branch, make `Test_fonction` the repository's default branch.
-- If `main` remains the default branch, the workflow file must be present on
-  `main` for GitHub to recognize its schedule. Manual dispatch also requires
-  the workflow to exist on the default branch; after that, select
-  `Test_fonction` as the branch to test its version.
-
-## Render endpoints used by the workflow
-
-These endpoints require the header
-`Authorization: Bearer <AROME_REFRESH_TOKEN>`:
-
-| Method and path | Purpose |
+| Secret | Utilisation |
 | --- | --- |
-| `POST /api/arome/cache/refresh` | Starts a background refresh for the La Rochelle area. Returns the current refresh state. |
-| `GET /api/arome/cache/status` | Returns `idle`, `running`, `complete`, or `failed`. |
-| `GET /api/arome/cache/export` | Returns the current cache as JSON for publishing. |
+| `METEO_API_KEY` | Téléchargement des observations |
+| `METEO_RADAR_API_KEY` | Téléchargement du radar |
+| `METEO_AROME_API_KEY` | Téléchargement des prévisions AROME |
 
-The normal forecast endpoint remains `GET /api/arome/previsions?lat=...&lon=...`.
-Radar images continue to be generated by Render at
-`GET /api/radar/image?lat=...&lon=...`.
+Dans **Settings → Pages**, sélectionner **GitHub Actions** comme source de
+publication.
 
-## Manual testing
+## Vérification manuelle
 
-1. Configure the Render variables and GitHub Actions secret/variable above.
-2. Enable GitHub Pages with **GitHub Actions** as the source.
-3. Ensure the workflow is available on the repository's default branch. Then,
-   in the Actions tab, run **Publish AROME cache** manually and select
-   `Test_fonction` as the branch.
-4. Confirm the job completes and the Pages deployment contains
-   `arome-cache.json`.
-5. Restart the Render service and request a forecast. Render logs should show
-   that the cache was loaded from GitHub Pages if the local cache file is
-   missing.
-6. Click a location within the cached area and confirm the forecast is
-   interpolated without downloading a new area.
-
-The workflow allows up to 85 minutes for a refresh, since fetching many model
-fields can take time. Failed refreshes or invalid cache data stop publication,
-leaving the previously deployed Pages artifact in place.
-
-## Troubleshooting
-
-- **Workflow says Render configuration is missing:** set `RENDER_BASE_URL` and
-  the `RENDER_REFRESH_TOKEN` secret in Actions settings.
-- **Refresh endpoint returns 401:** verify that Render's
-  `AROME_REFRESH_TOKEN` exactly matches GitHub's `RENDER_REFRESH_TOKEN`.
-- **Refresh endpoint returns 503:** configure `AROME_REFRESH_TOKEN` on Render
-  and restart/redeploy the service.
-- **Refresh fails because the AROME key is missing:** configure
-  `METEO_AROME_API_KEY` on Render.
-- **Workflow publishes an incomplete cache (for example, 33/51):** the next
-  refresh for the same model resumes by downloading only missing forecast
-  fields. A cache with no valid forecast steps is rejected so the last valid
-  GitHub Pages deployment remains available.
-- **Cache is not loaded after a Render restart:** check that the Pages
-  deployment succeeded, that `AROME_CACHE_URL` is correct, and that Render can
-  fetch that public URL.
-- **A click starts another download:** the selected point is outside the
-  currently cached 15 × 15 km area.
-- **Scheduled runs do not appear:** the cron schedule only runs when the
-  workflow is on the default branch. Runs can also be delayed by GitHub Actions
-  queue load.
-
-# Météo La Rochelle
-
-This application uses Render for its API and data processing:
-
-- Render calls the Météo-France APIs using credentials stored only in Render.
-- Render downloads and decodes AROME GRIB data, then interpolates the forecast
-  for the location selected on the map.
-- Render generates the radar image as a PNG.
-- GitHub Pages hosts a persistent JSON copy of the scheduled AROME cache. After
-  a Render restart, Render can reload the cache instead of downloading the
-  same model again.
-
-GitHub Pages is static hosting; it does not fetch or update forecasts itself.
-GitHub Actions runs the schedule, asks Render to update the cache, and
-publishes Render's result to Pages.
-
-## AROME coverage and refresh schedule
-
-The cache is a **15 × 15 km area centered on La Rochelle** (46.178, -1.193167).
-Render interpolates values for map clicks inside this area. A click outside the
-cached area can still make Render download another area, but the scheduled
-workflow always refreshes the La Rochelle area.
-
-The workflow is scheduled for 15 minutes after the expected AROME model
-publication times:
-
-| Model cycle (UTC) | Cache refresh (UTC) |
-| --- | --- |
-| 00:00 | 00:15 |
-| 03:00 | 03:15 |
-| 06:00 | 06:15 |
-| 09:00 | 09:15 |
-| 12:00 | 12:15 |
-| 15:00 | 15:15 |
-| 18:00 | 18:15 |
-| 21:00 | 21:15 |
-
-If Météo-France has not published the new model yet, Render may retain or
-download the previous available model. A cache can be published as soon as it
-contains one valid forecast step. If a refresh is incomplete, Render keeps the
-successful steps and the next refresh downloads only the missing fields for
-the same model and area. A cache with no valid forecast steps is not published,
-so the previous Pages deployment remains available.
-
-## Data flow
-
-1. The workflow sends an authenticated refresh request to Render.
-2. Render starts a background forecast request for the La Rochelle center. It
-   checks the AROME catalogue, downloads missing model fields, and saves each
-   successful forecast step to its local cache.
-3. The workflow polls Render until the refresh completes or fails.
-4. The workflow requests the cache from Render using the same bearer token.
-5. GitHub Actions deploys `arome-cache.json` to GitHub Pages.
-6. On startup, Render first tries its local cache file. If it is absent, Render
-   downloads and validates the JSON from Pages.
-
-The cache includes the model identifier, forecast zone, forecast grid values,
-and any download errors. GitHub Actions independently checks the forecast-step
-count before deploying it. The published file is publicly readable. It does
-not contain API keys or the Render refresh token.
-
-## Configuration
-
-### Render environment variables
-
-Keep the existing `METEO_AROME_API_KEY` set on Render. Add:
-
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `AROME_REFRESH_TOKEN` | Yes | Long, random bearer token used to protect the refresh, status, and cache-export endpoints. |
-| `AROME_CACHE_URL` | No | Public URL of `arome-cache.json`. Defaults to `https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json`. Set this if the Pages URL differs. |
-
-Do not put `METEO_AROME_API_KEY` or `AROME_REFRESH_TOKEN` in the repository,
-the workflow file, the Pages artifact, or client-side code.
-
-### GitHub repository settings
-
-Configure these values in **Settings → Secrets and variables → Actions**:
-
-| Name | Type | Value |
-| --- | --- | --- |
-| `RENDER_REFRESH_TOKEN` | Repository secret | The same value as Render's `AROME_REFRESH_TOKEN`. |
-| `RENDER_BASE_URL` | Repository variable | The Render service URL, for example `https://your-service.onrender.com`, without a trailing slash. |
-
-In **Settings → Pages**, choose **GitHub Actions** as the build and deployment
-source. The workflow requires permission to deploy Pages and uses the
-`github-pages` deployment environment.
-
-### Branch behavior
-
-The work is kept on the `Test_fonction` branch. GitHub scheduled workflows run
-from the repository's **default branch**, not an arbitrary feature branch.
-Therefore:
-
-- The cron schedule will not run while this workflow exists only on
-  `Test_fonction`.
-- To keep the application changes on `Test_fonction` and have the schedule run
-  from that branch, make `Test_fonction` the repository's default branch.
-- If `main` remains the default branch, the workflow file must be present on
-  `main` for GitHub to recognize its schedule. Manual dispatch also requires
-  the workflow to exist on the default branch; after that, select
-  `Test_fonction` as the branch to test its version.
-
-## Render endpoints used by the workflow
-
-These endpoints require the header
-`Authorization: Bearer <AROME_REFRESH_TOKEN>`:
-
-| Method and path | Purpose |
-| --- | --- |
-| `POST /api/arome/cache/refresh` | Starts a background refresh for the La Rochelle area. Returns the current refresh state. |
-| `GET /api/arome/cache/status` | Returns `idle`, `running`, `complete`, or `failed`. |
-| `GET /api/arome/cache/export` | Returns the current cache as JSON for publishing. |
-
-The normal forecast endpoint remains `GET /api/arome/previsions?lat=...&lon=...`.
-Radar images continue to be generated by Render at
-`GET /api/radar/image?lat=...&lon=...`.
-
-## Manual testing
-
-1. Configure the Render variables and GitHub Actions secret/variable above.
-2. Enable GitHub Pages with **GitHub Actions** as the source.
-3. Ensure the workflow is available on the repository's default branch. Then,
-   in the Actions tab, run **Publish AROME cache** manually and select
-   `Test_fonction` as the branch.
-4. Confirm the job completes and the Pages deployment contains
-   `arome-cache.json`.
-5. Restart the Render service and request a forecast. Render logs should show
-   that the cache was loaded from GitHub Pages if the local cache file is
-   missing.
-6. Click a location within the cached area and confirm the forecast is
-   interpolated without downloading a new area.
-
-The workflow allows up to 85 minutes for a refresh, since fetching many model
-fields can take time. Failed refreshes or invalid cache data stop publication,
-leaving the previously deployed Pages artifact in place.
-
-## Troubleshooting
-
-- **Workflow says Render configuration is missing:** set `RENDER_BASE_URL` and
-  the `RENDER_REFRESH_TOKEN` secret in Actions settings.
-- **Refresh endpoint returns 401:** verify that Render's
-  `AROME_REFRESH_TOKEN` exactly matches GitHub's `RENDER_REFRESH_TOKEN`.
-- **Refresh endpoint returns 503:** configure `AROME_REFRESH_TOKEN` on Render
-  and restart/redeploy the service.
-- **Refresh fails because the AROME key is missing:** configure
-  `METEO_AROME_API_KEY` on Render.
-- **Cache is not loaded after a Render restart:** check that the Pages
-  deployment succeeded, that `AROME_CACHE_URL` is correct, and that Render can
-  fetch that public URL.
-- **A click starts another download:** the selected point is outside the
-  currently cached 15 × 15 km area.
-- **Scheduled runs do not appear:** the cron schedule only runs when the
-  workflow is on the default branch. Runs can also be delayed by GitHub Actions
-  queue load.
+Dans l'onglet **Actions**, lancer au besoin **Publish weather observations** ou
+**Publish radar XYZ tiles** avec **Run workflow**. Vérifier ensuite que
+l'exécution et le déploiement **Publish website** se terminent avec succès.

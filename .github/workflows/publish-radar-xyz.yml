@@ -1,0 +1,237 @@
+name: Publish radar XYZ tiles
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: radar-data-publish
+  cancel-in-progress: false
+
+jobs:
+  generate-tiles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Installer les outils Python
+        run: python -m pip install --disable-pip-version-check numpy pillow h5py pyproj rasterio requests
+
+      - name: Télécharger la mosaïque et générer les tuiles XYZ
+        env:
+          METEO_RADAR_API_KEY: ${{ secrets.METEO_RADAR_API_KEY }}
+        run: |
+          if [ -z "$METEO_RADAR_API_KEY" ]; then
+            echo "Le secret METEO_RADAR_API_KEY est absent."
+            exit 1
+          fi
+
+          python - <<'PY'
+          import json
+          import math
+          import os
+          import tempfile
+
+          import h5py
+          import numpy as np
+          import requests
+          import rasterio
+          from affine import Affine
+          from PIL import Image
+          from rasterio.warp import reproject, transform_bounds
+          from rasterio.enums import Resampling
+          from pyproj import CRS, Transformer
+
+          API_KEY = os.environ["METEO_RADAR_API_KEY"]
+          CATALOGUE_URL = (
+              "https://public-api.meteofrance.fr/public/DPRadar/v1/"
+              "mosaiques/METROPOLE/observations/LAME_D_EAU"
+          )
+          TILE_SIZE = 256
+          ZOOM_MIN = 4
+          ZOOM_MAX = 9
+          WEB_LIMIT = 20037508.342789244
+          WEB_WIDTH = 2 * WEB_LIMIT
+          WEB_CRS = "EPSG:3857"
+
+          # 1. Récupération du dernier produit radar national à 500 m.
+          r = requests.get(
+              CATALOGUE_URL,
+              headers={"apikey": API_KEY, "accept": "application/json"},
+              timeout=60,
+          )
+          r.raise_for_status()
+          products = [
+              link for link in r.json().get("links", [])
+              if "maille=500" in link.get("href", "")
+          ]
+          if not products:
+              raise RuntimeError("Aucun produit radar maille=500 trouvé.")
+          product = products[0]
+          print("Date du produit :", product.get("validity_time", "inconnue"))
+
+          r = requests.get(
+              product["href"],
+              headers={"apikey": API_KEY, "accept": "*/*"},
+              timeout=(60, 300),
+          )
+          r.raise_for_status()
+          print("Taille HDF5 :", round(len(r.content) / 1024 / 1024, 2), "Mo")
+
+          with tempfile.NamedTemporaryFile(suffix=".h5") as tmp:
+              tmp.write(r.content)
+              tmp.flush()
+              with h5py.File(tmp.name, "r") as hdf:
+                  rain_src = hdf["/dataset1/data1/data"][:]
+                  quality_src = hdf["/dataset1/data1/quality1/data"][:]
+                  attrs = hdf["/where"].attrs
+                  height, width = rain_src.shape
+                  xscale = float(attrs["xscale"])
+                  yscale = float(attrs["yscale"])
+                  ll_lon = float(attrs["LL_lon"])
+                  ll_lat = float(attrs["LL_lat"])
+
+          # 2. Conversion des valeurs de pluie vers la palette actuelle.
+          radar_crs = CRS.from_proj4(
+              "+proj=stere +lat_0=90 +lon_0=0 +lat_ts=45 "
+              "+ellps=WGS84 +x_0=619652.07 +y_0=5262818.34 "
+              "+datum=WGS84 +units=m +no_defs"
+          )
+          to_radar = Transformer.from_crs("EPSG:4326", radar_crs, always_xy=True)
+          origin_x, origin_y = to_radar.transform(ll_lon, ll_lat)
+
+          valid = (
+              (rain_src != 65535)
+              & (rain_src != 65534)
+              & (quality_src != 255)
+              & (quality_src > 0)
+          )
+          rain = rain_src.astype(np.float32) * 0.01
+          rgba = np.zeros((height, width, 4), dtype=np.uint8)
+
+          # Palette identique à couleurRadar() dans server.js.
+          rgba[valid & (rain > 0) & (rain < 0.1)] = (150, 210, 255, 180)
+          rgba[valid & (rain >= 0.1) & (rain < 0.5)] = (25, 100, 220, 210)
+          rgba[valid & (rain >= 0.5) & (rain < 1)] = (30, 180, 100, 220)
+          rgba[valid & (rain >= 1) & (rain < 2)] = (255, 230, 30, 230)
+          rgba[valid & (rain >= 2) & (rain < 5)] = (255, 140, 20, 240)
+          rgba[valid & (rain >= 5)] = (220, 25, 35, 245)
+
+          # Le point LL sert d'origine géographique de la grille.
+          # Les lignes du tableau sont orientées du nord vers le sud.
+          src_transform = Affine(
+              xscale, 0, origin_x,
+              0, -yscale, origin_y + height * yscale
+          )
+          src_crs = radar_crs.to_wkt()
+
+          # Emprise source transformée en Web Mercator pour déterminer les tuiles.
+          xmin, ymin, xmax, ymax = transform_bounds(
+              src_crs, WEB_CRS,
+              origin_x, origin_y,
+              origin_x + width * xscale,
+              origin_y + height * yscale,
+              densify_pts=41,
+          )
+          xmin = max(-WEB_LIMIT, xmin)
+          xmax = min(WEB_LIMIT, xmax)
+          ymin = max(-WEB_LIMIT, ymin)
+          ymax = min(WEB_LIMIT, ymax)
+
+          os.makedirs("radar-xyz", exist_ok=True)
+          tile_counts = {}
+          total_tiles = 0
+
+          def tile_bounds(x, y, z):
+              span = WEB_WIDTH / (2 ** z)
+              west = -WEB_LIMIT + x * span
+              east = west + span
+              north = WEB_LIMIT - y * span
+              south = north - span
+              return west, south, east, north
+
+          for z in range(ZOOM_MIN, ZOOM_MAX + 1):
+              span = WEB_WIDTH / (2 ** z)
+              x_min = max(0, int(math.floor((xmin + WEB_LIMIT) / span)))
+              x_max = min(2 ** z - 1, int(math.floor((xmax + WEB_LIMIT) / span)))
+              y_min = max(0, int(math.floor((WEB_LIMIT - ymax) / span)))
+              y_max = min(2 ** z - 1, int(math.floor((WEB_LIMIT - ymin) / span)))
+
+              count_z = 0
+              print(f"Zoom {z}: zone de tuiles x={x_min}..{x_max}, y={y_min}..{y_max}")
+
+              for x in range(x_min, x_max + 1):
+                  for y in range(y_min, y_max + 1):
+                      west, south, east, north = tile_bounds(x, y, z)
+                      dst_transform = rasterio.transform.from_bounds(
+                          west, south, east, north, TILE_SIZE, TILE_SIZE
+                      )
+                      dst = np.zeros((4, TILE_SIZE, TILE_SIZE), dtype=np.uint8)
+                      reproject(
+                          source=np.moveaxis(rgba, 2, 0),
+                          destination=dst,
+                          src_transform=src_transform,
+                          src_crs=src_crs,
+                          dst_transform=dst_transform,
+                          dst_crs=WEB_CRS,
+                          resampling=Resampling.nearest,
+                          src_nodata=None,
+                          dst_nodata=0,
+                          num_threads=2,
+                      )
+
+                      if not np.any(dst[3]):
+                          continue
+
+                      tile_dir = f"radar-xyz/{z}/{x}"
+                      os.makedirs(tile_dir, exist_ok=True)
+                      tile_path = f"{tile_dir}/{y}.png"
+                      Image.fromarray(
+                          np.moveaxis(dst, 0, 2), mode="RGBA"
+                      ).save(tile_path, optimize=True)
+                      count_z += 1
+                      total_tiles += 1
+
+              tile_counts[str(z)] = count_z
+              print(f"Zoom {z}: {count_z} tuiles non vides")
+
+          metadata = {
+              "date": product.get("validity_time"),
+              "tile_size": TILE_SIZE,
+              "zoom_min": ZOOM_MIN,
+              "zoom_max": ZOOM_MAX,
+              "crs": "EPSG:3857",
+              "source_crs": radar_crs.to_string(),
+              "source_size": [width, height],
+              "source_resolution_m": [xscale, yscale],
+              "source_origin_lower_left_projected_m": [origin_x, origin_y],
+              "tile_counts": tile_counts,
+              "total_tiles": total_tiles,
+              "palette": "identique à couleurRadar() dans server.js",
+              "tile_url_template": "radar-xyz/{z}/{x}/{y}.png",
+          }
+          with open("radar-xyz/metadata.json", "w", encoding="utf-8") as f:
+              json.dump(metadata, f, indent=2)
+
+          print("Total tuiles générées :", total_tiles)
+          print("Nombre de pixels radar valides dans la source :", int(np.count_nonzero(rgba[:, :, 3])))
+          if total_tiles == 0:
+              raise RuntimeError("Aucune tuile radar non vide n'a été générée.")
+          PY
+
+      - name: Prepare radar data archive
+        run: |
+          cd radar-xyz
+          zip -qr tiles.zip 4 5 6 7 8 9 metadata.json
+          test -s tiles.zip
+
+      - name: Publish radar data branch
+        run: bash .github/scripts/publish-data-branch.sh radar-data radar-xyz

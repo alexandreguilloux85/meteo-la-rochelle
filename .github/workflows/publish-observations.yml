@@ -1,0 +1,59 @@
+name: Publish weather observations
+
+on:
+  schedule:
+    - cron: "*/6 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: observations-data-publish
+  cancel-in-progress: false
+
+jobs:
+  refresh-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Prepare observations data
+        run: mkdir -p data-observations
+
+      - name: Download latest Météo-France observations
+        env:
+          METEO_API_KEY: ${{ secrets.METEO_API_KEY }}
+        run: |
+          if [ -z "$METEO_API_KEY" ]; then
+            echo "Configure the METEO_API_KEY repository secret."
+            exit 1
+          fi
+
+          curl --fail --silent --show-error --retry 3 --retry-all-errors \
+            --max-time 60 \
+            --get \
+            --header "apikey: $METEO_API_KEY" \
+            --header "accept: */*" \
+            --data-urlencode "id_station=17300009" \
+            --data-urlencode "format=json" \
+            "https://public-api.meteofrance.fr/public/DPPaquetObs/v2/paquet/infrahoraire-6m" \
+            --output data-observations/observations.json
+
+          node -e '
+            const fs = require("node:fs");
+            const data = JSON.parse(fs.readFileSync("data-observations/observations.json", "utf8"));
+            const rows = Array.isArray(data) ? data : data.features || data.data || [];
+            if (!Array.isArray(rows) || rows.length === 0) {
+              console.error("La réponse Météo-France ne contient aucune observation.");
+              process.exit(1);
+            }
+            console.log("Observations récupérées :", rows.length);
+          '
+
+      - name: Publish observations data branch
+        run: bash .github/scripts/publish-data-branch.sh observations-data data-observations

@@ -1,0 +1,139 @@
+name: Publish website
+
+on:
+  push:
+    branches:
+      - Test_fonction
+    paths:
+      - 'public/**'
+      - '.github/workflows/publish-website.yml'
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Publish radar XYZ tiles
+      - Publish weather observations
+      - Publish AROME cache
+    types:
+      - completed
+    branches:
+      - Test_fonction
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  publish-website:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: Test_fonction
+
+      - name: Prepare website files
+        run: |
+          mkdir -p site
+          cp -R public/. site/
+          mkdir -p site/radar-xyz
+
+      - name: Assemble latest observations, AROME and radar data
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+
+          restore_branch() {
+            local branch="$1"
+            local destination="$2"
+            mkdir -p "$destination"
+            if git fetch --no-tags origin "$branch"; then
+              git archive FETCH_HEAD | tar -x -C "$destination" || return 1
+              echo "Données restaurées depuis $branch."
+              return 0
+            fi
+            echo "Branche $branch absente : utilisation du dernier jeu publié si disponible."
+            return 1
+          }
+
+          if restore_branch observations-data "$tmp/observations"; then
+            test -s "$tmp/observations/observations.json"
+            cp "$tmp/observations/observations.json" site/observations.json
+          else
+            curl --fail --silent --show-error --retry 3 --retry-all-errors \
+              --max-time 60 \
+              "https://alexandreguilloux85.github.io/meteo-la-rochelle/observations.json" \
+              --output site/observations.json
+          fi
+
+          if restore_branch arome-data "$tmp/arome"; then
+            test -s "$tmp/arome/arome-cache.json"
+            cp "$tmp/arome/arome-cache.json" site/arome-cache.json
+          else
+            curl --fail --silent --show-error --retry 3 --retry-all-errors \
+              --max-time 60 \
+              "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json" \
+              --output site/arome-cache.json
+          fi
+
+          if restore_branch radar-data site/radar-xyz; then
+            test -s site/radar-xyz/metadata.json
+            test -s site/radar-xyz/tiles.zip
+          else
+            curl --fail --silent --show-error --retry 3 --retry-all-errors \
+              --max-time 120 \
+              "https://alexandreguilloux85.github.io/meteo-la-rochelle/radar-xyz/tiles.zip" \
+              --output "$tmp/radar-xyz-tiles.zip"
+            unzip -q "$tmp/radar-xyz-tiles.zip" -d site/radar-xyz
+          fi
+
+          for zoom in 4 5 6 7 8 9; do
+            test -d "site/radar-xyz/$zoom"
+          done
+
+          node -e '
+            const fs = require("node:fs");
+            const observations = JSON.parse(fs.readFileSync("site/observations.json", "utf8"));
+            const rows = Array.isArray(observations)
+              ? observations
+              : observations.features || observations.data || [];
+            if (!Array.isArray(rows) || rows.length === 0) {
+              throw new Error("Observations météo absentes ou invalides.");
+            }
+
+            const cache = JSON.parse(fs.readFileSync("site/arome-cache.json", "utf8"));
+            if (!cache?.modele || !cache?.zone || !Array.isArray(cache.previsions) || cache.previsions.length === 0) {
+              throw new Error("Cache AROME absent ou invalide.");
+            }
+
+            const radar = JSON.parse(fs.readFileSync("site/radar-xyz/metadata.json", "utf8"));
+            if (!radar?.date || !radar?.total_tiles) {
+              throw new Error("Métadonnées radar absentes ou invalides.");
+            }
+
+            console.log("Observations :", rows.length);
+            console.log("Échéances AROME :", cache.previsions.length);
+            console.log("Tuiles radar :", radar.total_tiles, "Produit :", radar.date);
+          '
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

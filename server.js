@@ -9,6 +9,24 @@ const proj4 = require("proj4");
 const { PNG } = require("pngjs");
 
 const app = express();
+
+// Autoriser l'interface GitHub Pages à appeler les API hébergées sur Render.
+app.use((req, res, next) => {
+    const origineAutorisee =
+        "https://alexandreguilloux85.github.io";
+
+    if (req.headers.origin === origineAutorisee) {
+        res.setHeader("Access-Control-Allow-Origin", origineAutorisee);
+        res.setHeader(
+            "Access-Control-Expose-Headers",
+            "X-Radar-Bounds, X-Radar-Date"
+        );
+        res.vary("Origin");
+    }
+
+    next();
+});
+
 const PORT = process.env.PORT || 3000;
 
 const API_KEY = process.env.METEO_API_KEY;
@@ -409,6 +427,106 @@ app.get("/api/observations", async (req, res) => {
 // --------------------------------------------------
 // Reveil du serveur (depuis nas)
 // --------------------------------------------------
+
+// --------------------------------------------------
+// DECLENCHEMENT A LA DEMANDE DES MISES A JOUR METEO
+// --------------------------------------------------
+
+const GITHUB_ACTIONS_TOKEN = process.env.GITHUB_ACTIONS_TOKEN;
+const GITHUB_REPOSITORY = "alexandreguilloux85/meteo-la-rochelle";
+const GITHUB_BRANCH = "Test_fonction";
+const DELAI_MINIMUM_ACTUALISATION_METEO = 5 * 60 * 1000;
+let derniereDemandeActualisationMeteo = 0;
+let actualisationMeteoEnCours = null;
+
+app.get("/api/refresh-weather", async (req, res) => {
+    res.set("Cache-Control", "no-store");
+
+    if (req.get("origin") !== "https://alexandreguilloux85.github.io") {
+        return res.status(403).json({
+            succes: false,
+            erreur: "Origine non autorisée"
+        });
+    }
+
+    if (!GITHUB_ACTIONS_TOKEN) {
+        return res.status(503).json({
+            succes: false,
+            erreur: "Variable GITHUB_ACTIONS_TOKEN absente dans Render"
+        });
+    }
+
+    const maintenant = Date.now();
+    const delaiRestant = DELAI_MINIMUM_ACTUALISATION_METEO -
+        (maintenant - derniereDemandeActualisationMeteo);
+
+    if (delaiRestant > 0) {
+        return res.status(202).json({
+            succes: true,
+            deja_demande: true,
+            prochain_declenchement_possible:
+                new Date(derniereDemandeActualisationMeteo +
+                    DELAI_MINIMUM_ACTUALISATION_METEO).toISOString()
+        });
+    }
+
+    if (actualisationMeteoEnCours) {
+        return res.status(202).json({
+            succes: true,
+            deja_demande: true,
+            message: "Mise à jour déjà en cours de déclenchement."
+        });
+    }
+
+    actualisationMeteoEnCours = (async () => {
+        const workflows = [
+            "publish-observations.yml",
+            "publish-radar-xyz.yml"
+        ];
+
+        const resultats = await Promise.all(workflows.map(async workflow => {
+            const url = `https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches`;
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Accept": "application/vnd.github+json",
+                    "Authorization": `Bearer ${GITHUB_ACTIONS_TOKEN}`,
+                    "X-GitHub-Api-Version": "2022-11-28",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ ref: GITHUB_BRANCH })
+            });
+
+            if (response.status !== 204) {
+                const details = await response.text();
+                throw new Error(
+                    `Déclenchement ${workflow} impossible : HTTP ${response.status} ${details}`
+                );
+            }
+            return workflow;
+        }));
+
+        derniereDemandeActualisationMeteo = Date.now();
+        return resultats;
+    })();
+
+    try {
+        const workflows = await actualisationMeteoEnCours;
+        return res.status(202).json({
+            succes: true,
+            message: "Mises à jour demandées.",
+            workflows
+        });
+    } catch (error) {
+        console.error("Erreur déclenchement mises à jour météo :", error);
+        return res.status(502).json({
+            succes: false,
+            erreur: error.message
+        });
+    } finally {
+        actualisationMeteoEnCours = null;
+    }
+});
 
 // Vérification légère pour maintenir Render actif
 app.get("/api/keepalive", (req, res) => {

@@ -1,0 +1,163 @@
+name: Test image radar national
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render-radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Installer les outils Python
+        run: python -m pip install --disable-pip-version-check numpy pillow h5py pyproj requests
+
+      - name: Télécharger et reprojeter la mosaïque radar nationale
+        env:
+          METEO_RADAR_API_KEY: ${{ secrets.METEO_RADAR_API_KEY }}
+        run: |
+          if [ -z "$METEO_RADAR_API_KEY" ]; then
+            echo "Le secret METEO_RADAR_API_KEY est absent."
+            exit 1
+          fi
+
+          python - <<'PY'
+          import json
+          import os
+          import tempfile
+
+          import h5py
+          import numpy as np
+          import requests
+          from PIL import Image
+          from pyproj import CRS, Transformer
+
+          api_key = os.environ["METEO_RADAR_API_KEY"]
+          catalogue_url = (
+              "https://public-api.meteofrance.fr/public/DPRadar/v1/"
+              "mosaiques/METROPOLE/observations/LAME_D_EAU"
+          )
+          response = requests.get(
+              catalogue_url,
+              headers={"apikey": api_key, "accept": "application/json"},
+              timeout=60,
+          )
+          response.raise_for_status()
+          catalogue = response.json()
+
+          produits = [
+              lien for lien in catalogue.get("links", [])
+              if "maille=500" in lien.get("href", "")
+          ]
+          if not produits:
+              raise RuntimeError("Aucun produit radar avec maille=500 trouvé.")
+
+          produit = produits[0]
+          print("Date du produit :", produit.get("validity_time", "inconnue"))
+
+          response = requests.get(
+              produit["href"],
+              headers={"apikey": api_key, "accept": "*/*"},
+              timeout=(60, 300),
+          )
+          response.raise_for_status()
+          print("Taille HDF5 :", round(len(response.content) / 1024 / 1024, 2), "Mo")
+
+          with tempfile.NamedTemporaryFile(suffix=".h5") as hdf_temp:
+              hdf_temp.write(response.content)
+              hdf_temp.flush()
+              with h5py.File(hdf_temp.name, "r") as hdf:
+                  pluie_source = hdf["/dataset1/data1/data"][:]
+                  qualite_source = hdf["/dataset1/data1/quality1/data"][:]
+                  attrs = hdf["/where"].attrs
+                  hauteur, largeur = pluie_source.shape
+                  xscale = float(attrs["xscale"])
+                  yscale = float(attrs["yscale"])
+                  lon_ll = float(attrs["LL_lon"])
+                  lat_ll = float(attrs["LL_lat"])
+                  coins_lon = [float(attrs[n]) for n in ("LL_lon", "LR_lon", "UL_lon", "UR_lon")]
+                  coins_lat = [float(attrs[n]) for n in ("LL_lat", "LR_lat", "UL_lat", "UR_lat")]
+
+          radar_crs = CRS.from_proj4(
+              "+proj=stere +lat_0=90 +lon_0=0 +lat_ts=45 "
+              "+ellps=WGS84 +x_0=619652.07 +y_0=5262818.34 "
+              "+datum=WGS84 +units=m +no_defs"
+          )
+          to_radar = Transformer.from_crs("EPSG:4326", radar_crs, always_xy=True)
+          origin_x, origin_y = to_radar.transform(lon_ll, lat_ll)
+
+          west, east = min(coins_lon), max(coins_lon)
+          south, north = min(coins_lat), max(coins_lat)
+          lat_centre = (south + north) / 2
+          dlat = 500.0 / 111320.0
+          dlon = 500.0 / (111320.0 * np.cos(np.deg2rad(lat_centre)))
+          out_width = int(np.ceil((east - west) / dlon))
+          out_height = int(np.ceil((north - south) / dlat))
+
+          print(f"Grille source : {largeur} x {hauteur} pixels")
+          print(f"Image géographique : {out_width} x {out_height} pixels")
+          print(f"Emprise : O={west:.5f}, S={south:.5f}, E={east:.5f}, N={north:.5f}")
+
+          rgba = np.zeros((out_height, out_width, 4), dtype=np.uint8)
+          lon = west + (np.arange(out_width, dtype=np.float64) + 0.5) * (east - west) / out_width
+
+          for y0 in range(0, out_height, 128):
+              y1 = min(y0 + 128, out_height)
+              lat = north - (np.arange(y0, y1, dtype=np.float64) + 0.5) * (north - south) / out_height
+              lon_grid, lat_grid = np.meshgrid(lon, lat)
+              radar_x, radar_y = to_radar.transform(lon_grid, lat_grid)
+
+              cols = np.floor((radar_x - origin_x) / xscale).astype(np.int32)
+              rows = np.floor((origin_y + hauteur * yscale - radar_y) / yscale).astype(np.int32)
+              inside = (cols >= 0) & (cols < largeur) & (rows >= 0) & (rows < hauteur)
+
+              safe_cols = np.clip(cols, 0, largeur - 1)
+              safe_rows = np.clip(rows, 0, hauteur - 1)
+              raw = pluie_source[safe_rows, safe_cols]
+              quality = qualite_source[safe_rows, safe_cols]
+              valid = inside & (raw != 65535) & (raw != 65534) & (quality != 255) & (quality > 0)
+              rain = raw.astype(np.float32) * 0.01
+              band = rgba[y0:y1]
+
+              # Palette identique à couleurRadar() dans server.js.
+              band[valid & (rain > 0) & (rain < 0.1)] = (150, 210, 255, 180)
+              band[valid & (rain >= 0.1) & (rain < 0.5)] = (25, 100, 220, 210)
+              band[valid & (rain >= 0.5) & (rain < 1)] = (30, 180, 100, 220)
+              band[valid & (rain >= 1) & (rain < 2)] = (255, 230, 30, 230)
+              band[valid & (rain >= 2) & (rain < 5)] = (255, 140, 20, 240)
+              band[valid & (rain >= 5)] = (220, 25, 35, 245)
+
+              if y0 % 512 == 0:
+                  print(f"Lignes traitées : {y1}/{out_height}")
+
+          os.makedirs("radar-test", exist_ok=True)
+          image_path = "radar-test/radar-national.png"
+          Image.fromarray(rgba, mode="RGBA").save(image_path, optimize=True)
+
+          metadata = {
+              "date": produit.get("validity_time"),
+              "bounds": {"south": south, "west": west, "north": north, "east": east},
+              "width": out_width,
+              "height": out_height,
+              "source_width": largeur,
+              "source_height": hauteur,
+              "source_resolution_m": [xscale, yscale],
+              "palette": "identique à couleurRadar() dans server.js",
+          }
+          with open("radar-test/metadata.json", "w", encoding="utf-8") as f:
+              json.dump(metadata, f, indent=2)
+
+          print("PNG généré :", image_path)
+          print("Taille PNG :", round(os.path.getsize(image_path) / 1024 / 1024, 2), "Mo")
+          print("Pixels radar valides :", int(np.count_nonzero(rgba[:, :, 3])))
+          print("Reprojection terminée. Aucun déploiement GitHub Pages.")
+          PY
+
+      - name: Publier le résultat comme artefact de test
+        uses: actions/upload-artifact@v4
+        with:
+          name: radar-national-test
+          path: radar-test/
+          retention-days: 3

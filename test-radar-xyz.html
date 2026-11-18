@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test radar XYZ – La Rochelle</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    html, body { height: 100%; margin: 0; font-family: Arial, sans-serif; }
+    #map { height: 100%; width: 100%; }
+    .info {
+      position: absolute; z-index: 1000; top: 10px; left: 50px;
+      max-width: min(420px, calc(100vw - 80px)); padding: 9px 12px;
+      background: white; border-radius: 5px; box-shadow: 0 1px 5px #777;
+      font-size: 13px; line-height: 1.45;
+    }
+    .info strong { display: block; margin-bottom: 3px; }
+  </style>
+</head>
+<body>
+  <div class="info">
+    <strong>Test des tuiles radar XYZ</strong>
+    Fond cartographique et radar sont deux couches indépendantes.
+    <div id="status">Chargement des métadonnées…</div>
+  </div>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // La carte et le radar peuvent être zoomés jusqu'au niveau 12.
+    const map = L.map("map", { maxZoom: 12 }).setView([46.178, -1.193167], 7);
+
+    const fond = L.tileLayer(
+      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      { maxZoom: 19, attribution: '&copy; OpenStreetMap' }
+    ).addTo(map);
+
+    // Les tuiles natives s'arrêtent au zoom 9.
+    // Leaflet agrandit celles du zoom 9 aux zooms 10, 11 et 12.
+    const radar = L.tileLayer("./radar-xyz/{z}/{x}/{y}.png", {
+      minZoom: 4,
+      maxNativeZoom: 9,
+      maxZoom: 12,
+      opacity: 0.85,
+      tileSize: 256,
+      tms: false,
+      errorTileUrl: ""
+    }).addTo(map);
+
+    L.control.layers(
+      { "Fond OpenStreetMap": fond },
+      { "Radar Météo-France (XYZ)": radar },
+      { collapsed: false }
+    ).addTo(map);
+
+    fetch("./radar-xyz/metadata.json")
+      .then(r => {
+        if (!r.ok) throw new Error("metadata.json introuvable (" + r.status + ")");
+        return r.json();
+      })
+      .then(m => {
+        document.getElementById("status").textContent =
+          "Produit : " + (m.date || "date inconnue") +
+          " · Tuiles natives jusqu'au zoom 9, affichage jusqu'au zoom 12" +
+          " · " + m.total_tiles + " tuiles";
+      })
+      .catch(e => {
+        document.getElementById("status").textContent =
+          "Métadonnées non chargées : " + e.message;
+      });
+
+    let loaded = 0, errors = 0;
+    radar.on("tileload", () => {
+      loaded++;
+      document.getElementById("status").textContent =
+        document.getElementById("status").textContent.split(" · Tuiles chargées")[0] +
+        " · Tuiles chargées : " + loaded + " · erreurs : " + errors;
+    });
+    radar.on("tileerror", () => {
+      errors++;
+      document.getElementById("status").textContent =
+        document.getElementById("status").textContent.split(" · Tuiles chargées")[0] +
+        " · Tuiles chargées : " + loaded + " · erreurs : " + errors;
+    });
+  </script>
+</body>
+</html>

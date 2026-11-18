@@ -1,0 +1,186 @@
+name: Test AROME zone étendue Vannes-Bordeaux
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-zone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Vérifier la clé API AROME
+        env:
+          AROME_API_KEY: ${{ secrets.METEO_AROME_API_KEY }}
+        run: |
+          if [ -z "$AROME_API_KEY" ]; then
+            echo "::error::Le secret METEO_AROME_API_KEY est absent des secrets GitHub."
+            exit 1
+          fi
+
+      - name: Tester le téléchargement GRIB sur la zone Vannes-Bordeaux
+        env:
+          AROME_API_KEY: ${{ secrets.METEO_AROME_API_KEY }}
+        run: |
+          node <<'NODE'
+          const base = "https://public-api.meteofrance.fr/public/arome/1.0/wcs/MF-NWP-HIGHRES-AROME-001-FRANCE-WCS";
+
+          async function get(url, accept) {
+            const response = await fetch(url, {
+              headers: { apikey: process.env.AROME_API_KEY, accept }
+            });
+            if (!response.ok) {
+              const detail = await response.text();
+              throw new Error(`HTTP ${response.status}: ${detail.slice(0, 500)}`);
+            }
+            return response;
+          }
+
+          async function main() {
+            const catalogueUrl = new URL(base + "/GetCapabilities");
+            catalogueUrl.searchParams.set("service", "WCS");
+            catalogueUrl.searchParams.set("version", "2.0.1");
+            catalogueUrl.searchParams.set("request", "GetCapabilities");
+
+            const xml = await (await get(catalogueUrl, "application/xml, text/xml, */*")).text();
+            const ids = [...xml.matchAll(/<wcs:CoverageId>([\s\S]*?)<\/wcs:CoverageId>/g)]
+              .map(m => m[1].trim());
+
+            const prefixes = {
+              U: "U_COMPONENT_OF_WIND__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___",
+              V: "V_COMPONENT_OF_WIND__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___",
+              GUST: "WIND_SPEED_GUST__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___"
+            };
+
+            const models = ids.filter(id => id.startsWith(prefixes.U)).sort().reverse();
+            let selected;
+            for (const u of models) {
+              const suffix = u.slice(prefixes.U.length);
+              const v = prefixes.V + suffix;
+              if (ids.includes(v)) {
+                selected = {
+                  suffix,
+                  U: u,
+                  V: v,
+                  GUST: ids.includes(prefixes.GUST + suffix) ? prefixes.GUST + suffix : null
+                };
+                break;
+              }
+            }
+            if (!selected) throw new Error("Aucun couple de couvertures AROME U/V commun trouvé.");
+
+            const date = new Date(selected.suffix.replace(
+              /T(\d{2})\.(\d{2})\.(\d{2})Z$/, "T$1:$2:$3Z"
+            ));
+            if (Number.isNaN(date.getTime())) throw new Error("Suffixe de modèle AROME illisible : " + selected.suffix);
+            const validTime = new Date(date.getTime() + 3600 * 1000)
+              .toISOString().replace(".000Z", "Z");
+
+            // Rectangle volontairement un peu élargi pour inclure la côte entre Vannes et Bordeaux.
+            const bbox = { latMin: 44.70, latMax: 47.85, lonMin: -2.90, lonMax: -0.45 };
+            console.log("Modèle AROME :", selected.suffix);
+            console.log("Zone test :", JSON.stringify(bbox));
+            console.log("Échéance :", validTime);
+
+            const targets = [
+              ["U", selected.U],
+              ["V", selected.V],
+              ...(selected.GUST ? [["GUST", selected.GUST]] : [])
+            ];
+
+            let totalBytes = 0;
+            let referenceGrid = null;
+
+            for (const [name, coverageId] of targets) {
+              const url = new URL(base + "/GetCoverage");
+              url.searchParams.set("service", "WCS");
+              url.searchParams.set("version", "2.0.1");
+              url.searchParams.set("request", "GetCoverage");
+              url.searchParams.set("coverageId", coverageId);
+              url.searchParams.append("subset", `time(${validTime})`);
+              url.searchParams.append("subset", "height(10)");
+              url.searchParams.append("subset", `lat(${bbox.latMin},${bbox.latMax})`);
+              url.searchParams.append("subset", `long(${bbox.lonMin},${bbox.lonMax})`);
+              url.searchParams.set("format", "application/wmo-grib");
+
+              const response = await get(url, "application/octet-stream");
+              const data = Buffer.from(await response.arrayBuffer());
+              if (data.length < 20 || data.subarray(0, 4).toString() !== "GRIB" ||
+                  data.subarray(data.length - 4).toString() !== "7777") {
+                throw new Error(`${name}: réponse non GRIB2 (taille ${data.length} octets)`);
+              }
+
+              // Parcourir les sections GRIB2 : la section 3 n'est pas nécessairement
+              // la première section après l'en-tête (section 0).
+              let offset = 16;
+              let s3 = null;
+
+              while (offset < data.length - 4) {
+                if (offset + 5 > data.length - 4) {
+                  throw new Error(`${name}: en-tête de section GRIB2 tronqué`);
+                }
+
+                const sectionLength = data.readUInt32BE(offset);
+                const sectionNumber = data[offset + 4];
+
+                if (
+                  sectionLength < 5 ||
+                  offset + sectionLength > data.length - 4
+                ) {
+                  throw new Error(`${name}: longueur de section GRIB2 invalide à l'octet ${offset}`);
+                }
+
+                if (sectionNumber === 3) {
+                  s3 = data.subarray(offset, offset + sectionLength);
+                  break;
+                }
+
+                offset += sectionLength;
+              }
+
+              if (!s3) {
+                throw new Error(`${name}: section GRIB 3 introuvable`);
+              }
+
+              if (s3.length < 72) {
+                throw new Error(`${name}: section GRIB 3 trop courte (${s3.length} octets)`);
+              }
+
+              // Le template 3.0 correspond à une grille latitude/longitude régulière.
+              const gridTemplate = s3.readUInt16BE(12);
+              if (gridTemplate !== 0) {
+                throw new Error(`${name}: template de grille non pris en charge (${gridTemplate})`);
+              }
+
+              const ni = s3.readUInt32BE(30);
+              const nj = s3.readUInt32BE(34);
+              const grid = {
+                Ni: ni,
+                Nj: nj,
+                points: ni * nj,
+                latFirst: s3.readInt32BE(46) / 1e6,
+                lonFirst: s3.readInt32BE(50) / 1e6,
+                latStep: s3.readUInt32BE(67) / 1e6,
+                lonStep: s3.readUInt32BE(63) / 1e6
+              };
+
+              if (referenceGrid && (grid.Ni !== referenceGrid.Ni || grid.Nj !== referenceGrid.Nj)) {
+                throw new Error(`${name}: dimensions différentes de la grille U/V`);
+              }
+              referenceGrid ||= grid;
+              totalBytes += data.length;
+              console.log(`${name}: ${(data.length / 1024).toFixed(1)} Ko | grille ${ni} × ${nj} = ${ni * nj} points`);
+            }
+
+            console.log("Grille commune :", JSON.stringify(referenceGrid));
+            console.log("Volume total pour une échéance (U/V/rafales si disponible) :", (totalBytes / 1024 / 1024).toFixed(2), "Mo");
+            console.log("TEST OK : le rectangle Vannes-Bordeaux est accepté par le WCS AROME.");
+          }
+
+          main().catch(error => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
