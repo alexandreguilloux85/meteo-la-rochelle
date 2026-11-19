@@ -188,6 +188,17 @@ Le déclenchement est limité à une exécution à la fois et à une demande
 toutes les quatre minutes. Un redémarrage de Render vide le cache de test
 en mémoire, sans affecter le cache WCS.
 
+**Rafales AROME :** Météo-France nomme la vitesse de rafale maximale
+sur une heure à 10 m `FF_RAF(10m)`, en **m/s**. Le paquet SP1 de
+la grille `0.025°` fournit aussi `U_RAF(10m)` et `V_RAF(10m)`.
+Dans les GRIB2, ecCodes peut les exposer sous les noms `gust`,
+`efg10` et `nfg10` ou d'autres alias. Le décodeur reconnaît
+désormais également les codes GRIB2 de rafales. Il privilégie la
+vitesse `FF_RAF` directe ; si elle manque mais que les deux composantes
+existent, il calcule `sqrt(U_RAF² + V_RAF²)`. Les journaux signalent
+les rafales directes, reconstituées et manquantes. **Relancer le test**
+après déploiement pour vérifier le résultat sur les vrais GRIB2.
+
 **Portée actuelle du prototype :** un paquet `0.025° SP1 00H06H`,
 six échéances **H+1 à H+6**, rectangle lat. 43.2–48.3 / lon. -5.0–-0.3,
 U/V et rafales lorsque présentes. Le GRIB2 est téléchargé **en flux**
