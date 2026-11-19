@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Essai isolé : paquet GRIB2 AROME 0.025 SP1 -> cache local restreint."""
+import base64
+from datetime import datetime, timezone
 import json
 import math
 import os
@@ -54,6 +56,46 @@ def oauth_token():
         ) from None
 
 
+def nettoyer_token_bearer(secret):
+    """Accepter les copies cURL sans révéler le secret dans les journaux."""
+    token = secret.strip()
+    if token.lower().startswith("authorization:"):
+        token = token.split(":", 1)[1].strip()
+    if token.lower().startswith("bearer "):
+        token = token.split(None, 1)[1].strip()
+    token = token.strip("'\\" ").strip()
+    if not token or any(char.isspace() for char in token):
+        raise RuntimeError(
+            "Jeton Bearer mal copié : valeur vide ou espaces/retours à la ligne internes. "
+            "Copier uniquement le jeton après 'Authorization: Bearer'."
+        )
+
+    # Un jeton JWT contient parfois une date d'expiration (exp).
+    # Ne jamais afficher le jeton, même partiellement.
+    if token.count(".") == 2:
+        try:
+            segment = token.split(".")[1]
+            donnees = base64.urlsafe_b64decode(segment + "=" * (-len(segment) % 4))
+            expiration = json.loads(donnees).get("exp")
+        except (ValueError, UnicodeError):
+            expiration = None
+        if isinstance(expiration, (int, float)):
+            restant = int(expiration - time.time())
+            print(
+                "Expiration du jeton JWT :",
+                datetime.fromtimestamp(expiration, tz=timezone.utc).isoformat(),
+                "| temps restant :", restant // 60, "minutes"
+            )
+            if restant < 60:
+                raise RuntimeError(
+                    "Jeton Bearer déjà expiré ou expirant dans moins d'une minute. "
+                    "Générer un nouveau jeton sur le portail Météo-France."
+                )
+    else:
+        print("Jeton opaque : expiration impossible à vérifier localement.")
+    return token
+
+
 def identifiants():
     """Utiliser uniquement un secret dédié aux paquets AROME.
 
@@ -64,12 +106,12 @@ def identifiants():
         return [("OAuth2 Bearer", "Authorization", "Bearer " + oauth_token())]
     if TOKEN:
         print("Authentification : METEO_AROME_PAQUETS_TOKEN (Bearer)")
-        return [("Bearer", "Authorization", "Bearer " + TOKEN.removeprefix("Bearer ").strip())]
+        return [("Bearer", "Authorization", "Bearer " + nettoyer_token_bearer(TOKEN))]
     if API_KEY:
         print("Authentification : METEO_AROME_PAQUETS_API_KEY")
         key = API_KEY.strip()
         if key.lower().startswith("bearer "):
-            return [("Bearer", "Authorization", "Bearer " + key[7:].strip())]
+            return [("Bearer", "Authorization", "Bearer " + nettoyer_token_bearer(key))]
         return [("API key", "apikey", key)]
     raise RuntimeError(
         "Aucun identifiant Paquet AROME configuré. Définir "
