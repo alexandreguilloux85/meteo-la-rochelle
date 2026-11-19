@@ -14,6 +14,7 @@ const ZONE = { latMin: 43.2, latMax: 48.3, lonMin: -5.0, lonMax: -0.3 };
 const MAX_GRIB_OCTETS = 120 * 1024 * 1024;
 const MAX_JSON_OCTETS = 45 * 1024 * 1024;
 const MIN_INTERVALLE_TEST = 4 * 60 * 1000;
+let OAUTH_CACHE = null;
 // La nomenclature officielle regroupe H+0..H+51 en neuf paquets.
 // H+0 est volontairement ignoré pour conserver les 51 colonnes du site.
 const GROUPES = Object.freeze([
@@ -43,7 +44,10 @@ function verifierURLAPI(url) {
 async function jetonPaquets() {
     const identifiant = process.env.METEO_AROME_PAQUETS_APPLICATION_ID?.trim();
     if (identifiant) {
-        // Un identifiant Basic durable permet d'obtenir un jeton Bearer frais.
+        // Réutiliser un Bearer tant qu'il reste au moins deux minutes de validité.
+        if (OAUTH_CACHE && OAUTH_CACHE.expireLe - Date.now() > 120000) {
+            return OAUTH_CACHE.jeton;
+        }
         const reponse = await fetch("https://portail-api.meteofrance.fr/token", {
             method: "POST",
             redirect: "error",
@@ -60,7 +64,13 @@ async function jetonPaquets() {
         }
         const donnees = await reponse.json();
         if (!donnees.access_token) throw new Error("Réponse OAuth2 sans access_token");
-        return donnees.access_token;
+        const duree = Number(donnees.expires_in);
+        OAUTH_CACHE = {
+            jeton: donnees.access_token,
+            expireLe: Date.now() +
+                (Number.isFinite(duree) && duree > 0 ? duree : 3600) * 1000
+        };
+        return OAUTH_CACHE.jeton;
     }
 
     const secret = process.env.METEO_AROME_PAQUETS_TOKEN?.trim();
