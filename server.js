@@ -659,10 +659,54 @@ const AROME_WCS_BASE =
     "MF-NWP-HIGHRES-AROME-001-FRANCE-WCS";
 const AROME_ECHEANCES_ATTENDUES = 51;
 const AROME_ECHEANCES_MINIMUM = 1;
+const AROME_ECHEANCES_MINIMUM_PUBLICATION = 24;
+const AROME_ECHEANCES_INITIALES_OBLIGATOIRES = 6;
+
+// Sécurité : Test_fonction ne doit pas publier de cache sur GitHub Pages production.
+const AROME_PUBLICATION_GITHUB_AUTORISEE = false;
 
 function normaliserModeleArome(modele) {
     if (typeof modele !== "string") return modele;
     return modele.replace(/T(\d{2})\.(\d{2})\.(\d{2})Z$/, "T$1:$2:$3Z");
+}
+
+function evaluerCacheArome(cache) {
+    const heures = new Set();
+    let rafales = 0;
+    for (const p of (Array.isArray(cache?.previsions) ? cache.previsions : [])) {
+        const sec = p?.seconde;
+        if (
+            Number.isInteger(sec) &&
+            sec >= 3600 && sec <= AROME_ECHEANCES_ATTENDUES * 3600 &&
+            sec % 3600 === 0 &&
+            p.U?.grille && p.U?.valeurs && p.V?.grille && p.V?.valeurs
+        ) {
+            heures.add(sec / 3600);
+            if (p.RAFALE?.grille && p.RAFALE?.valeurs) rafales++;
+        }
+    }
+    const premieresDisponibles = Array.from(
+        { length: AROME_ECHEANCES_INITIALES_OBLIGATOIRES },
+        (_, i) => i + 1
+    ).every(h => heures.has(h));
+    return {
+        valide: heures.size >= AROME_ECHEANCES_MINIMUM_PUBLICATION &&
+            premieresDisponibles,
+        nombre_echeances: heures.size,
+        nombre_rafales: rafales,
+        heures_initiales_valides: premieresDisponibles,
+        minimum_publication: AROME_ECHEANCES_MINIMUM_PUBLICATION
+    };
+}
+
+function signatureCacheArome(cache) {
+    return JSON.stringify({
+        modele: normaliserModeleArome(cache.modele),
+        zone: cache.zone,
+        disponible: cache.previsions.map(p => [
+            p.seconde, Boolean(p.U), Boolean(p.V), Boolean(p.RAFALE)
+        ])
+    });
 }
 
 
@@ -961,16 +1005,22 @@ function calculerPrevisionsArome(cache, latitude, longitude) {
 // Publication persistante du modèle sur la branche de données GitHub.
 // Un repository_dispatch déclenche uniquement le déploiement GitHub Pages.
 let dernierModeleAromePublie = null;
+let derniereSignatureAromePubliee = null;
 async function publierCacheAromeSurGithub(cache) {
-    if (
-        !cache || !cache.modele ||
-        !Array.isArray(cache.previsions) ||
-        cache.previsions.length !== AROME_ECHEANCES_ATTENDUES ||
-        cache.previsions.some(p => !p.U || !p.V || !p.RAFALE)
-    ) {
-        throw new Error("Publication refusée : cache AROME incomplet.");
+    const bilan = evaluerCacheArome(cache);
+    if (!cache?.modele || !bilan.valide) {
+        throw new Error(
+            "Publication refusée : " + bilan.nombre_echeances +
+            " échéances U/V (minimum " + bilan.minimum_publication +
+            ", H+1 à H+6 obligatoires)."
+        );
     }
-    if (dernierModeleAromePublie === cache.modele) return;
+    if (!AROME_PUBLICATION_GITHUB_AUTORISEE) {
+        console.log("AROME test : cache validé, publication GitHub désactivée.");
+        return false;
+    }
+    const signature = signatureCacheArome(cache);
+    if (derniereSignatureAromePubliee === signature) return true;
 
     const token = process.env.GITHUB_DATA_TOKEN || GITHUB_ACTIONS_TOKEN;
     if (!token) {
@@ -1037,7 +1087,13 @@ async function publierCacheAromeSurGithub(cache) {
         );
     }
     dernierModeleAromePublie = cache.modele;
-    console.log("AROME publié sur GitHub :", cache.modele);
+    derniereSignatureAromePubliee = signature;
+    console.log(
+        "AROME publié sur GitHub :", cache.modele,
+        bilan.nombre_echeances + " échéances U/V,",
+        bilan.nombre_rafales + " rafales"
+    );
+    return true;
 }
 
 function demarrerActualisationArome(lat, lon) {
@@ -1062,29 +1118,56 @@ function demarrerActualisationArome(lat, lon) {
             const reponse = await fetch(url);
             const resultat = await reponse.json();
 
-            if (
-                !reponse.ok ||
-                !resultat.succes ||
-                !resultat.modele ||
-                resultat.catalogue_indisponible ||
-                resultat.ancien_modele
-            ) {
+            if (!reponse.ok || !resultat.succes) {
                 throw new Error(
-                    resultat.erreur ||
-                    "Echec de la vérification du catalogue AROME"
+                    resultat.erreur || "API AROME : HTTP " + reponse.status
                 );
+            }
+            if (resultat.catalogue_indisponible) {
+                AROME_REFRESH_STATE = {
+                    status: "degraded",
+                    modele: resultat.modele || null,
+                    erreur: "Catalogue WCS indisponible : ancien cache conservé."
+                };
+                return;
+            }
+            if (resultat.ancien_modele) {
+                const details = (resultat.erreurs_telechargement || [])
+                    .slice(0, 3)
+                    .map(e => [e.parametre, e.echeance, e.erreur]
+                        .filter(Boolean).join(" : "))
+                    .join(" | ");
+                AROME_REFRESH_STATE = {
+                    status: "degraded",
+                    modele: resultat.modele || null,
+                    erreur:
+                        "Nouveau modèle incomplet (" +
+                        (resultat.echeances_nouveau_modele ?? "?") +
+                        "/51 échéances U/V), ancien conservé." +
+                        (details ? " " + details : "")
+                };
+                return;
+            }
+            if (!resultat.modele) {
+                throw new Error("Réponse AROME sans identifiant de modèle.");
             }
 
             const cacheActualise = await chargerCacheArome();
-            if (!cacheActualise || cacheActualise.modele !== resultat.modele) {
+            if (
+                !cacheActualise ||
+                normaliserModeleArome(cacheActualise.modele) !==
+                    normaliserModeleArome(resultat.modele)
+            ) {
                 throw new Error("Cache AROME actualisé introuvable.");
             }
-            await publierCacheAromeSurGithub(cacheActualise);
-
+            const publicationActive = await publierCacheAromeSurGithub(cacheActualise);
+            const bilan = evaluerCacheArome(cacheActualise);
             AROME_REFRESH_STATE = {
-                status: "complete",
+                status: publicationActive ? "complete" : "test",
                 modele: resultat.modele,
-                erreur: null
+                erreur: null,
+                echeances: bilan.nombre_echeances,
+                rafales: bilan.nombre_rafales
             };
         } catch (error) {
             console.error("Erreur actualisation AROME en arrière-plan :", error);
@@ -1836,14 +1919,15 @@ app.get("/api/arome/previsions", async (req, res) => {
             previsionsCache.push(donnees);
         }
 
-        // Ne jamais remplacer un cache AROME complet par un modèle incomplet.
-        if (
-            previsionsCache.length !== AROME_ECHEANCES_ATTENDUES ||
-            previsionsCache.some(p => !p.U || !p.V || !p.RAFALE)
-        ) {
+        // Exiger le vent U/V : les rafales et les échéances lointaines sont facultatives.
+        const bilanNouveauModele = evaluerCacheArome({ previsions: previsionsCache });
+        if (!bilanNouveauModele.valide) {
             const erreurCompleteness =
-                `Cache AROME incomplet : ${previsionsCache.length}/` +
-                `${echeances.length} échéances requises (U, V, RAFALE)`;
+                `Cache AROME insuffisant : ${bilanNouveauModele.nombre_echeances}/` +
+                `${echeances.length} échéances U/V (` +
+                `minimum ${AROME_ECHEANCES_MINIMUM_PUBLICATION}, ` +
+                `H+1 à H+6 obligatoires). ` +
+                `${bilanNouveauModele.nombre_rafales} rafales disponibles.`;
 
             console.error(
                 "AROME :",
@@ -1896,7 +1980,10 @@ app.get("/api/arome/previsions", async (req, res) => {
             date: Date.now(),
             zone,
             previsions: previsionsCache,
-            erreurs
+            erreurs,
+            actualisation_incomplete:
+                bilanNouveauModele.nombre_echeances < AROME_ECHEANCES_ATTENDUES ||
+                bilanNouveauModele.nombre_rafales < bilanNouveauModele.nombre_echeances
         };
 
         await sauvegarderCacheArome(nouveauCache);
@@ -1922,10 +2009,10 @@ app.get("/api/arome/previsions", async (req, res) => {
         res.json({
             ...resultat,
             cache: false,
-            actualisation_incomplete:
-                previsionsCache.length < AROME_ECHEANCES_ATTENDUES,
-            echeances_nouveau_modele: previsionsCache.length,
-            echeances_minimum: echeancesMinimum
+            actualisation_incomplete: nouveauCache.actualisation_incomplete,
+            echeances_nouveau_modele: bilanNouveauModele.nombre_echeances,
+            rafales_nouveau_modele: bilanNouveauModele.nombre_rafales,
+            echeances_minimum: AROME_ECHEANCES_MINIMUM_PUBLICATION
         });
 
     } catch (error) {
@@ -2017,7 +2104,14 @@ app.get("/api/meteo/status", (req, res) => {
                 process.env.GITHUB_DATA_TOKEN || GITHUB_ACTIONS_TOKEN
             ),
             dernier_modele_publie: dernierModeleAromePublie,
-            actualisation: AROME_REFRESH_STATE.status
+            publication_active: AROME_PUBLICATION_GITHUB_AUTORISEE,
+            echeances_cache: AROME_CACHE_ZONE
+                ? evaluerCacheArome(AROME_CACHE_ZONE).nombre_echeances : null,
+            rafales_cache: AROME_CACHE_ZONE
+                ? evaluerCacheArome(AROME_CACHE_ZONE).nombre_rafales : null,
+            actualisation: AROME_REFRESH_STATE.status,
+            derniere_erreur: AROME_REFRESH_STATE.erreur,
+            echeances_actualisation: AROME_REFRESH_STATE.echeances || null
         }
     });
 });
