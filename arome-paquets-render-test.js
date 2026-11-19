@@ -6,6 +6,7 @@ const fs = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
+const { gzipSync } = require("node:zlib");
 
 const ROOT = "https://public-api.meteofrance.fr/previnum/DPPaquetAROME/v1";
 const SP1 = ROOT + "/models/AROME/grids/0.025/packages/SP1";
@@ -13,6 +14,19 @@ const ZONE = { latMin: 43.2, latMax: 48.3, lonMin: -5.0, lonMax: -0.3 };
 const MAX_GRIB_OCTETS = 120 * 1024 * 1024;
 const MAX_JSON_OCTETS = 45 * 1024 * 1024;
 const MIN_INTERVALLE_TEST = 4 * 60 * 1000;
+// La nomenclature officielle regroupe H+0..H+51 en neuf paquets.
+// H+0 est volontairement ignoré pour conserver les 51 colonnes du site.
+const GROUPES = Object.freeze([
+    { code: "00H06H", debut: 1, fin: 6 },
+    { code: "07H12H", debut: 7, fin: 12 },
+    { code: "13H18H", debut: 13, fin: 18 },
+    { code: "19H24H", debut: 19, fin: 24 },
+    { code: "25H30H", debut: 25, fin: 30 },
+    { code: "31H36H", debut: 31, fin: 36 },
+    { code: "37H42H", debut: 37, fin: 42 },
+    { code: "43H48H", debut: 43, fin: 48 },
+    { code: "49H51H", debut: 49, fin: 51 }
+]);
 
 function arrondiMo(octets) {
     return Math.round(octets / 1048576 * 100) / 100;
@@ -93,41 +107,54 @@ async function catalogue(url, jeton) {
     return donnees;
 }
 
-async function dernierPaquet(jeton, etape) {
+async function selectionnerReseauComplet(jeton, groupes, etape) {
     etape("catalogue");
     const description = await catalogue(SP1, jeton);
-    const reseaux = description.links.map(lien => {
+    const reseaux = [...new Set(description.links.map(lien => {
         const href = lien.href || "";
         const reference = new URL(href, SP1).searchParams.get("referencetime");
         return reference && !Number.isNaN(Date.parse(reference))
             ? reference : null;
-    }).filter(Boolean).sort().reverse();
+    }).filter(Boolean))].sort().reverse();
 
     if (!reseaux.length) throw new Error("Aucun réseau disponible dans le paquet SP1");
     etape("recherche_echeances");
 
-    for (const reference of reseaux.slice(0, 5)) {
+    const diagnostics = [];
+    for (const reference of reseaux.slice(0, 8)) {
         const url = SP1 + "?" + new URLSearchParams({ referencetime: reference });
         const disponibilites = await catalogue(url, jeton);
-        const present = disponibilites.links.some(lien => {
-            const href = lien.href || "";
-            return (lien.time === "00H06H" ||
-                new URL(href, SP1).searchParams.get("time") === "00H06H") &&
-                (/format=grib2/i.test(href) || /grib2/i.test(lien.title || ""));
-        });
-        if (present) {
+        const heuresDisponibles = new Set(
+            disponibilites.links.filter(lien => {
+                const href = lien.href || "";
+                const params = new URL(href, SP1).searchParams;
+                const format = params.get("format") || "";
+                return format.toLowerCase() === "grib2" ||
+                    /grib2/i.test(lien.title || "");
+            }).map(lien => lien.time ||
+                new URL(lien.href || "", SP1).searchParams.get("time"))
+              .filter(Boolean)
+        );
+        const manquants = groupes.filter(g => !heuresDisponibles.has(g.code));
+        if (!manquants.length) {
             return {
                 modele: reference,
-                url: SP1 + "/productARO?" +
-                    new URLSearchParams({
+                groupes: groupes.map(g => ({
+                    ...g,
+                    url: SP1 + "/productARO?" + new URLSearchParams({
                         referencetime: reference,
-                        time: "00H06H",
+                        time: g.code,
                         format: "grib2"
                     })
+                }))
             };
         }
+        diagnostics.push(reference + " : manque " + manquants.map(g => g.code).join(","));
     }
-    throw new Error("Aucun produit SP1 00H06H GRIB2 disponible dans les réseaux récents");
+    throw new Error(
+        "Aucun réseau AROME avec les " + groupes.length +
+        " groupes demandés. " + diagnostics.slice(0, 3).join(" | ")
+    );
 }
 
 async function telechargerGrib(url, jeton, fichier) {
@@ -141,7 +168,16 @@ async function telechargerGrib(url, jeton, fichier) {
             if (octets > MAX_GRIB_OCTETS) {
                 throw new Error("Paquet GRIB2 supérieur à 120 Mo : test arrêté");
             }
-            await sortie.write(bloc);
+            let position = 0;
+            while (position < bloc.length) {
+                const { bytesWritten } = await sortie.write(
+                    bloc, position, bloc.length - position
+                );
+                if (bytesWritten <= 0) {
+                    throw new Error("Écriture GRIB2 interrompue");
+                }
+                position += bytesWritten;
+            }
         }
     } finally {
         await sortie.close();
@@ -212,7 +248,7 @@ function verifierDependancesPython() {
     });
 }
 
-function decoderAvecPython(fichier, dossier, modele) {
+function decoderAvecPython(fichier, dossier, modele, groupe) {
     return new Promise((resolve, reject) => {
         const interpreter = process.env.AROME_PAQUETS_PYTHON || "python3";
         const pythonPath = path.join(__dirname, ".arome-py");
@@ -226,6 +262,8 @@ function decoderAvecPython(fichier, dossier, modele) {
                     AROME_GRIB_LOCAL: fichier,
                     AROME_MODELE_LOCAL: modele,
                     AROME_OUTPUT: dossier,
+                    AROME_HEURE_DEBUT: String(groupe.debut),
+                    AROME_HEURE_FIN: String(groupe.fin),
                     AROME_BBOX: [
                         ZONE.latMin, ZONE.latMax, ZONE.lonMin, ZONE.lonMax
                     ].join(","),
