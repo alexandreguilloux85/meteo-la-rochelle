@@ -70,8 +70,15 @@ def nettoyer_token_bearer(secret):
             "Copier uniquement le jeton après 'Authorization: Bearer'."
         )
 
-    # Un jeton JWT contient parfois une date d'expiration (exp).
+    # Le jeton renvoyé par l'API est un JWT à trois segments.
+    # Une ponctuation ajoutée à la fin de la copie crée un 3e point.
     # Ne jamais afficher le jeton, même partiellement.
+    if token.startswith("eyJ") and token.count(".") != 2:
+        raise RuntimeError(
+            "Jeton JWT mal copié : deux points séparateurs attendus, "
+            + str(token.count(".")) + " reçus. "
+            "Vérifier l'absence de ponctuation après la signature."
+        )
     if token.count(".") == 2:
         try:
             segment = token.split(".")[1]
@@ -167,19 +174,51 @@ def read(url, dest=None):
 
 
 def choisir():
+    # Tester d'abord la route identique à celle qui a réussi en cURL.
+    print("Catalogue AROME étape 1/4 : grilles")
+    grilles = read(ROOT + "/models/AROME/grids")
+    if not any(
+        urlparse(lien.get("href", "")).path.endswith("/grids/0.025")
+        for lien in grilles.get("links", [])
+    ):
+        raise ValueError("Grille AROME 0.025 absente du catalogue")
+
+    print("Catalogue AROME étape 2/4 : paquets")
+    paquets = read(ROOT + "/models/AROME/grids/0.025/packages")
+    if not any(
+        urlparse(lien.get("href", "")).path.endswith("/packages/SP1")
+        for lien in paquets.get("links", [])
+    ):
+        raise ValueError("Paquet SP1 absent de la grille 0.025")
+
+    print("Catalogue AROME étape 3/4 : réseaux SP1")
     runs = []
-    for link in read(URL).get("links", []):
-        url = link.get("href", "")
-        run = parse_qs(urlparse(url).query).get("referencetime", [None])[0]
-        if run:
-            runs.append((run, url))
-    for run, link in sorted(runs, reverse=True):
-        for element in read(link).get("links", []):
-            href = element.get("href", "")
-            group = element.get("time") or parse_qs(urlparse(href).query).get("time", [None])[0]
-            if group == "00H06H" and "grib2" in href.lower():
-                return run, href
-    raise ValueError("Aucun paquet SP1 00H06H trouvé dans le catalogue")
+    for lien in read(URL).get("links", []):
+        href = lien.get("href", "")
+        reference = parse_qs(urlparse(href).query).get("referencetime", [None])[0]
+        if reference:
+            runs.append((reference, href))
+    if not runs:
+        raise ValueError("Aucun réseau AROME disponible dans SP1")
+
+    print("Catalogue AROME étape 4/4 : échéances")
+    for reference, href in sorted(runs, reverse=True):
+        # L'API renvoie des liens sans /v1 même lorsqu'on appelle /v1.
+        # Utiliser la route documentée et uniquement la référence du réseau.
+        url = URL + "?" + urlencode({"referencetime": reference})
+        for item in read(url).get("links", []):
+            link = item.get("href", "")
+            groupe = item.get("time") or parse_qs(urlparse(link).query).get("time", [None])[0]
+            if groupe == "00H06H" and "grib2" in link.lower():
+                # Le lien donné par le catalogue peut omettre /v1.
+                # Reconstruire l'URL conforme à la documentation.
+                params = parse_qs(urlparse(link).query)
+                params["referencetime"] = [reference]
+                params["time"] = ["00H06H"]
+                params["format"] = ["grib2"]
+                telechargement = URL + "/productARO?" + urlencode(params, doseq=True)
+                return reference, telechargement
+    raise ValueError("Aucun paquet SP1 00H06H GRIB2 trouvé dans les réseaux disponibles")
 
 
 def prop(gid, name, default=None):
