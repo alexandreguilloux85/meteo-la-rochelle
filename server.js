@@ -445,8 +445,8 @@ const OBSERVATIONS_TTL_MS = 5 * 60 * 1000;
 let observationsCache = null;
 let observationsChargement = null;
 
-async function obtenirObservations() {
-    if (observationsCache &&
+async function obtenirObservations({ forcerVerification = false } = {}) {
+    if (!forcerVerification && observationsCache &&
         Date.now() - observationsCache.verifieLe < OBSERVATIONS_TTL_MS) {
         return observationsCache.donnees;
     }
@@ -458,7 +458,8 @@ async function obtenirObservations() {
             url.searchParams.set("id_station", "17300009");
             url.searchParams.set("format", "json");
             const reponse = await fetch(url, {
-                headers: { accept: "*/*", apikey: API_KEY },
+                headers: { accept: "*/*", apikey: API_KEY, "cache-control": "no-cache" },
+                cache: "no-store",
                 signal: AbortSignal.timeout(30000)
             });
             if (!reponse.ok) {
@@ -475,7 +476,7 @@ async function obtenirObservations() {
     try {
         return await observationsChargement;
     } catch (erreur) {
-        if (observationsCache) {
+        if (!forcerVerification && observationsCache) {
             console.warn("Observations indisponibles : ancien cache conservé", erreur.message);
             return observationsCache.donnees;
         }
@@ -488,7 +489,10 @@ async function obtenirObservations() {
 app.get("/api/observations", async (req, res) => {
     res.set("Cache-Control", "no-store");
     try {
-        return res.json(await obtenirObservations());
+        // Le bouton station contourne le TTL et impose une requête Météo-France.
+        // En mode refresh, un échec ne doit jamais paraître être une vérification réussie.
+        const forcerVerification = req.query.refresh === "1";
+        return res.json(await obtenirObservations({ forcerVerification }));
     } catch (erreur) {
         console.error("Erreur observations :", erreur);
         return res.status(502).json({ erreur: erreur.message });
