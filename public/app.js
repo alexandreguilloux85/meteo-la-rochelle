@@ -19,7 +19,7 @@ let axeEstOuest = null;
 const URL_SERVEUR_RENDER =
     window.location.hostname.endsWith(".onrender.com")
         ? window.location.origin
-        : "https://station-meteo-lr-test.onrender.com";
+        : "https://station-meteo-lr.onrender.com";
 const URL_OBSERVATIONS_RENDER = URL_SERVEUR_RENDER + "/api/observations";
 const URL_RADAR_TUILES = URL_SERVEUR_RENDER + "/api/radar/tiles";
 const URL_RADAR_METADATA = URL_SERVEUR_RENDER + "/api/radar/metadata";
