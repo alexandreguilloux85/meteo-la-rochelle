@@ -612,6 +612,11 @@ const AROME_WCS_BASE =
 const AROME_ECHEANCES_ATTENDUES = 51;
 const AROME_ECHEANCES_MINIMUM = 1;
 
+function normaliserModeleArome(modele) {
+    if (typeof modele !== "string") return modele;
+    return modele.replace(/T(\\d{2})\\.(\\d{2})\\.(\\d{2})Z$/, "T$1:$2:$3Z");
+}
+
 
 // --------------------------------------------------
 // AROME - CACHE SPATIAL DES PREVISIONS
@@ -1295,7 +1300,8 @@ app.get("/api/arome/previsions", async (req, res) => {
         // CHARGEMENT DU CACHE
         // --------------------------------------------------
 
-        const nouveauModele = !cache || cache.modele !== modele;
+        const nouveauModele = !cache ||
+            normaliserModeleArome(cache.modele) !== normaliserModeleArome(modele);
         const nouvelleZone = !pointDansZone;
         const cacheAvecRafalesManquantes = Boolean(
             coverageRafale &&
@@ -1838,7 +1844,7 @@ app.get("/api/arome/previsions", async (req, res) => {
         // --------------------------------------------------
 
         const nouveauCache = {
-            modele,
+            modele: normaliserModeleArome(modele),
             date: Date.now(),
             zone,
             previsions: previsionsCache,
