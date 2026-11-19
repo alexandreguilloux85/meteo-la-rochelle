@@ -298,7 +298,7 @@ const radarCoordonneesCache = new Map();
 
 // Proj4 est coûteux : calculer seulement les nœuds d'une grille régulière
 // puis interpoler les coordonnées sur les 65 536 pixels de la tuile.
-// 8 px aux zooms nationaux, 16 px aux zooms détaillés.
+// 4 px aux zooms nationaux, 8 px aux intermédiaires, 16 px aux détaillés.
 function indicesTuileRadar(produit, zoom, tuileX, tuileY) {
     const cle = [
         produit.largeur, produit.hauteur, produit.xScale, produit.yScale,
@@ -310,7 +310,7 @@ function indicesTuileRadar(produit, zoom, tuileX, tuileY) {
     const indices = new Int32Array(RADAR_TILE_SIZE * RADAR_TILE_SIZE);
     indices.fill(-1);
 
-    const pas = zoom <= 5 ? 8 : 16;
+    const pas = zoom <= 5 ? 4 : zoom <= 7 ? 8 : 16;
     const noeudsParAxe = RADAR_TILE_SIZE / pas + 1;
     const points = noeudsParAxe * noeudsParAxe;
     const projX = new Float64Array(points);
