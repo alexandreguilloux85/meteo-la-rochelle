@@ -206,3 +206,75 @@ avec limite de 120 Mo, décodé par le script Python déjà validé dans
 GitHub Actions, puis le fichier temporaire est effacé. Le cache de test
 est indépendant : il faut comparer ses valeurs au WCS avant d'envisager
 les neuf groupes jusqu'à H+51.
+
+
+### Essai étendu H+1 à H+51 (neuf groupes GRIB2)
+
+Le pilote Render test choisit **un seul réseau AROME complet** dans le
+catalogue SP1, puis télécharge les neuf groupes disponibles **successivement**
+(aucune requête parallèle) :
+
+| Groupe | Prévisions exploitées |
+| --- | --- |
+| `00H06H` | H+1 à H+6 (H+0 ignoré) |
+| `07H12H` | H+7 à H+12 |
+| `13H18H` | H+13 à H+18 |
+| `19H24H` | H+19 à H+24 |
+| `25H30H` | H+25 à H+30 |
+| `31H36H` | H+31 à H+36 |
+| `37H42H` | H+37 à H+42 |
+| `43H48H` | H+43 à H+48 |
+| `49H51H` | H+49 à H+51 |
+
+Pour contrôler progressivement le coût du traitement, la route accepte
+`?groupes=1`, `?groupes=3` ou `?groupes=9` (9 par défaut).
+Exemple, après connexion et configuration de `AROME_REFRESH_TOKEN` :
+
+```bash
+# Test de 18 échéances H+1 à H+18
+curl -sS -i -X POST \
+  "https://station-meteo-lr-test.onrender.com/api/arome/paquets/test/refresh?groupes=3" \
+  -H "Authorization: Bearer ${AROME_REFRESH_TOKEN}"
+
+# Test complet (à effectuer après le test de trois groupes)
+curl -sS -i -X POST \
+  "https://station-meteo-lr-test.onrender.com/api/arome/paquets/test/refresh?groupes=9" \
+  -H "Authorization: Bearer ${AROME_REFRESH_TOKEN}"
+```
+
+Le statut expose `groupes_total`, `groupes_termines`,
+`groupe_actuel`, `echeances_recuperees`, `taille_grib_mo`,
+`taille_cache_mo`, `taille_cache_gzip_mo`, la compression et les
+éventuelles erreurs. Chaque groupe U/V/FF_RAF est vérifié avant fusion.
+Le cache précédent reste accessible si un téléchargement échoue ; le
+nouveau cache n'est publié en mémoire qu'après validation de toutes les
+échéances du test choisi.
+
+**Mesure du poids du cache :** Render construit un cache JSON identique
+à la structure utilisée par le site et calcule sa version gzip
+(`Content-Encoding: gzip`). L'adresse ci-dessous permet d'inspecter le
+cache compressé lorsque le traitement s'est terminé :
+
+`https://station-meteo-lr-test.onrender.com/api/arome/paquets/test/cache`
+
+Le navigateur gère automatiquement le gzip ; avec `curl`, utiliser
+`curl --compressed` pour décoder cette réponse.
+
+**Comparaison avec WCS :** la route suivante rapproche les vitesses,
+rafales et directions au même point GPS **et à date de prévision
+strictement identique** :
+
+`https://station-meteo-lr-test.onrender.com/api/arome/paquets/test/comparaison?lat=46.178&lon=-1.193167`
+
+Les résultats indiquent les modèles utilisés, les dates communes,
+les écarts de vitesse en m/s et l'écart angulaire en degrés. Si les
+deux caches n'ont aucune date commune, aucune comparaison numérique
+n'est prétendue. Cette route lit le cache WCS existant sans déclencher
+un téléchargement WCS ni le modifier.
+
+**Sécurité et fonctionnement :** la mise à jour complète reste
+**manuelle sur Render test**, sans remplacer l'AROME WCS du site,
+sans publier vers GitHub Pages et sans modifier la branche `main`.
+Pour l'automatisation toutes les trois heures, l'identifiant durable
+`METEO_AROME_PAQUETS_APPLICATION_ID` sera nécessaire afin de
+renouveler les jetons Bearer expirant en environ une heure.
