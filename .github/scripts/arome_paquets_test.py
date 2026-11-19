@@ -229,17 +229,55 @@ def prop(gid, name, default=None):
 
 
 def classification(gid):
+    """Identifier les noms Météo-France et les alias ecCodes des vents à 10 m.
+
+    FF_RAF(10m) peut être 'gust' plutôt que '10fg'. Les codes GRIB2
+    0.2.22/23/24 décrivent respectivement vitesse / U / V des rafales.
+    """
     level = prop(gid, "level")
-    typ = str(prop(gid, "typeOfLevel", ""))
-    if level != 10 or typ != "heightAboveGround":
+    typ = str(prop(gid, "typeOfLevel", "")).lower()
+    if level != 10 or typ not in ("heightaboveground", "hauteur"):
         return None
+
     short = str(prop(gid, "shortName", "")).lower()
     name = str(prop(gid, "name", "")).lower()
-    if "gust" in name or "rafale" in name or "raf" in short or "gust" in short:
-        return "RAFALE" if ("speed" in name or "vitesse" in name or short in ("10fg","fg10","ff_raf")) else None
-    if short in ("10u","u10","u") or prop(gid, "paramId") == 165 or re.search(r"\bu.component\b", name):
+    discipline = prop(gid, "discipline")
+    categorie = prop(gid, "parameterCategory")
+    numero = prop(gid, "parameterNumber")
+
+    # Les codes WMO sont indépendants de la version des tables de noms ecCodes.
+    if discipline == 0 and categorie == 2:
+        if numero == 22:
+            return "RAFALE"
+        if numero == 23:
+            return "U_RAF"
+        if numero == 24:
+            return "V_RAF"
+
+    if short in ("gust", "10fg", "fg10", "i10fg", "max_i10fg",
+                 "ff_raf", "ff_raf(10m)") or (
+        ("gust" in name or "rafale" in name) and
+        not any(x in name for x in (
+            "eastward", "northward", "u-component", "v-component",
+            "zonal", "meridional"
+        ))
+    ):
+        return "RAFALE"
+
+    if short in ("efg10", "10efg", "max_efg10", "u_raf", "u_raf(10m)") or (
+        ("gust" in name or "rafale" in name) and
+        any(x in name for x in ("eastward", "u-component", "zonal"))
+    ):
+        return "U_RAF"
+    if short in ("nfg10", "10nfg", "max_nfg10", "v_raf", "v_raf(10m)") or (
+        ("gust" in name or "rafale" in name) and
+        any(x in name for x in ("northward", "v-component", "meridional"))
+    ):
+        return "V_RAF"
+
+    if short in ("10u", "u10", "u") or prop(gid, "paramId") == 165 or re.search(r"\bu.component\b", name):
         return "U"
-    if short in ("10v","v10","v") or prop(gid, "paramId") == 166 or re.search(r"\bv.component\b", name):
+    if short in ("10v", "v10", "v") or prop(gid, "paramId") == 166 or re.search(r"\bv.component\b", name):
         return "V"
     return None
 
@@ -314,11 +352,41 @@ def convertir(grib, run):
     for desc in sorted(descriptions):
         print("Champ :", desc)
     print("Grille réduite :", reference_grid)
+    rafales_directes = 0
+    rafales_reconstruites = 0
     for hour in range(1, 7):
-        if "U" not in forecast.get(hour, {}) or "V" not in forecast.get(hour, {}):
+        step = forecast.get(hour, {})
+        if "U" not in step or "V" not in step:
             raise ValueError("H+" + str(hour) + " : composantes U/V manquantes")
-        if "RAFALE" not in forecast[hour]:
-            print("Avertissement : rafale absente H+" + str(hour))
+
+        if "RAFALE" in step:
+            # FF_RAF(10m) est déjà une vitesse maximale en m/s.
+            rafales_directes += 1
+        elif "U_RAF" in step and "V_RAF" in step:
+            # D'après Météo-France, FF_RAF = hypot(U_RAF, V_RAF).
+            # Reconstruire uniquement si le champ FF_RAF direct est absent.
+            u, v = step["U_RAF"], step["V_RAF"]
+            if u["grille"] != v["grille"]:
+                raise ValueError("Grilles U_RAF/V_RAF différentes H+" + str(hour))
+            module = np.hypot(
+                np.asarray(u["valeurs"], dtype=np.float64),
+                np.asarray(v["valeurs"], dtype=np.float64)
+            )
+            step["RAFALE"] = {
+                "grille": u["grille"],
+                "valeurs": np.round(module, 2).tolist()
+            }
+            rafales_reconstruites += 1
+        else:
+            print("Avertissement : FF_RAF et composantes U_RAF/V_RAF absentes H+" + str(hour))
+        # Ne pas conserver les composantes intermédiaires dans le JSON.
+        step.pop("U_RAF", None)
+        step.pop("V_RAF", None)
+    print(
+        "Rafales : FF_RAF directes =", rafales_directes,
+        "| reconstruites avec U_RAF/V_RAF =", rafales_reconstruites,
+        "| absentes =", 6 - rafales_directes - rafales_reconstruites
+    )
 
     latmin, latmax, lonmin, lonmax = BBOX
     cache = {
