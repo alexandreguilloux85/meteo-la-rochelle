@@ -512,11 +512,14 @@ let derniereDemandeManuelleArome = 0;
 app.post("/api/refresh-arome", (req, res) => {
     res.set("Cache-Control", "no-store");
     const origine = req.get("origin");
-    const origineLocale = req.protocol + "://" + req.get("host");
-    if (
-        origine !== "https://alexandreguilloux85.github.io" &&
-        origine !== origineLocale
-    ) {
+    // Render fonctionne derrière un proxy HTTPS : req.protocol peut indiquer
+    // "http" même lorsque le navigateur appelle le site en HTTPS.
+    // Comparer des origines HTTPS explicites, sans dépendre du proxy.
+    const originesAutorisees = new Set([
+        "https://alexandreguilloux85.github.io",
+        "https://station-meteo-lr-test.onrender.com"
+    ]);
+    if (!originesAutorisees.has(origine)) {
         return res.status(403).json({ erreur: "Origine non autorisée" });
     }
     const maintenant = Date.now();
