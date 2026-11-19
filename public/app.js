@@ -408,8 +408,13 @@ function couleurVent(vitesse) {
 // CACHE AROME ET INTERPOLATION LOCALE DANS LE NAVIGATEUR
 // --------------------------------------------------
 
-const URL_CACHE_AROME =
-    "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json";
+// Une seule règle, indépendante de la branche Git : seul le domaine Render test
+// lit son cache. GitHub Pages lit toujours le JSON publié en production.
+const EST_SITE_RENDER_TEST =
+    window.location.hostname === "station-meteo-lr-test.onrender.com";
+const URL_CACHE_AROME = EST_SITE_RENDER_TEST
+    ? window.location.origin + "/api/arome/cache/public"
+    : "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json";
 
 let cacheAromeNavigateur = null;
 let chargementCacheAromeNavigateur = null;
@@ -595,7 +600,7 @@ function calculerPrevisionsAromeNavigateur(cache, latitude, longitude) {
         nombre_erreurs: erreursCache.length + erreurs.length,
         methode: "Interpolation bilinéaire locale des composantes U/V",
         cache: true,
-        origine_cache: "GitHub Pages",
+        origine_cache: cache.origine_cache || "GitHub Pages",
         actualisation_en_cours: false,
         actualisation_statut: "non applicable",
         previsions,
@@ -880,7 +885,9 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
         if (resultat.cache === true) {
             origine = resultat.origine_cache === "GitHub Pages"
                 ? "Prévisions depuis le cache GitHub Pages"
-                : "Prévisions depuis le cache local";
+                : resultat.origine_cache === "Render test"
+                    ? "Prévisions depuis le cache Render test"
+                    : "Prévisions depuis le cache local";
         }
 
         let statutActualisation = "";
