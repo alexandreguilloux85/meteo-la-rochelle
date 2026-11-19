@@ -135,6 +135,16 @@ Dans **Render → station-meteo-lr-test → Settings → Build & Deploy** :
 Le script de build exécute `npm ci` puis installe `numpy` et `eccodes`
 dans `.arome-py/`, un dossier privé au service et ignoré par Git.
 
+**Si le statut indique `ModuleNotFoundError: No module named 'numpy'` :**
+le service a pu démarrer sans avoir installé les bibliothèques Python.
+Dans Render test, vérifier que le **Build Command** est exactement
+`bash scripts/build-render-test.sh`, puis lancer **Manual Deploy → Clear
+build cache & deploy**. Les logs du *build*, avant le démarrage de Node,
+doivent contenir `AROME ecCodes disponible`. Si ce message manque,
+la commande de build de ce service n'a pas exécuté le script prévu.
+Le pilote effectue maintenant le contrôle des imports Python *avant*
+de télécharger le GRIB2, pour éviter des appels API inutiles.
+
 Dans **Render → Environment**, définir :
 
 - `METEO_AROME_PAQUETS_TOKEN` : jeton Bearer de l'API Paquet AROME,
