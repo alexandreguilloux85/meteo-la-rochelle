@@ -2042,6 +2042,38 @@ app.get("/api/arome/cache/status", (req, res) => {
     return res.json(AROME_REFRESH_STATE);
 });
 
+// Lecture publique des données météo déjà destinées à l'affichage.
+// Le jeton reste obligatoire pour les endpoints de contrôle et d'export privé.
+app.get("/api/arome/cache/public", async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    try {
+        const cache = await chargerCacheArome();
+        if (
+            !cache ||
+            typeof cache.modele !== "string" ||
+            !cache.zone ||
+            !Array.isArray(cache.previsions) ||
+            !cache.previsions.some(p => p?.U && p?.V)
+        ) {
+            return res.status(503).json({
+                succes: false,
+                erreur: "Aucun cache AROME exploitable."
+            });
+        }
+        return res.json({
+            ...cache,
+            origine_cache: AROME_CACHE_SOURCE === "Render"
+                ? "Render test" : "GitHub Pages"
+        });
+    } catch (error) {
+        console.error("Erreur lecture publique du cache AROME :", error);
+        return res.status(502).json({
+            succes: false,
+            erreur: "Cache AROME indisponible."
+        });
+    }
+});
+
 app.get("/api/arome/cache/export", async (req, res) => {
     if (!verifierJetonActualisation(req, res)) return;
 
