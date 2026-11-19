@@ -314,7 +314,9 @@ function decoderAvecPython(fichier, dossier, modele, groupe) {
     });
 }
 
-function installerTestAromePaquets(app, { verifierJetonActualisation, calculerPrevisionsArome }) {
+function installerTestAromePaquets(app, {
+    verifierJetonActualisation, calculerPrevisionsArome, chargerCacheArome
+}) {
     // Jamais sur le service de production : ni téléchargement, ni publication.
     if (process.env.RENDER_EXTERNAL_HOSTNAME !== "station-meteo-lr-test.onrender.com" &&
         process.env.AROME_PAQUETS_TEST_ENABLED !== "1") {
@@ -322,6 +324,7 @@ function installerTestAromePaquets(app, { verifierJetonActualisation, calculerPr
     }
 
     let cacheTest = null;
+    let cacheCompresse = null;
     let enCours = false;
     let dernierDemarrage = 0;
     let etat = {
@@ -333,7 +336,12 @@ function installerTestAromePaquets(app, { verifierJetonActualisation, calculerPr
 
     app.get("/api/arome/paquets/test/status", (_req, res) => {
         res.set("Cache-Control", "no-store");
-        res.json({ ...etat, en_cours: enCours, cache_disponible: Boolean(cacheTest) });
+        res.json({
+            ...etat,
+            en_cours: enCours,
+            cache_disponible: Boolean(cacheTest),
+            modele_cache_disponible: cacheTest?.modele || null
+        });
     });
 
     app.get("/api/arome/paquets/test/previsions", (req, res) => {
@@ -361,39 +369,222 @@ function installerTestAromePaquets(app, { verifierJetonActualisation, calculerPr
         }
     });
 
-    async function executer() {
+    // Cache complet téléchargeable par le navigateur, compressé à la source.
+    // Cache-Control court pour limiter les réponses lourdes répétées.
+    app.get("/api/arome/paquets/test/cache", (_req, res) => {
+        if (!cacheCompresse) {
+            return res.status(503).json({
+                succes: false,
+                erreur: "Cache des paquets AROME indisponible"
+            });
+        }
+        res.set({
+            "Content-Type": "application/json; charset=utf-8",
+            "Content-Encoding": "gzip",
+            "Cache-Control": "public, max-age=60",
+            "Vary": "Accept-Encoding"
+        });
+        return res.send(cacheCompresse);
+    });
+
+    // Comparaison indépendante et sans déclenchement du WCS.
+    // Comparer les mêmes dates valides, même si les réseaux sont différents.
+    app.get("/api/arome/paquets/test/comparaison", async (req, res) => {
+        res.set("Cache-Control", "no-store");
+        if (!cacheTest) return res.status(503).json({
+            succes: false, erreur: "Cache Paquets AROME absent"
+        });
+        const lat = Number(req.query.lat ?? 46.178);
+        const lon = Number(req.query.lon ?? -1.193167);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon) ||
+            lat < ZONE.latMin || lat > ZONE.latMax ||
+            lon < ZONE.lonMin || lon > ZONE.lonMax) {
+            return res.status(400).json({
+                succes: false, erreur: "Coordonnées hors zone Paquets AROME"
+            });
+        }
+        try {
+            const cacheWcs = await chargerCacheArome();
+            if (!cacheWcs?.previsions?.length) {
+                return res.status(503).json({
+                    succes: false, erreur: "Cache WCS indisponible"
+                });
+            }
+            const paquets = calculerPrevisionsArome(cacheTest, lat, lon);
+            const wcs = calculerPrevisionsArome(cacheWcs, lat, lon);
+            const donneesWcs = new Map(wcs.previsions.map(p => [p.date, p]));
+            const comparaisons = paquets.previsions
+                .filter(p => donneesWcs.has(p.date))
+                .map(p => {
+                    const ref = donneesWcs.get(p.date);
+                    return {
+                        date: p.date,
+                        echeance_paquets: p.echeance,
+                        vitesse_paquets_ms: p.vitesse,
+                        vitesse_wcs_ms: ref.vitesse,
+                        ecart_vitesse_ms: Number((p.vitesse - ref.vitesse).toFixed(2)),
+                        rafale_paquets_ms: p.rafale,
+                        rafale_wcs_ms: ref.rafale,
+                        ecart_rafale_ms: p.rafale == null || ref.rafale == null
+                            ? null
+                            : Number((p.rafale - ref.rafale).toFixed(2)),
+                        ecart_direction_deg: Number(
+                            (Math.abs(((p.direction - ref.direction + 540) % 360) - 180))
+                                .toFixed(1)
+                        )
+                    };
+                });
+            const ecarts = comparaisons.map(p => Math.abs(p.ecart_vitesse_ms));
+            const moyenne = ecarts.length
+                ? ecarts.reduce((a, b) => a + b, 0) / ecarts.length : null;
+            return res.json({
+                succes: true,
+                latitude: lat, longitude: lon,
+                modele_paquets: cacheTest.modele,
+                modele_wcs: cacheWcs.modele,
+                nombre_dates_communes: comparaisons.length,
+                avertissement: comparaisons.length
+                    ? null : "Aucune date de prévision commune entre ces caches",
+                ecart_moyen_absolu_vitesse_ms: moyenne == null ? null
+                    : Number(moyenne.toFixed(2)),
+                ecart_max_absolu_vitesse_ms: ecarts.length
+                    ? Math.max(...ecarts) : null,
+                comparaisons
+            });
+        } catch (e) {
+            return res.status(422).json({ succes: false, erreur: e.message });
+        }
+    });
+
+    async function executer(groupesDemandes) {
         let dossier;
         try {
             etat = { ...etat, etape: "verification_python" };
             await verifierDependancesPython();
             etat = { ...etat, etape: "authentification" };
             const jeton = await jetonPaquets();
-            const produit = await dernierPaquet(jeton, etape => {
-                etat = { ...etat, etape };
-            });
-            etat = { ...etat, etape: "telechargement", modele: produit.modele };
-            dossier = await fs.mkdtemp(path.join(os.tmpdir(), "arome-paquets-"));
-            const fichier = path.join(dossier, "sp1.grib2");
-            const tailleGrib = await telechargerGrib(produit.url, jeton, fichier);
+            const produit = await selectionnerReseauComplet(
+                jeton, groupesDemandes,
+                etape => { etat = { ...etat, etape }; }
+            );
 
-            etat = { ...etat, etape: "decodage_grib2" };
-            await decoderAvecPython(fichier, dossier, produit.modele);
-            const cheminJson = path.join(dossier, "arome-cache-paquets-test.json");
-            const tailleJson = (await fs.stat(cheminJson)).size;
-            if (tailleJson > MAX_JSON_OCTETS) {
-                throw new Error("Cache JSON supérieur à 45 Mo : test arrêté");
+            dossier = await fs.mkdtemp(path.join(os.tmpdir(), "arome-paquets-"));
+            const parHeure = new Map();
+            let grilleCommune = null;
+            let nombreOctetsGrib = 0;
+            const debut = Date.now();
+
+            for (const [index, groupe] of produit.groupes.entries()) {
+                const dossierGroupe = path.join(dossier, "groupe-" + groupe.debut);
+                await fs.mkdir(dossierGroupe);
+                const fichier = path.join(dossierGroupe, "sp1.grib2");
+                etat = {
+                    ...etat,
+                    etape: "telechargement",
+                    modele: produit.modele,
+                    groupe_actuel: groupe.code,
+                    groupes_termines: index
+                };
+                // Avec un secret Basic, renouveler le Bearer au début de chaque
+                // groupe (utile si le traitement total approche 1 heure).
+                const jetonCourant = process.env.METEO_AROME_PAQUETS_APPLICATION_ID
+                    ? await jetonPaquets() : jeton;
+                const tailleGrib = await telechargerGrib(
+                    groupe.url, jetonCourant, fichier
+                );
+                nombreOctetsGrib += tailleGrib;
+
+                etat = { ...etat, etape: "decodage_grib2" };
+                await decoderAvecPython(fichier, dossierGroupe, produit.modele, groupe);
+                await fs.unlink(fichier);
+                const cheminJson = path.join(dossierGroupe, "arome-cache-paquets-test.json");
+                const tailleJson = (await fs.stat(cheminJson)).size;
+                if (tailleJson > MAX_JSON_OCTETS) {
+                    throw new Error("Groupe " + groupe.code + " : JSON trop volumineux");
+                }
+                const resultat = JSON.parse(await fs.readFile(cheminJson, "utf8"));
+                if (resultat.modele !== produit.modele) {
+                    throw new Error("Mélange de réseaux détecté : " + groupe.code);
+                }
+                const attendues = groupe.fin - groupe.debut + 1;
+                if (!Array.isArray(resultat.previsions) ||
+                    resultat.previsions.length !== attendues) {
+                    throw new Error(
+                        groupe.code + " incomplet : " +
+                        (resultat.previsions?.length ?? 0) + "/" + attendues
+                    );
+                }
+                for (const prevision of resultat.previsions) {
+                    const heure = prevision.seconde / 3600;
+                    if (!Number.isInteger(heure) ||
+                        heure < groupe.debut || heure > groupe.fin ||
+                        !prevision.U || !prevision.V || !prevision.RAFALE) {
+                        throw new Error(
+                            groupe.code + " : U/V/FF_RAF absents H+" + heure
+                        );
+                    }
+                    const grille = JSON.stringify(prevision.U.grille);
+                    if (grille !== JSON.stringify(prevision.V.grille) ||
+                        grille !== JSON.stringify(prevision.RAFALE.grille) ||
+                        (grilleCommune && grille !== grilleCommune)) {
+                        throw new Error(
+                            "Grilles U/V/FF_RAF différentes H+" + heure
+                        );
+                    }
+                    grilleCommune = grille;
+                    if (parHeure.has(heure)) {
+                        throw new Error("Doublon échéance H+" + heure);
+                    }
+                    parHeure.set(heure, prevision);
+                }
+                await fs.rm(dossierGroupe, { recursive: true, force: true });
+                etat = {
+                    ...etat,
+                    etape: "groupe_valide",
+                    groupes_termines: index + 1,
+                    echeances_recuperees: parHeure.size,
+                    taille_grib_mo: arrondiMo(nombreOctetsGrib)
+                };
+                console.log(
+                    "AROME Paquets Render test :", groupe.code,
+                    "validé,", parHeure.size, "échéances"
+                );
             }
-            const cache = JSON.parse(await fs.readFile(cheminJson, "utf8"));
-            if (!Array.isArray(cache.previsions) ||
-                cache.previsions.length !== 6 ||
-                cache.previsions.some(p => !p.U || !p.V)) {
-                throw new Error("Cache incomplet : 6 échéances U/V attendues");
+
+            const heureMax = groupesDemandes.at(-1).fin;
+            const previsions = [];
+            for (let h = 1; h <= heureMax; h++) {
+                if (!parHeure.has(h)) {
+                    throw new Error("Échéance H+" + h + " manquante après fusion");
+                }
+                previsions.push(parHeure.get(h));
             }
+            const cache = {
+                modele: produit.modele,
+                date: Date.now(),
+                source: "AROME 0.025 SP1 GRIB2 ecCodes - Render test",
+                zone: { ...ZONE, centreLat: (ZONE.latMin + ZONE.latMax) / 2,
+                    centreLon: (ZONE.lonMin + ZONE.lonMax) / 2 },
+                previsions,
+                erreurs: []
+            };
             const point = calculerPrevisionsArome(cache, 46.178, -1.193167);
-            if (point.previsions.length !== 6) {
+            if (point.previsions.length !== heureMax) {
                 throw new Error("Interpolation incomplète à La Rochelle");
             }
+            etat = { ...etat, etape: "compression_cache" };
+            const texte = JSON.stringify(cache);
+            const tailleJson = Buffer.byteLength(texte);
+            if (tailleJson > MAX_JSON_OCTETS) {
+                throw new Error(
+                    "Cache JSON " + arrondiMo(tailleJson) +
+                    " Mo supérieur à 45 Mo : publication test refusée"
+                );
+            }
+            const gzip = gzipSync(Buffer.from(texte), { level: 6 });
+            // Publication atomique des deux objets uniquement après validation.
             cacheTest = cache;
+            cacheCompresse = gzip;
             etat = {
                 statut: "termine",
                 etape: "termine",
@@ -401,10 +592,18 @@ function installerTestAromePaquets(app, { verifierJetonActualisation, calculerPr
                 erreur: null,
                 zone: cache.zone,
                 grille: cache.previsions[0].U.grille,
+                groupes_total: groupesDemandes.length,
+                groupes_termines: groupesDemandes.length,
+                groupe_actuel: null,
                 echeances_uv: cache.previsions.length,
                 echeances_rafale: cache.previsions.filter(p => p.RAFALE).length,
-                taille_grib_mo: arrondiMo(tailleGrib),
+                taille_grib_mo: arrondiMo(nombreOctetsGrib),
                 taille_cache_mo: arrondiMo(tailleJson),
+                taille_cache_gzip_mo: arrondiMo(gzip.length),
+                reduction_gzip_pourcent: Math.round(
+                    100 * (1 - gzip.length / tailleJson)
+                ),
+                duree_secondes: Math.round((Date.now() - debut) / 1000),
                 dernier_test: new Date().toISOString()
             };
         } catch (e) {
@@ -427,6 +626,12 @@ function installerTestAromePaquets(app, { verifierJetonActualisation, calculerPr
     app.post("/api/arome/paquets/test/refresh", (req, res) => {
         if (!verifierJetonActualisation(req, res)) return;
         res.set("Cache-Control", "no-store");
+        const nombreGroupes = Number(req.query.groupes ?? 9);
+        if (![1, 3, 9].includes(nombreGroupes)) {
+            return res.status(400).json({
+                succes: false, erreur: "groupes doit valoir 1, 3 ou 9"
+            });
+        }
         if (enCours) {
             return res.status(409).json({
                 succes: false, erreur: "Test AROME déjà en cours", ...etat
@@ -440,8 +645,17 @@ function installerTestAromePaquets(app, { verifierJetonActualisation, calculerPr
         }
         enCours = true;
         dernierDemarrage = Date.now();
-        etat = { statut: "en_cours", etape: "authentification", modele: null, erreur: null };
-        void executer();
+        etat = {
+            statut: "en_cours",
+            etape: "verification_python",
+            modele: null,
+            erreur: null,
+            groupes_total: nombreGroupes,
+            groupes_termines: 0,
+            groupe_actuel: null,
+            echeances_recuperees: 0
+        };
+        void executer(GROUPES.slice(0, nombreGroupes));
         return res.status(202).json({ succes: true, ...etat });
     });
 }
