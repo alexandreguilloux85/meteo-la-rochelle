@@ -18,8 +18,9 @@ par Render après publication d'un nouveau cache AROME.
   Le navigateur possède son propre cache de secours.
 - **AROME** : le serveur Render consulte le WCS (temporairement, avant migration
   envisagée vers DPPaquetAROME), télécharge et décode les échéances puis ne
-  valide que **51 échéances avec U, V et rafales**. Le dernier cache complet
-  reste accessible depuis `arome-data` et GitHub Pages.
+  valide un nouveau modèle si **24 échéances au moins ont U et V**, avec
+  **H+1 à H+6 sans interruption**. Les rafales manquantes sont facultatives.
+  Le dernier cache validé reste accessible depuis `arome-data` et GitHub Pages.
 - **NAS** : `GET /api/keepalive` répond immédiatement et vérifie les données
   sans attente de leur téléchargement. Un verrou évite les opérations AROME
   simultanées.
@@ -46,19 +47,23 @@ publics et le cache AROME. Aucun cron GitHub n'est nécessaire.
 **Environnements :** le site GitHub Pages (`main`) utilise le serveur
 `https://station-meteo-lr.onrender.com` (production). Le site Render test
 (`Test_fonction`) utilise `https://station-meteo-lr-test.onrender.com`.
+L'interface choisit sa source de prévisions selon le domaine :
+**GitHub Pages et Render production lisent toujours le JSON GitHub Pages** ;
+seul Render test lit `/api/arome/cache/public` sur son propre service.
+Render test ne publie aucune donnée AROME sur GitHub.
 Le NAS doit réveiller le service de production. Éviter de maintenir les deux
 services Render gratuits inutilement éveillés en permanence.
 
 ## Vérifications
 
 1. `GET https://station-meteo-lr.onrender.com/api/meteo/status` :
-   `arome.publication_configuree` doit être `true`; les dates de vérification
+   `arome.publication_configuree` et `arome.publication_active` doivent être `true` ; les dates de vérification
    et du produit radar doivent se renseigner après un appel keepalive réussi.
 2. `GET /api/radar/metadata` et
    `GET /api/radar/tiles/{z}/{x}/{y}.png` doivent répondre avec des tuiles
    PNG valides pour les coordonnées existantes.
 3. `GET /api/observations` doit retourner un tableau JSON de mesures.
-4. Après détection d'un nouveau modèle complet, vérifier le commit de
+4. Après détection d'un nouveau modèle valide, vérifier le commit de
    `arome-data`, puis un déclenchement `repository_dispatch` de
    `Publish website` et la nouvelle date du fichier
    `https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json`.
@@ -76,7 +81,8 @@ Les anciens workflows radar et AROME restent disponibles uniquement en
 Render gratuit utilise un stockage éphémère : après un redémarrage,
 le radar est reconstruit depuis Météo-France et AROME peut relire le dernier
 cache publié sur Pages. Une vérification ou un calcul peuvent échouer :
-dans ce cas, conserver le dernier jeu valide ; ne jamais publier un AROME partiel.
+dans ce cas, conserver le dernier jeu valide ; publier uniquement si le seuil
+des 24 échéances U/V avec H+1 à H+6 est respecté.
 
 L'API DPPaquetAROME est la prochaine évolution envisagée. Elle ne fait pas
 partie de cette migration.
