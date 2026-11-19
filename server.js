@@ -119,7 +119,8 @@ async function obtenirProduitRadar({ forcerVerification = false } = {}) {
                 headers: {
                     apikey: RADAR_API_KEY,
                     accept: "application/json"
-                }
+                },
+                signal: AbortSignal.timeout(30000)
             });
 
             if (!catalogueResponse.ok) {
@@ -148,7 +149,8 @@ async function obtenirProduitRadar({ forcerVerification = false } = {}) {
                 headers: {
                     apikey: RADAR_API_KEY,
                     accept: "*/*"
-                }
+                },
+                signal: AbortSignal.timeout(60000)
             });
 
             if (!response.ok) {
@@ -501,14 +503,20 @@ app.get("/api/keepalive", (req, res) => {
         void obtenirObservations().catch(erreur =>
             console.warn("Keepalive observations :", erreur.message)
         );
-        void obtenirProduitRadar().catch(erreur =>
-            console.warn("Keepalive radar :", erreur.message)
-        );
-        try {
-            verifierAromeEnArrierePlan(46.178, -1.193167);
-        } catch (erreur) {
-            console.warn("Keepalive AROME :", erreur.message);
-        }
+        // Éviter de cumuler le chargement de la mosaïque et des GRIB AROME.
+        void (async () => {
+            try {
+                await obtenirProduitRadar();
+            } catch (erreur) {
+                console.warn("Keepalive radar :", erreur.message);
+            } finally {
+                try {
+                    verifierAromeEnArrierePlan(46.178, -1.193167);
+                } catch (erreur) {
+                    console.warn("Keepalive AROME :", erreur.message);
+                }
+            }
+        })();
     });
 });
 
@@ -1933,6 +1941,32 @@ app.get("/api/arome/cache/export", async (req, res) => {
     }
 });
 
+
+// État non sensible des caches : utile pour contrôler Render et le NAS.
+app.get("/api/meteo/status", (req, res) => {
+    res.set("Cache-Control", "no-store");
+    return res.json({
+        keepalive: dernierControleKeepalive
+            ? new Date(dernierControleKeepalive).toISOString() : null,
+        radar: {
+            date: radarProduitCache?.date || null,
+            tuiles_en_cache: radarTuilesCache.size
+        },
+        observations: {
+            en_cache: Boolean(observationsCache),
+            derniere_verification: observationsCache
+                ? new Date(observationsCache.verifieLe).toISOString() : null
+        },
+        arome: {
+            modele: AROME_CACHE_ZONE?.modele || null,
+            publication_configuree: Boolean(
+                process.env.GITHUB_DATA_TOKEN || GITHUB_ACTIONS_TOKEN
+            ),
+            dernier_modele_publie: dernierModeleAromePublie,
+            actualisation: AROME_REFRESH_STATE.status
+        }
+    });
+});
 
 // --------------------------------------------------
 // DEMARRAGE SERVEUR
