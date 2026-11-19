@@ -296,6 +296,9 @@ function couleurRadar(pluie) {
 const RADAR_COORDONNEES_CACHE_MAX = 64;
 const radarCoordonneesCache = new Map();
 
+// Proj4 est coûteux : calculer seulement les nœuds d'une grille régulière
+// puis interpoler les coordonnées sur les 65 536 pixels de la tuile.
+// 8 px aux zooms nationaux, 16 px aux zooms détaillés.
 function indicesTuileRadar(produit, zoom, tuileX, tuileY) {
     const cle = [
         produit.largeur, produit.hauteur, produit.xScale, produit.yScale,
@@ -306,22 +309,58 @@ function indicesTuileRadar(produit, zoom, tuileX, tuileY) {
 
     const indices = new Int32Array(RADAR_TILE_SIZE * RADAR_TILE_SIZE);
     indices.fill(-1);
+
+    const pas = zoom <= 5 ? 8 : 16;
+    const noeudsParAxe = RADAR_TILE_SIZE / pas + 1;
+    const points = noeudsParAxe * noeudsParAxe;
+    const projX = new Float64Array(points);
+    const projY = new Float64Array(points);
     const nombreTuiles = 2 ** zoom;
     const tailleMondeTuile = 2 * RADAR_WEB_MERCATOR_LIMIT / nombreTuiles;
     const metresParPixel = tailleMondeTuile / RADAR_TILE_SIZE;
 
-    for (let py = 0; py < RADAR_TILE_SIZE; py++) {
-        const webY =
-            RADAR_WEB_MERCATOR_LIMIT -
+    // Une transformation proj4 par nœud au lieu d'une par pixel.
+    for (let ligneNoeud = 0; ligneNoeud < noeudsParAxe; ligneNoeud++) {
+        const py = ligneNoeud * pas;
+        const webY = RADAR_WEB_MERCATOR_LIMIT -
             (tuileY * RADAR_TILE_SIZE + py + 0.5) * metresParPixel;
         const latitude = Math.atan(Math.sinh(webY / 6378137)) * 180 / Math.PI;
-        for (let px = 0; px < RADAR_TILE_SIZE; px++) {
+
+        for (let colonneNoeud = 0; colonneNoeud < noeudsParAxe; colonneNoeud++) {
+            const px = colonneNoeud * pas;
             const longitude =
                 (tuileX * RADAR_TILE_SIZE + px + 0.5) /
-                    (nombreTuiles * RADAR_TILE_SIZE) * 360 - 180;
+                (nombreTuiles * RADAR_TILE_SIZE) * 360 - 180;
             const [x, y] = proj4(
                 "EPSG:4326", "RADAR_METEO", [longitude, latitude]
             );
+            const index = ligneNoeud * noeudsParAxe + colonneNoeud;
+            projX[index] = x;
+            projY[index] = y;
+        }
+    }
+
+    // Interpolation bilinéaire des coordonnées source, précision
+    // suffisante par rapport à la taille d'un pixel radar de 500 m.
+    for (let py = 0; py < RADAR_TILE_SIZE; py++) {
+        const ligneCellule = Math.floor(py / pas);
+        const fy = (py % pas) / pas;
+        const debutLigne = ligneCellule * noeudsParAxe;
+        const debutLigneSuivante = debutLigne + noeudsParAxe;
+
+        for (let px = 0; px < RADAR_TILE_SIZE; px++) {
+            const colonneCellule = Math.floor(px / pas);
+            const fx = (px % pas) / pas;
+            const hg = debutLigne + colonneCellule;
+            const bg = debutLigneSuivante + colonneCellule;
+
+            const xHaut = projX[hg] + fx * (projX[hg + 1] - projX[hg]);
+            const xBas = projX[bg] + fx * (projX[bg + 1] - projX[bg]);
+            const yHaut = projY[hg] + fx * (projY[hg + 1] - projY[hg]);
+            const yBas = projY[bg] + fx * (projY[bg + 1] - projY[bg]);
+            const x = xHaut + fy * (xBas - xHaut);
+            const y = yHaut + fy * (yBas - yHaut);
+
             const colonne = Math.floor((x - produit.origineX) / produit.xScale);
             const ligne = Math.floor(
                 (produit.origineY + produit.hauteur * produit.yScale - y) /
