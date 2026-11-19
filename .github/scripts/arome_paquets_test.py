@@ -23,7 +23,7 @@ TOKEN = os.getenv("METEO_AROME_PAQUETS_TOKEN")
 APPLICATION_ID = os.getenv("METEO_AROME_PAQUETS_APPLICATION_ID")
 OAUTH_TOKEN = None
 BBOX = tuple(map(float, os.getenv("AROME_BBOX", "43.2,48.3,-5.0,-0.3").split(",")))
-OUT = Path("arome-paquets-test")
+OUT = Path(os.getenv("AROME_OUTPUT", "arome-paquets-test"))
 OUT.mkdir(exist_ok=True)
 
 
@@ -341,6 +341,20 @@ def convertir(grib, run):
 def main():
     if len(BBOX) != 4 or not (BBOX[0] < BBOX[1] and BBOX[2] < BBOX[3]):
         raise ValueError("AROME_BBOX attendu : latMin,latMax,lonMin,lonMax")
+    # Mode Render test : le serveur Node a déjà téléchargé le fichier GRIB2.
+    # Le script ne contacte alors pas Météo-France et ne manipule aucun secret.
+    chemin_local = os.getenv("AROME_GRIB_LOCAL")
+    if chemin_local:
+        run = os.getenv("AROME_MODELE_LOCAL")
+        if not run:
+            raise ValueError("AROME_MODELE_LOCAL manquant")
+        file = Path(chemin_local)
+        if not file.is_file() or file.stat().st_size < 16:
+            raise ValueError("Fichier GRIB2 local absent ou vide")
+        print("AROME décodage local :", run, "zone :", BBOX)
+        convertir(file, run)
+        return
+
     run, url = choisir()
     print("AROME réseau :", run, "zone :", BBOX)
     file = OUT / "temporaire-sp1.grib2"
