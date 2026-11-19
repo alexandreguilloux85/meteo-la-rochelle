@@ -96,8 +96,8 @@ branche. Le résultat est sauvegardé comme artefact
 dans le portail Météo-France, permettant de renouveler automatiquement un
 jeton OAuth2). Alternativement, `METEO_AROME_PAQUETS_TOKEN` contient un jeton
 Bearer déjà généré (souvent temporaire) ou `METEO_AROME_PAQUETS_API_KEY` une
-clé d'API. Si seule `METEO_AROME_API_KEY` est définie, elle reste utilisée
-en dernier recours, à condition d'avoir les droits sur les paquets AROME.
+clé d'API. Le test refuse désormais de réutiliser implicitement `METEO_AROME_API_KEY` :
+la clé WCS est distincte des identifiants dédiés à l'API Paquets AROME.
 Le pilote ne mélange plus les en-têtes `apikey` et `Authorization: Bearer`
 dans une même requête. Ne jamais exposer ces secrets dans les logs ou le site.
 
