@@ -291,73 +291,82 @@ function couleurRadar(pluie) {
 // GENERATION DES TUILES RADAR XYZ
 // --------------------------------------------------
 
-function genererTuileRadar(produit, zoom, tuileX, tuileY) {
-    const png = new PNG({
-        width: RADAR_TILE_SIZE,
-        height: RADAR_TILE_SIZE
-    });
+// Les indices géographiques d'une tuile ne changent pas à chaque produit radar.
+// ~16 Mo au maximum : 64 correspondances de 256 x 256 indices (Int32).
+const RADAR_COORDONNEES_CACHE_MAX = 64;
+const radarCoordonneesCache = new Map();
+
+function indicesTuileRadar(produit, zoom, tuileX, tuileY) {
+    const cle = [
+        produit.largeur, produit.hauteur, produit.xScale, produit.yScale,
+        produit.origineX, produit.origineY, zoom, tuileX, tuileY
+    ].join("/");
+    const dejaCalcules = radarCoordonneesCache.get(cle);
+    if (dejaCalcules) return dejaCalcules;
+
+    const indices = new Int32Array(RADAR_TILE_SIZE * RADAR_TILE_SIZE);
+    indices.fill(-1);
     const nombreTuiles = 2 ** zoom;
-    const tailleMondeTuile =
-        2 * RADAR_WEB_MERCATOR_LIMIT / nombreTuiles;
+    const tailleMondeTuile = 2 * RADAR_WEB_MERCATOR_LIMIT / nombreTuiles;
     const metresParPixel = tailleMondeTuile / RADAR_TILE_SIZE;
 
     for (let py = 0; py < RADAR_TILE_SIZE; py++) {
         const webY =
             RADAR_WEB_MERCATOR_LIMIT -
             (tuileY * RADAR_TILE_SIZE + py + 0.5) * metresParPixel;
-        const latitude =
-            Math.atan(Math.sinh(webY / 6378137)) * 180 / Math.PI;
-
+        const latitude = Math.atan(Math.sinh(webY / 6378137)) * 180 / Math.PI;
         for (let px = 0; px < RADAR_TILE_SIZE; px++) {
             const longitude =
                 (tuileX * RADAR_TILE_SIZE + px + 0.5) /
-                    (nombreTuiles * RADAR_TILE_SIZE) * 360 -
-                180;
+                    (nombreTuiles * RADAR_TILE_SIZE) * 360 - 180;
             const [x, y] = proj4(
-                "EPSG:4326",
-                "RADAR_METEO",
-                [longitude, latitude]
+                "EPSG:4326", "RADAR_METEO", [longitude, latitude]
             );
-            const colonne = Math.floor(
-                (x - produit.origineX) / produit.xScale
-            );
+            const colonne = Math.floor((x - produit.origineX) / produit.xScale);
             const ligne = Math.floor(
                 (produit.origineY + produit.hauteur * produit.yScale - y) /
-                    produit.yScale
+                produit.yScale
             );
-
             if (
-                !Number.isFinite(colonne) ||
-                !Number.isFinite(ligne) ||
-                colonne < 0 ||
-                colonne >= produit.largeur ||
-                ligne < 0 ||
-                ligne >= produit.hauteur
+                Number.isFinite(colonne) && Number.isFinite(ligne) &&
+                colonne >= 0 && colonne < produit.largeur &&
+                ligne >= 0 && ligne < produit.hauteur
             ) {
-                continue;
+                indices[py * RADAR_TILE_SIZE + px] =
+                    ligne * produit.largeur + colonne;
             }
-
-            const indexSource = ligne * produit.largeur + colonne;
-            const valeurBrute = produit.pluie[indexSource];
-            const qualite = produit.qualite[indexSource];
-            if (
-                valeurBrute === 65535 ||
-                valeurBrute === 65534 ||
-                qualite === 255 ||
-                qualite <= 0
-            ) {
-                continue;
-            }
-
-            const couleur = couleurRadar(valeurBrute * 0.01);
-            const indexPNG = (py * RADAR_TILE_SIZE + px) * 4;
-            png.data[indexPNG] = couleur[0];
-            png.data[indexPNG + 1] = couleur[1];
-            png.data[indexPNG + 2] = couleur[2];
-            png.data[indexPNG + 3] = couleur[3];
         }
     }
 
+    radarCoordonneesCache.set(cle, indices);
+    while (radarCoordonneesCache.size > RADAR_COORDONNEES_CACHE_MAX) {
+        radarCoordonneesCache.delete(radarCoordonneesCache.keys().next().value);
+    }
+    return indices;
+}
+
+function genererTuileRadar(produit, zoom, tuileX, tuileY) {
+    const png = new PNG({ width: RADAR_TILE_SIZE, height: RADAR_TILE_SIZE });
+    const indices = indicesTuileRadar(produit, zoom, tuileX, tuileY);
+
+    for (let pixel = 0; pixel < indices.length; pixel++) {
+        const indexSource = indices[pixel];
+        if (indexSource < 0) continue;
+        const valeurBrute = produit.pluie[indexSource];
+        const qualite = produit.qualite[indexSource];
+        if (
+            valeurBrute === 65535 || valeurBrute === 65534 ||
+            qualite === 255 || qualite <= 0
+        ) {
+            continue;
+        }
+        const couleur = couleurRadar(valeurBrute * 0.01);
+        const indexPNG = pixel * 4;
+        png.data[indexPNG] = couleur[0];
+        png.data[indexPNG + 1] = couleur[1];
+        png.data[indexPNG + 2] = couleur[2];
+        png.data[indexPNG + 3] = couleur[3];
+    }
     return PNG.sync.write(png);
 }
 
