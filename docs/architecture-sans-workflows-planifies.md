@@ -43,15 +43,15 @@ de la branche `arome-data` par l'API GitHub Contents, puis envoie
 Seul le workflow `Publish website` est déclenché pour assembler les fichiers
 publics et le cache AROME. Aucun cron GitHub n'est nécessaire.
 
-**Important :** au moment de cette migration, le frontend hébergé par GitHub
-Pages utilise encore le backend `https://station-meteo-lr-test.onrender.com`.
-Vérifier que le NAS réveille précisément ce service, ou décider explicitement
-de basculer le frontend vers le service de production. Les deux services Render
-gratuits ne doivent pas être maintenus inutilement éveillés en permanence.
+**Environnements :** le site GitHub Pages (`main`) utilise le serveur
+`https://station-meteo-lr.onrender.com` (production). Le site Render test
+(`Test_fonction`) utilise `https://station-meteo-lr-test.onrender.com`.
+Le NAS doit réveiller le service de production. Éviter de maintenir les deux
+services Render gratuits inutilement éveillés en permanence.
 
 ## Vérifications
 
-1. `GET https://station-meteo-lr-test.onrender.com/api/meteo/status` :
+1. `GET https://station-meteo-lr.onrender.com/api/meteo/status` :
    `arome.publication_configuree` doit être `true`; les dates de vérification
    et du produit radar doivent se renseigner après un appel keepalive réussi.
 2. `GET /api/radar/metadata` et
