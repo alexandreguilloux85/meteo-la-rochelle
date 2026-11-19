@@ -72,3 +72,35 @@ une authentification.
 
 Dans l'onglet **Actions**, lancer au besoin **Publish AROME cache**. Les
 observations et les tuiles radar ne nécessitent plus de workflow GitHub.
+
+
+## Essai AROME par paquets GRIB2 (branche Test_fonction)
+
+Le pilote sans publication utilise l'API **Paquet AROME**, grille \`0.025°\`,
+paquet de surface **SP1** et le groupe d'échéances **00H06H**.
+Le script \`.github/scripts/arome_paquets_test.py\` décode les GRIB2 multi-messages
+avec **ecCodes**, extrait les vents U/V à 10 m et, si identifié, la vitesse des
+rafales. Le fichier produit conserve le format JSON du cache navigateur.
+La zone test couvre approximativement le littoral Atlantique de la Bretagne
+sud au Pays basque : \`lat 43.2…48.3, lon -5.0…-0.3\`. Elle est
+modifiable dans le workflow.
+
+**Lancer le test :** GitHub → Actions → \`Test AROME zone étendue - paquets GRIB2\`
+→ Run workflow → branche \`Test_fonction\`. Ce workflow existait déjà sous
+\`test-arome-zone-etendue.yml\` et peut donc être sélectionné pour une autre
+branche. Le résultat est sauvegardé comme artefact
+\`arome-paquets-grib2-test\`, sans publication sur \`arome-data\` ni sur le site.
+
+**Authentification :** secret \`METEO_AROME_PAQUETS_API_KEY\` si une clé distincte
+existe pour l'API Paquet AROME, sinon réutilisation de \`METEO_AROME_API_KEY\`
+(si autorisée pour ce service). Ne jamais mettre ces clés dans le navigateur.
+
+**Étapes de validation avant bascule :**
+- confirmer les identifiants GRIB2 des trois paramètres et les six échéances ;
+- vérifier l'orientation des grilles et les valeurs manquantes ;
+- comparer le vent/les rafales à quelques points avec les résultats WCS ;
+- étendre ensuite au groupe complet des 51 échéances, mesurer les tailles du
+  JSON réduit et choisir le mode de publication/cache approprié.
+
+Le site conserve pour l'instant le système AROME actuel : **aucune migration
+automatique de la production** n'est effectuée.
