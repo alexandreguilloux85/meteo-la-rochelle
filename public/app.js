@@ -21,8 +21,8 @@ const URL_SERVEUR_RENDER =
         ? window.location.origin
         : "https://station-meteo-lr-test.onrender.com";
 const URL_OBSERVATIONS_RENDER = URL_SERVEUR_RENDER + "/api/observations";
-const URL_RADAR_TUILES =
-    "https://alexandreguilloux85.github.io/meteo-la-rochelle/radar-xyz";
+const URL_RADAR_TUILES = URL_SERVEUR_RENDER + "/api/radar/tiles";
+const URL_RADAR_METADATA = URL_SERVEUR_RENDER + "/api/radar/metadata";
 // --------------------------------------------------
 // PREVISIONS AROME
 // --------------------------------------------------
@@ -997,7 +997,7 @@ async function chargerRadar(forcerVerification = false) {
         }
 
         const urlMetadata = new URL(
-            URL_RADAR_TUILES + "/metadata.json"
+            URL_RADAR_METADATA
         );
         if (forcerVerification) {
             urlMetadata.searchParams.set("refresh", "1");
@@ -1562,12 +1562,12 @@ async function actualiserDepuisInterface(action, bouton) {
             }
             statut.textContent = action === "observations"
                 ? "Mesures de la station actualisées depuis Render."
-                : "Tuiles radar nationales actualisées depuis Render.";
+                : "Radar vérifié directement sur Render.";
             return;
         }
 
         const reponse = await fetch(
-            `${URL_SERVEUR_RENDER}/api/workflows/${encodeURIComponent(action)}`,
+            `${URL_SERVEUR_RENDER}/api/refresh-arome`,
             {
                 method: "POST",
                 cache: "no-store"
@@ -1580,7 +1580,7 @@ async function actualiserDepuisInterface(action, bouton) {
         }
 
         statut.textContent =
-            "Demande AROME envoyée. Les prévisions apparaîtront après leur téléchargement et publication sur GitHub Pages.";
+            "Vérification AROME demandée à Render. Les prévisions seront publiées sur GitHub Pages si un nouveau modèle complet est disponible.";
     } catch (erreur) {
         console.error("Actualisation demandée impossible :", erreur);
         statut.textContent = erreur.message ||
