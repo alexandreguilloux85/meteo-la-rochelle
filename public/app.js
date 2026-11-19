@@ -1456,20 +1456,38 @@ async function chargerDonnees() {
         const anciennesDonnees = cache && Array.isArray(cache.donnees)
             ? cache.donnees
             : [];
-        const ancienneDate = anciennesDonnees.length
-            ? new Date(anciennesDonnees[anciennesDonnees.length - 1].date).getTime()
-            : 0;
-        const nouvelleDate = new Date(nouvellesDonnees[nouvellesDonnees.length - 1].date).getTime();
 
-        if (nouvelleDate > ancienneDate || anciennesDonnees.length === 0) {
-            ecrireCacheLocal(CLE_CACHE_OBSERVATIONS, {
-                dateDernierReleve: nouvellesDonnees[nouvellesDonnees.length - 1].date,
-                donnees: nouvellesDonnees
-            });
-            afficherDonnees(nouvellesDonnees);
-            console.log("Nouveaux relevés météo reçus de Render :", nouvellesDonnees.length);
+        // Toujours prendre en compte le paquet fraîchement reçu.
+        // Une mesure peut être corrigée par Météo-France sans changer validity_time.
+        const donneesModifiees =
+            JSON.stringify(nouvellesDonnees) !== JSON.stringify(anciennesDonnees);
+        const dernierReleve = nouvellesDonnees[nouvellesDonnees.length - 1];
+
+        ecrireCacheLocal(CLE_CACHE_OBSERVATIONS, {
+            dateDernierReleve: dernierReleve.date,
+            donnees: nouvellesDonnees
+        });
+        afficherDonnees(nouvellesDonnees);
+
+        if (anciennesDonnees.length === 0) {
+            console.log(
+                "Premiers relevés météo chargés depuis Render :",
+                nouvellesDonnees.length,
+                "· dernier relevé :",
+                new Date(dernierReleve.date).toLocaleString("fr-FR")
+            );
+        } else if (donneesModifiees) {
+            console.log(
+                "Données météo actualisées depuis Render :",
+                nouvellesDonnees.length,
+                "relevés · dernier relevé :",
+                new Date(dernierReleve.date).toLocaleString("fr-FR")
+            );
         } else {
-            console.log("Relevés météo inchangés : cache local conservé.");
+            console.log(
+                "Données météo vérifiées auprès de Render : aucune modification détectée · dernier relevé :",
+                new Date(dernierReleve.date).toLocaleString("fr-FR")
+            );
         }
         return true;
     } catch (erreur) {
