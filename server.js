@@ -773,7 +773,8 @@ function verifierJetonActualisation(req, res) {
 // Les prévisions WCS et le cache GitHub Pages ne sont jamais modifiés ici.
 require("./arome-paquets-render-test").installerTestAromePaquets(app, {
     verifierJetonActualisation,
-    calculerPrevisionsArome
+    calculerPrevisionsArome,
+    chargerCacheArome
 });
 
 // Chargement du cache depuis le disque Render
