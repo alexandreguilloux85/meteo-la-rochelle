@@ -393,190 +393,94 @@ async function obtenirTuileRadar(produit, zoom, tuileX, tuileY) {
 app.use(express.static("public"));
 
 // --------------------------------------------------
-// OBSERVATIONS METEO
-// --------------------------------------------------
+// OBSERVATIONS METEO : dernier paquet conservé en mémoire entre deux contrôles.
+const OBSERVATIONS_TTL_MS = 5 * 60 * 1000;
+let observationsCache = null;
+let observationsChargement = null;
+
+async function obtenirObservations() {
+    if (observationsCache &&
+        Date.now() - observationsCache.verifieLe < OBSERVATIONS_TTL_MS) {
+        return observationsCache.donnees;
+    }
+    if (!observationsChargement) {
+        observationsChargement = (async () => {
+            const url = new URL(
+                "https://public-api.meteofrance.fr/public/DPPaquetObs/v2/paquet/infrahoraire-6m"
+            );
+            url.searchParams.set("id_station", "17300009");
+            url.searchParams.set("format", "json");
+            const reponse = await fetch(url, {
+                headers: { accept: "*/*", apikey: API_KEY },
+                signal: AbortSignal.timeout(30000)
+            });
+            if (!reponse.ok) {
+                throw new Error("Météo-France observations : HTTP " + reponse.status);
+            }
+            const donnees = await reponse.json();
+            if (!Array.isArray(donnees)) {
+                throw new Error("Format des relevés météo invalide.");
+            }
+            observationsCache = { donnees, verifieLe: Date.now() };
+            return donnees;
+        })();
+    }
+    try {
+        return await observationsChargement;
+    } catch (erreur) {
+        if (observationsCache) {
+            console.warn("Observations indisponibles : ancien cache conservé", erreur.message);
+            return observationsCache.donnees;
+        }
+        throw erreur;
+    } finally {
+        observationsChargement = null;
+    }
+}
 
 app.get("/api/observations", async (req, res) => {
+    res.set("Cache-Control", "no-store");
     try {
-        const url = new URL(
-            "https://public-api.meteofrance.fr/public/DPPaquetObs/v2/paquet/infrahoraire-6m"
-        );
-
-        url.searchParams.set("id_station", "17300009");
-        url.searchParams.set("format", "json");
-
-        const response = await fetch(url, {
-            headers: {
-                accept: "*/*",
-                apikey: API_KEY
-            }
-        });
-
-        const data = await response.text();
-
-        if (!response.ok) {
-            console.error("Erreur Météo-France :", response.status, data);
-            return res.status(response.status).send(data);
-        }
-
-        const observations = JSON.parse(data);
-
-        console.log("Nombre de relevés :", observations.length);
-
-        res.json(observations);
-
-    } catch (error) {
-        console.error(error);
-        res.status(502).json({ error: error.message });
+        return res.json(await obtenirObservations());
+    } catch (erreur) {
+        console.error("Erreur observations :", erreur);
+        return res.status(502).json({ erreur: erreur.message });
     }
 });
 
 // --------------------------------------------------
-// Reveil du serveur (depuis nas)
+// // Reveil du serveur (depuis nas)
 // --------------------------------------------------
 
 // --------------------------------------------------
-// DECLENCHEMENT A LA DEMANDE DES MISES A JOUR METEO
-// --------------------------------------------------
-
+// Publication des données sur GitHub : les Actions ne servent qu'au déploiement.
 const GITHUB_ACTIONS_TOKEN = process.env.GITHUB_ACTIONS_TOKEN;
 const GITHUB_REPOSITORY = "alexandreguilloux85/meteo-la-rochelle";
-const GITHUB_BRANCH = "main";
-const DELAI_MINIMUM_ACTUALISATION_METEO = 10 * 60 * 1000;
-const DECLENCHEMENTS_WORKFLOWS = Object.freeze({
-    arome: "publish-arome-cache.yml"
-});
-const declenchementsWorkflowsEnCours = new Set();
+let derniereDemandeManuelleArome = 0;
 
-app.post("/api/workflows/:workflow", async (req, res) => {
+// Le bouton AROME demande une vérification sur Render, sans workflow de calcul.
+app.post("/api/refresh-arome", (req, res) => {
     res.set("Cache-Control", "no-store");
-
-    if (req.get("origin") !== "https://alexandreguilloux85.github.io") {
-        return res.status(403).json({
-            succes: false,
-            erreur: "Origine non autorisée"
+    const origine = req.get("origin");
+    const origineLocale = req.protocol + "://" + req.get("host");
+    if (
+        origine !== "https://alexandreguilloux85.github.io" &&
+        origine !== origineLocale
+    ) {
+        return res.status(403).json({ erreur: "Origine non autorisée" });
+    }
+    const maintenant = Date.now();
+    if (maintenant - derniereDemandeManuelleArome < 15 * 60 * 1000) {
+        return res.status(429).json({
+            erreur: "Vérification AROME déjà demandée récemment."
         });
     }
-
-    if (!Object.hasOwn(DECLENCHEMENTS_WORKFLOWS, req.params.workflow)) {
-        return res.status(404).json({
-            succes: false,
-            erreur: "Workflow inconnu"
-        });
-    }
-    const fichierWorkflow = DECLENCHEMENTS_WORKFLOWS[req.params.workflow];
-
-    if (!GITHUB_ACTIONS_TOKEN) {
-        return res.status(503).json({
-            succes: false,
-            erreur: "Variable GITHUB_ACTIONS_TOKEN absente dans Render"
-        });
-    }
-
-    if (declenchementsWorkflowsEnCours.has(fichierWorkflow)) {
-        return res.status(409).json({
-            succes: false,
-            erreur: "Ce workflow est déjà en cours de déclenchement."
-        });
-    }
-
-    declenchementsWorkflowsEnCours.add(fichierWorkflow);
-
-    try {
-        const workflowUrl =
-            `https://api.github.com/repos/${GITHUB_REPOSITORY}` +
-            `/actions/workflows/${fichierWorkflow}`;
-        const runsResponse = await fetch(
-            `${workflowUrl}/runs?branch=${GITHUB_BRANCH}&per_page=20`,
-            {
-                headers: {
-                    "Accept": "application/vnd.github+json",
-                    "Authorization": `Bearer ${GITHUB_ACTIONS_TOKEN}`,
-                    "X-GitHub-Api-Version": "2022-11-28"
-                }
-            }
-        );
-
-        if (!runsResponse.ok) {
-            console.error(
-                `Vérification des exécutions ${fichierWorkflow} impossible : HTTP ${runsResponse.status}`
-            );
-            return res.status(502).json({
-                succes: false,
-                erreur: "Impossible de vérifier l'état du workflow sur GitHub."
-            });
-        }
-
-        const runsResult = await runsResponse.json();
-        const runs = Array.isArray(runsResult.workflow_runs)
-            ? runsResult.workflow_runs
-            : [];
-        const runActive = runs.find(run =>
-            run.status === "queued" || run.status === "in_progress"
-        );
-
-        if (runActive) {
-            return res.status(409).json({
-                succes: false,
-                erreur: "Ce workflow est déjà en attente ou en cours sur GitHub."
-            });
-        }
-
-        const derniereDemande = runs.find(run =>
-            run.event === "workflow_dispatch"
-        );
-        const ageDerniereDemande = derniereDemande
-            ? Date.now() - new Date(derniereDemande.created_at).getTime()
-            : Number.POSITIVE_INFINITY;
-
-        if (ageDerniereDemande < DELAI_MINIMUM_ACTUALISATION_METEO) {
-            const prochainDeclenchement = new Date(
-                new Date(derniereDemande.created_at).getTime() +
-                    DELAI_MINIMUM_ACTUALISATION_METEO
-            );
-            return res.status(429).json({
-                succes: false,
-                erreur: "Ce workflow a été demandé récemment. Réessaie dans quelques minutes.",
-                prochain_declenchement_possible: prochainDeclenchement.toISOString()
-            });
-        }
-
-        const url = `https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/${fichierWorkflow}/dispatches`;
-        const response = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Accept": "application/vnd.github+json",
-                "Authorization": `Bearer ${GITHUB_ACTIONS_TOKEN}`,
-                "X-GitHub-Api-Version": "2022-11-28",
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ ref: GITHUB_BRANCH })
-        });
-
-        if (response.status !== 204) {
-            console.error(
-                `Échec du déclenchement ${fichierWorkflow} : HTTP ${response.status}`
-            );
-            return res.status(502).json({
-                succes: false,
-                erreur: `GitHub n'a pas accepté le déclenchement (${response.status}).`
-            });
-        }
-
-        return res.status(202).json({
-            succes: true,
-            message: "Workflow déclenché.",
-            workflow: fichierWorkflow
-        });
-    } catch (error) {
-        console.error(`Erreur déclenchement ${fichierWorkflow} :`, error);
-        return res.status(502).json({
-            succes: false,
-            erreur: "Impossible de joindre GitHub pour déclencher le workflow."
-        });
-    } finally {
-        declenchementsWorkflowsEnCours.delete(fichierWorkflow);
-    }
+    derniereDemandeManuelleArome = maintenant;
+    demarrerActualisationArome(46.178, -1.193167);
+    return res.status(202).json({
+        succes: true,
+        message: "Vérification AROME lancée sur Render."
+    });
 });
 
 app.get("/api/refresh-weather", (req, res) => {
@@ -586,9 +490,26 @@ app.get("/api/refresh-weather", (req, res) => {
     });
 });
 
-// Vérification légère pour maintenir Render actif
+// Répondre immédiatement au NAS, puis vérifier les caches sans bloquer HTTP.
+let dernierControleKeepalive = 0;
 app.get("/api/keepalive", (req, res) => {
     res.status(200).send("OK");
+    if (Date.now() - dernierControleKeepalive < 4 * 60 * 1000) return;
+    dernierControleKeepalive = Date.now();
+
+    setImmediate(() => {
+        void obtenirObservations().catch(erreur =>
+            console.warn("Keepalive observations :", erreur.message)
+        );
+        void obtenirProduitRadar().catch(erreur =>
+            console.warn("Keepalive radar :", erreur.message)
+        );
+        try {
+            verifierAromeEnArrierePlan(46.178, -1.193167);
+        } catch (erreur) {
+            console.warn("Keepalive AROME :", erreur.message);
+        }
+    });
 });
 
 
@@ -976,6 +897,88 @@ function calculerPrevisionsArome(cache, latitude, longitude) {
     };
 }
 
+// Publication persistante du modèle sur la branche de données GitHub.
+// Un repository_dispatch déclenche uniquement le déploiement GitHub Pages.
+let dernierModeleAromePublie = null;
+async function publierCacheAromeSurGithub(cache) {
+    if (
+        !cache || !cache.modele ||
+        !Array.isArray(cache.previsions) ||
+        cache.previsions.length !== AROME_ECHEANCES_ATTENDUES ||
+        cache.previsions.some(p => !p.U || !p.V || !p.RAFALE)
+    ) {
+        throw new Error("Publication refusée : cache AROME incomplet.");
+    }
+    if (dernierModeleAromePublie === cache.modele) return;
+
+    const token = process.env.GITHUB_DATA_TOKEN || GITHUB_ACTIONS_TOKEN;
+    if (!token) {
+        throw new Error("Publication AROME : configurer GITHUB_DATA_TOKEN sur Render.");
+    }
+    const entetes = {
+        Accept: "application/vnd.github+json",
+        Authorization: "Bearer " + token,
+        "X-GitHub-Api-Version": "2022-11-28"
+    };
+    const fichierUrl =
+        "https://api.github.com/repos/" + GITHUB_REPOSITORY +
+        "/contents/arome-cache.json";
+    const verification = await fetch(fichierUrl + "?ref=arome-data", {
+        headers: entetes,
+        signal: AbortSignal.timeout(30000)
+    });
+    if (verification.status !== 404 && !verification.ok) {
+        throw new Error("Lecture GitHub AROME : HTTP " + verification.status);
+    }
+    if (verification.status === 404) {
+        throw new Error("Branche arome-data absente : publication impossible.");
+    }
+    const ancien = await verification.json();
+    const json = JSON.stringify(cache);
+    const octets = Buffer.from(json);
+    const empreinte = crypto.createHash("sha1")
+        .update("blob " + octets.length + "\0").update(octets).digest("hex");
+    if (empreinte !== ancien.sha) {
+        const publication = await fetch(fichierUrl, {
+            method: "PUT",
+            headers: { ...entetes, "Content-Type": "application/json" },
+            body: JSON.stringify({
+                message: "Update AROME data from Render: " + cache.modele,
+                branch: "arome-data",
+                sha: ancien.sha,
+                content: octets.toString("base64")
+            }),
+            signal: AbortSignal.timeout(120000)
+        });
+        if (!publication.ok) {
+            const detail = await publication.text();
+            throw new Error(
+                "Écriture GitHub AROME : HTTP " + publication.status +
+                " " + detail.slice(0, 180)
+            );
+        }
+    }
+    // Uniquement un workflow de publication du site, jamais un workflow planifié.
+    const declenchement = await fetch(
+        "https://api.github.com/repos/" + GITHUB_REPOSITORY + "/dispatches", {
+            method: "POST",
+            headers: { ...entetes, "Content-Type": "application/json" },
+            body: JSON.stringify({
+                event_type: "arome-cache-updated",
+                client_payload: { modele: cache.modele }
+            }),
+            signal: AbortSignal.timeout(30000)
+        }
+    );
+    if (declenchement.status !== 204) {
+        throw new Error(
+            "Déploiement Pages non déclenché : HTTP " + declenchement.status
+        );
+    }
+    dernierModeleAromePublie = cache.modele;
+    console.log("AROME publié sur GitHub :", cache.modele);
+}
+
 function demarrerActualisationArome(lat, lon) {
     if (AROME_REFRESH_PROMISE) return;
 
@@ -1010,6 +1013,12 @@ function demarrerActualisationArome(lat, lon) {
                     "Echec de la vérification du catalogue AROME"
                 );
             }
+
+            const cacheActualise = await chargerCacheArome();
+            if (!cacheActualise || cacheActualise.modele !== resultat.modele) {
+                throw new Error("Cache AROME actualisé introuvable.");
+            }
+            await publierCacheAromeSurGithub(cacheActualise);
 
             AROME_REFRESH_STATE = {
                 status: "complete",
@@ -1765,11 +1774,14 @@ app.get("/api/arome/previsions", async (req, res) => {
             previsionsCache.push(donnees);
         }
 
-        if (previsionsCache.length < echeancesMinimum) {
+        // Ne jamais remplacer un cache AROME complet par un modèle incomplet.
+        if (
+            previsionsCache.length !== AROME_ECHEANCES_ATTENDUES ||
+            previsionsCache.some(p => !p.U || !p.V || !p.RAFALE)
+        ) {
             const erreurCompleteness =
                 `Cache AROME incomplet : ${previsionsCache.length}/` +
-                `${echeances.length} échéances valides, ` +
-                `${echeancesMinimum} minimum requis`;
+                `${echeances.length} échéances requises (U, V, RAFALE)`;
 
             console.error(
                 "AROME :",
