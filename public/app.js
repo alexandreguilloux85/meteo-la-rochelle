@@ -1523,6 +1523,11 @@ async function chargerDonnees() {
         const donneesModifiees =
             JSON.stringify(nouvellesDonnees) !== JSON.stringify(anciennesDonnees);
         const dernierReleve = nouvellesDonnees[nouvellesDonnees.length - 1];
+        const dateAncienReleve = anciennesDonnees.length
+            ? new Date(anciennesDonnees[anciennesDonnees.length - 1].date).getTime()
+            : -Infinity;
+        const nouveauReleve =
+            new Date(dernierReleve.date).getTime() > dateAncienReleve;
 
         ecrireCacheLocal(CLE_CACHE_OBSERVATIONS, {
             dateDernierReleve: dernierReleve.date,
@@ -1550,7 +1555,11 @@ async function chargerDonnees() {
                 new Date(dernierReleve.date).toLocaleString("fr-FR")
             );
         }
-        return true;
+        return {
+            nouveauReleve,
+            donneesModifiees,
+            dateDernierReleve: dernierReleve.date
+        };
     } catch (erreur) {
         console.error("Vérification des relevés météo via Render impossible :", erreur);
         const cache = lireCacheLocal(CLE_CACHE_OBSERVATIONS);
@@ -1618,9 +1627,26 @@ async function actualiserDepuisInterface(action, bouton) {
                         : "La récupération du radar a échoué. Consultez le statut du radar."
                 );
             }
-            statut.textContent = action === "observations"
-                ? "Mesures de la station actualisées depuis Render."
-                : "Radar vérifié directement sur Render.";
+            if (action === "observations") {
+                const heureReleve = new Date(actualisationReussie.dateDernierReleve)
+                    .toLocaleTimeString("fr-FR", {
+                        timeZone: "Europe/Paris",
+                        hour: "2-digit",
+                        minute: "2-digit"
+                    }).replace(":", "h");
+
+                if (actualisationReussie.nouveauReleve) {
+                    statut.textContent = "Nouvelles mesures reçues : " + heureReleve;
+                } else if (actualisationReussie.donneesModifiees) {
+                    statut.textContent = "Mesures corrigées : dernier relevé " + heureReleve;
+                } else {
+                    statut.textContent =
+                        "Vérification terminée : aucune nouvelle mesure (dernier relevé : " +
+                        heureReleve + ")";
+                }
+            } else {
+                statut.textContent = "Radar vérifié directement sur Render.";
+            }
             return;
         }
 
