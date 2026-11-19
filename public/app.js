@@ -28,6 +28,8 @@ const URL_RADAR_METADATA = URL_SERVEUR_RENDER + "/api/radar/metadata";
 // --------------------------------------------------
 
 let marqueurPrevisions = null;
+let flecheVentStation = null;
+let derniereMesureVentStation = null;
 let numeroRequetePrevisions = 0;
 
 const positionParDefaut = {
@@ -247,6 +249,51 @@ function reconstruireRadarGraphique(
 }
 
 
+
+// Flèche vers la cible AROME : déplacement théorique en 10 min
+// à la vitesse du vent moyen mesurée à la station (ff en m/s).
+// dd est la provenance météorologique du vent : la flèche pointe
+// donc dans le sens opposé, vers la cible.
+function actualiserFlecheVentStation() {
+    if (!carteRadar) return;
+
+    if (flecheVentStation) {
+        carteRadar.removeLayer(flecheVentStation);
+        flecheVentStation = null;
+    }
+
+    const mesure = derniereMesureVentStation;
+    if (!mesure || !Number.isFinite(mesure.ff) ||
+        !Number.isFinite(mesure.dd) || mesure.ff <= 0) return;
+
+    const distance = mesure.ff * 600; // 10 minutes en secondes
+    const directionProvenance = ((mesure.dd % 360) + 360) % 360;
+    const cible = [positionCourante.lat, positionCourante.lon];
+    const depart = destinationGeographique(
+        cible[0], cible[1], distance, directionProvenance
+    );
+
+    // Pointe sur la cible, branches remontant vers le vent d'origine.
+    const longueurPointe = Math.min(distance * 0.18, 900);
+    const aileGauche = destinationGeographique(
+        cible[0], cible[1], longueurPointe, directionProvenance - 24
+    );
+    const aileDroite = destinationGeographique(
+        cible[0], cible[1], longueurPointe, directionProvenance + 24
+    );
+
+    flecheVentStation = L.layerGroup([
+        L.polyline([depart, cible], {
+            color: "#123f70", weight: 4, opacity: 0.92,
+            interactive: false
+        }),
+        L.polyline([aileGauche, cible, aileDroite], {
+            color: "#123f70", weight: 4, opacity: 0.92,
+            lineCap: "round", lineJoin: "round", interactive: false
+        })
+    ]).addTo(carteRadar);
+}
+
 // --------------------------------------------------
 // INITIALISATION DE LA CARTE RADAR
 // --------------------------------------------------
@@ -298,6 +345,8 @@ function initialiserCarteRadar() {
         }
     ).addTo(carteRadar);
 
+    actualiserFlecheVentStation();
+
     marqueurPrevisions.bindTooltip(
         "Position des prévisions AROME",
         {
@@ -332,6 +381,7 @@ function initialiserCarteRadar() {
             marqueurPrevisions.setLatLng(
                 [lat, lon]
             );
+            actualiserFlecheVentStation();
 
             // Le radar couvre toute la France : seul le centre des repères change.
             reconstruireRadarGraphique(
@@ -676,9 +726,8 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
 
             const heure = date.toLocaleTimeString("fr-FR", {
                 timeZone: "Europe/Paris",
-                hour: "2-digit",
-                minute: "2-digit"
-            });
+                hour: "2-digit"
+            }).replace(/\s*h\s*$/, "h");
 
             let dernierGroupe = groupesJours[groupesJours.length - 1];
 
@@ -1387,6 +1436,8 @@ function afficherDonnees(donnees) {
     if (!Array.isArray(donnees) || donnees.length === 0) return;
 
     const dernier = donnees[donnees.length - 1];
+    derniereMesureVentStation = dernier;
+    actualiserFlecheVentStation();
 
     document.getElementById("ventActuel").textContent =
         noeuds(dernier.ff).toFixed(1);
