@@ -199,9 +199,11 @@ existent, il calcule `sqrt(U_RAF² + V_RAF²)`. Les journaux signalent
 les rafales directes, reconstituées et manquantes. **Relancer le test**
 après déploiement pour vérifier le résultat sur les vrais GRIB2.
 
-**Portée actuelle du prototype :** un paquet `0.025° SP1 00H06H`,
-six échéances **H+1 à H+6**, rectangle lat. 43.2–48.3 / lon. -5.0–-0.3,
-U/V et rafales lorsque présentes. Le GRIB2 est téléchargé **en flux**
+**Mode initial du prototype (toujours disponible) :** un paquet
+`0.025° SP1 00H06H`, six échéances **H+1 à H+6**,
+rectangle lat. 43.2–48.3 / lon. -5.0–-0.3, U/V et rafales.
+Le mode Render test étendu ci-dessous permet désormais 1, 3 ou 9 groupes
+(soit H+6, H+18 ou H+51). Le GRIB2 est téléchargé **en flux**
 avec limite de 120 Mo, décodé par le script Python déjà validé dans
 GitHub Actions, puis le fichier temporaire est effacé. Le cache de test
 est indépendant : il faut comparer ses valeurs au WCS avant d'envisager
