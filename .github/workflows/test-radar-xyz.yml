@@ -1,25 +1,16 @@
-name: Manual radar XYZ recovery (legacy)
+name: Test generation des tuiles radar XYZ
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: radar-data-publish
-  cancel-in-progress: false
+  contents: read
 
 jobs:
   generate-tiles:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: main
-
       - name: Installer les outils Python
         run: python -m pip install --disable-pip-version-check numpy pillow h5py pyproj rasterio requests
 
@@ -225,11 +216,9 @@ jobs:
               raise RuntimeError("Aucune tuile radar non vide n'a été générée.")
           PY
 
-      - name: Préparer l'archive des tuiles radar
-        run: |
-          cd radar-xyz
-          zip -qr tiles.zip 4 5 6 7 8 9 metadata.json
-          test -s tiles.zip
-
-      - name: Publier les tuiles sur la branche radar-data
-        run: bash .github/scripts/publish-data-branch.sh radar-data radar-xyz
+      - name: Publier les tuiles comme artefact de test
+        uses: actions/upload-artifact@v4
+        with:
+          name: radar-xyz-test
+          path: radar-xyz/
+          retention-days: 5

@@ -51,6 +51,11 @@ L'interface choisit sa source de prévisions selon le domaine :
 **GitHub Pages et Render production lisent toujours le JSON GitHub Pages** ;
 seul Render test lit `/api/arome/cache/public` sur son propre service.
 Render test ne publie aucune donnée AROME sur GitHub.
+Cette restriction est appliquée par le code commun aux deux branches grâce
+à `RENDER_EXTERNAL_HOSTNAME`, défini automatiquement par Render :
+seul `station-meteo-lr.onrender.com` peut publier dans `arome-data`.
+Le contrôle d'origine du bouton AROME autorise GitHub Pages seulement sur
+le service de production.
 Le NAS doit réveiller le service de production. Éviter de maintenir les deux
 services Render gratuits inutilement éveillés en permanence.
 

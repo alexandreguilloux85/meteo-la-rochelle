@@ -509,13 +509,16 @@ let derniereDemandeManuelleArome = 0;
 app.post("/api/refresh-arome", (req, res) => {
     res.set("Cache-Control", "no-store");
     const origine = req.get("origin");
-    // Les requêtes HTTPS passent derrière le proxy Render, req.protocol
-    // ne représente donc pas toujours l'origine réelle du navigateur.
-    const originesAutorisees = new Set([
-        "https://alexandreguilloux85.github.io",
-        "https://station-meteo-lr.onrender.com"
-    ]);
-    if (!originesAutorisees.has(origine)) {
+    const hostnameRender = process.env.RENDER_EXTERNAL_HOSTNAME;
+    const origineLocale = hostnameRender
+        ? "https://" + hostnameRender : null;
+    const origineGitHubPages = "https://alexandreguilloux85.github.io";
+    // Éviter req.protocol derrière le proxy HTTPS de Render. GitHub Pages
+    // ne peut demander une actualisation que sur le service de production.
+    const origineAutorisee = origine === origineLocale ||
+        (AROME_PUBLICATION_GITHUB_AUTORISEE &&
+            origine === origineGitHubPages);
+    if (!origineAutorisee) {
         return res.status(403).json({ erreur: "Origine non autorisée" });
     }
     const maintenant = Date.now();
@@ -661,9 +664,11 @@ const AROME_ECHEANCES_MINIMUM = 1;
 const AROME_ECHEANCES_MINIMUM_PUBLICATION = 24;
 const AROME_ECHEANCES_INITIALES_OBLIGATOIRES = 6;
 
-// Production : publier uniquement les modèles AROME validés sur GitHub.
-// Le site Render test conserve un verrou distinct empêchant ces publications.
-const AROME_PUBLICATION_GITHUB_AUTORISEE = true;
+// Les deux branches partagent ce même serveur. Seul le service Render
+// de production est autorisé à modifier la branche de données GitHub.
+// RENDER_EXTERNAL_HOSTNAME est fourni automatiquement par Render.
+const AROME_PUBLICATION_GITHUB_AUTORISEE =
+    process.env.RENDER_EXTERNAL_HOSTNAME === "station-meteo-lr.onrender.com";
 
 function normaliserModeleArome(modele) {
     if (typeof modele !== "string") return modele;

@@ -1586,8 +1586,9 @@ async function actualiserDepuisInterface(action, bouton) {
             throw new Error(resultat.erreur || `Erreur HTTP ${reponse.status}`);
         }
 
-        statut.textContent =
-            "Vérification AROME demandée à Render. Les prévisions seront publiées sur GitHub Pages si un nouveau modèle valide est disponible.";
+        statut.textContent = EST_SITE_RENDER_TEST
+            ? "Vérification AROME demandée à Render test. La publication GitHub Pages reste désactivée."
+            : "Vérification AROME demandée à Render. Les prévisions seront publiées sur GitHub Pages si un nouveau modèle valide est disponible.";
     } catch (erreur) {
         console.error("Actualisation demandée impossible :", erreur);
         statut.textContent = erreur.message ||
