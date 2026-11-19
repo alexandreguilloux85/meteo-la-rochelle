@@ -22,7 +22,7 @@ const URL_SERVEUR_RENDER =
         : "https://station-meteo-lr-test.onrender.com";
 const URL_OBSERVATIONS_RENDER = URL_SERVEUR_RENDER + "/api/observations";
 const URL_RADAR_TUILES =
-    URL_SERVEUR_RENDER + "/api/radar/tiles";
+    "https://alexandreguilloux85.github.io/meteo-la-rochelle/radar-xyz";
 // --------------------------------------------------
 // PREVISIONS AROME
 // --------------------------------------------------
@@ -997,7 +997,7 @@ async function chargerRadar(forcerVerification = false) {
         }
 
         const urlMetadata = new URL(
-            URL_SERVEUR_RENDER + "/api/radar/metadata"
+            URL_RADAR_TUILES + "/metadata.json"
         );
         if (forcerVerification) {
             urlMetadata.searchParams.set("refresh", "1");
