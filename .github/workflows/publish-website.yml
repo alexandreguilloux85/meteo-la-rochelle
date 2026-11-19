@@ -8,14 +8,9 @@ on:
       - 'public/**'
       - '.github/workflows/publish-website.yml'
   workflow_dispatch:
-  workflow_run:
-    workflows:
-      - Publish AROME cache
-      - Publish radar XYZ tiles
+  repository_dispatch:
     types:
-      - completed
-    branches:
-      - main
+      - arome-cache-updated
 
 permissions:
   contents: read
@@ -28,7 +23,7 @@ concurrency:
 
 jobs:
   publish-website:
-    if: ${{ github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') }}
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
@@ -83,23 +78,6 @@ jobs:
 
             console.log("Échéances AROME :", cache.previsions.length);
           '
-
-      - name: Assemble latest radar XYZ tiles
-        run: |
-          set -euo pipefail
-          tmp="$(mktemp -d)"
-          trap 'rm -rf "$tmp"' EXIT
-          if ! git fetch --no-tags origin radar-data; then
-            echo "::error::La branche radar-data est absente."
-            exit 1
-          fi
-          mkdir -p "$tmp/radar"
-          git archive FETCH_HEAD | tar -x -C "$tmp/radar"
-          test -s "$tmp/radar/metadata.json"
-          test -s "$tmp/radar/tiles.zip"
-          mkdir -p site/radar-xyz
-          cp -R "$tmp/radar/." site/radar-xyz/
-          echo "Tuiles radar assemblées depuis radar-data."
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
