@@ -25,7 +25,6 @@ jobs:
           METEO_AROME_PAQUETS_APPLICATION_ID: ${{ secrets.METEO_AROME_PAQUETS_APPLICATION_ID }}
           METEO_AROME_PAQUETS_TOKEN: ${{ secrets.METEO_AROME_PAQUETS_TOKEN }}
           METEO_AROME_PAQUETS_API_KEY: ${{ secrets.METEO_AROME_PAQUETS_API_KEY }}
-          METEO_AROME_API_KEY: ${{ secrets.METEO_AROME_API_KEY }}
           AROME_BBOX: 43.2,48.3,-5.0,-0.3
         run: python .github/scripts/arome_paquets_test.py
 
