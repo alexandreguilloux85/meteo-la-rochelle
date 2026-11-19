@@ -114,3 +114,74 @@ sans afficher le secret.
 
 Le site conserve pour l'instant le système AROME actuel : **aucune migration
 automatique de la production** n'est effectuée.
+
+
+## Tester les paquets AROME directement sur Render test
+
+**Branche :** `Test_fonction`, service `station-meteo-lr-test` uniquement.
+Le pilote est désactivé sur le service de production (et n'est pas utilisé
+par GitHub Pages). Il ne modifie ni le cache WCS ni le fichier publié sur
+`arome-data`. Aucune mise à jour automatique n'est activée pour ce pilote.
+
+### Préparer Render test
+
+Dans **Render → station-meteo-lr-test → Settings → Build & Deploy** :
+
+- Branche : `Test_fonction`
+- Runtime : **Node** (ne pas le changer).
+- **Build Command :** `bash scripts/build-render-test.sh`
+- **Start Command :** `npm start` (inchangé)
+
+Le script de build exécute `npm ci` puis installe `numpy` et `eccodes`
+dans `.arome-py/`, un dossier privé au service et ignoré par Git.
+
+Dans **Render → Environment**, définir :
+
+- `METEO_AROME_PAQUETS_TOKEN` : jeton Bearer de l'API Paquet AROME,
+  sans préfixe `Bearer`. Attention : il expire généralement au bout d'une
+  heure. Le renouveler avant chaque test tant que l'OAuth2 automatique
+  n'est pas configuré.
+- Ou, de préférence, `METEO_AROME_PAQUETS_APPLICATION_ID` : identifiant
+  Basic durable du portail, utilisé pour générer un nouveau jeton OAuth2
+  juste avant le téléchargement.
+- `AROME_REFRESH_TOKEN` : **secret différent** servant à autoriser la
+  commande manuelle sur Render. Réutiliser celui déjà configuré sur le
+  service test pour la mise à jour WCS. Ne pas confondre avec le Bearer
+  Météo-France.
+
+Il n'est pas nécessaire de recopier le jeton dans GitHub Actions pour tester
+sur Render. Ne jamais exposer ces secrets dans le navigateur ou les commits.
+
+### Déclencher un test protégé
+
+Depuis un terminal Linux/macOS, après avoir placé son propre
+`AROME_REFRESH_TOKEN` dans la variable shell du même nom :
+
+```bash
+curl --fail-with-body -X POST \
+  https://station-meteo-lr-test.onrender.com/api/arome/paquets/test/refresh \
+  -H "Authorization: Bearer $AROME_REFRESH_TOKEN"
+```
+
+La réponse HTTP **202** confirme le lancement, **pas sa réussite**.
+Surveiller le résultat sans secret :
+
+- `https://station-meteo-lr-test.onrender.com/api/arome/paquets/test/status`
+- `https://station-meteo-lr-test.onrender.com/api/arome/paquets/test/previsions?lat=46.178&lon=-1.193167`
+
+Le premier endpoint affiche les étapes (`authentification`, `catalogue`,
+`telechargement`, `decodage_grib2`, `termine` ou `echec`), le modèle,
+le nombre d'échéances et les tailles GRIB2/JSON. Le second calcule les vents
+au point demandé seulement après la réussite du test.
+
+Le déclenchement est limité à une exécution à la fois et à une demande
+toutes les quatre minutes. Un redémarrage de Render vide le cache de test
+en mémoire, sans affecter le cache WCS.
+
+**Portée actuelle du prototype :** un paquet `0.025° SP1 00H06H`,
+six échéances **H+1 à H+6**, rectangle lat. 43.2–48.3 / lon. -5.0–-0.3,
+U/V et rafales lorsque présentes. Le GRIB2 est téléchargé **en flux**
+avec limite de 120 Mo, décodé par le script Python déjà validé dans
+GitHub Actions, puis le fichier temporaire est effacé. Le cache de test
+est indépendant : il faut comparer ses valeurs au WCS avant d'envisager
+les neuf groupes jusqu'à H+51.
