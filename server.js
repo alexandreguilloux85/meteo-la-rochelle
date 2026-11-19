@@ -296,9 +296,6 @@ function couleurRadar(pluie) {
 const RADAR_COORDONNEES_CACHE_MAX = 64;
 const radarCoordonneesCache = new Map();
 
-// Proj4 est coûteux : calculer seulement les nœuds d'une grille régulière
-// puis interpoler les coordonnées sur les 65 536 pixels de la tuile.
-// 4 px aux zooms nationaux, 8 px aux intermédiaires, 16 px aux détaillés.
 function indicesTuileRadar(produit, zoom, tuileX, tuileY) {
     const cle = [
         produit.largeur, produit.hauteur, produit.xScale, produit.yScale,
@@ -512,14 +509,16 @@ let derniereDemandeManuelleArome = 0;
 app.post("/api/refresh-arome", (req, res) => {
     res.set("Cache-Control", "no-store");
     const origine = req.get("origin");
-    // Render fonctionne derrière un proxy HTTPS : req.protocol peut indiquer
-    // "http" même lorsque le navigateur appelle le site en HTTPS.
-    // Comparer des origines HTTPS explicites, sans dépendre du proxy.
-    const originesAutorisees = new Set([
-        "https://alexandreguilloux85.github.io",
-        "https://station-meteo-lr-test.onrender.com"
-    ]);
-    if (!originesAutorisees.has(origine)) {
+    const hostnameRender = process.env.RENDER_EXTERNAL_HOSTNAME;
+    const origineLocale = hostnameRender
+        ? "https://" + hostnameRender : null;
+    const origineGitHubPages = "https://alexandreguilloux85.github.io";
+    // Éviter req.protocol derrière le proxy HTTPS de Render. GitHub Pages
+    // ne peut demander une actualisation que sur le service de production.
+    const origineAutorisee = origine === origineLocale ||
+        (AROME_PUBLICATION_GITHUB_AUTORISEE &&
+            origine === origineGitHubPages);
+    if (!origineAutorisee) {
         return res.status(403).json({ erreur: "Origine non autorisée" });
     }
     const maintenant = Date.now();
@@ -665,8 +664,11 @@ const AROME_ECHEANCES_MINIMUM = 1;
 const AROME_ECHEANCES_MINIMUM_PUBLICATION = 24;
 const AROME_ECHEANCES_INITIALES_OBLIGATOIRES = 6;
 
-// Sécurité : Test_fonction ne doit pas publier de cache sur GitHub Pages production.
-const AROME_PUBLICATION_GITHUB_AUTORISEE = false;
+// Les deux branches partagent ce même serveur. Seul le service Render
+// de production est autorisé à modifier la branche de données GitHub.
+// RENDER_EXTERNAL_HOSTNAME est fourni automatiquement par Render.
+const AROME_PUBLICATION_GITHUB_AUTORISEE =
+    process.env.RENDER_EXTERNAL_HOSTNAME === "station-meteo-lr.onrender.com";
 
 function normaliserModeleArome(modele) {
     if (typeof modele !== "string") return modele;
@@ -2042,8 +2044,6 @@ app.get("/api/arome/cache/status", (req, res) => {
     return res.json(AROME_REFRESH_STATE);
 });
 
-// Lecture publique des données météo déjà destinées à l'affichage.
-// Le jeton reste obligatoire pour les endpoints de contrôle et d'export privé.
 app.get("/api/arome/cache/public", async (req, res) => {
     res.set("Cache-Control", "no-store");
     try {
