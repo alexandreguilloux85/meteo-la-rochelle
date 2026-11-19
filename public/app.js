@@ -1039,11 +1039,28 @@ async function appliquerMetadataRadar(metadata) {
         });
 }
 
-let chargementRadarEnCours = false;
+let promesseChargementRadar = null;
 
 async function chargerRadar(forcerVerification = false) {
-    if (chargementRadarEnCours) return;
-    chargementRadarEnCours = true;
+    // Le bouton manuel doit vérifier Météo-France même si le
+    // chargement automatique d'un radar est encore en cours.
+    if (promesseChargementRadar) {
+        if (!forcerVerification) return false;
+        await promesseChargementRadar;
+    }
+
+    const promesse = chargerRadarInterne(forcerVerification);
+    promesseChargementRadar = promesse;
+    try {
+        return await promesse;
+    } finally {
+        if (promesseChargementRadar === promesse) {
+            promesseChargementRadar = null;
+        }
+    }
+}
+
+async function chargerRadarInterne(forcerVerification) {
     const statut = document.getElementById("radarMiseAJour");
 
     try {
@@ -1063,7 +1080,10 @@ async function chargerRadar(forcerVerification = false) {
             cache: "no-store"
         });
         if (!reponse.ok) {
-            throw new Error("Métadonnées radar : HTTP " + reponse.status);
+            const detail = await reponse.json().catch(() => null);
+            throw new Error(
+                detail?.erreur || "Métadonnées radar : HTTP " + reponse.status
+            );
         }
 
         const metadata = await reponse.json();
@@ -1076,22 +1096,29 @@ async function chargerRadar(forcerVerification = false) {
             throw new Error("Métadonnées des tuiles radar invalides");
         }
 
+        const dateAncienRadar = cache?.date
+            ? new Date(cache.date).getTime()
+            : -Infinity;
+        const dateDernierRadar = new Date(metadata.date).getTime();
+        const nouveauRadar = dateDernierRadar > dateAncienRadar;
+
         if (!cache || cache.date !== metadata.date) {
             ecrireCacheLocal(CLE_CACHE_RADAR, metadata);
             await appliquerMetadataRadar(metadata);
-            console.log("Nouveau produit radar chargé :", metadata.date);
+            console.log("Produit radar mis à jour :", metadata.date);
         } else {
             console.log("Radar inchangé :", metadata.date);
         }
-        return true;
+        return {
+            nouveauRadar,
+            dateDernierRadar: metadata.date
+        };
     } catch (erreur) {
         console.error("Erreur chargement radar XYZ :", erreur);
         if (!lireCacheLocal(CLE_CACHE_RADAR)) {
             statut.textContent = "Radar indisponible · aucune image en cache";
         }
-        return false;
-    } finally {
-        chargementRadarEnCours = false;
+        return { echec: true, erreur: erreur.message };
     }
 }
 
@@ -1667,7 +1694,17 @@ async function actualiserDepuisInterface(action, bouton) {
                         heureReleve + ")";
                 }
             } else {
-                statut.textContent = "Radar vérifié directement sur Render.";
+                const heureRadar = new Date(actualisationReussie.dateDernierRadar)
+                    .toLocaleTimeString("fr-FR", {
+                        timeZone: "Europe/Paris",
+                        hour: "2-digit",
+                        minute: "2-digit"
+                    }).replace(":", "h");
+
+                statut.textContent = actualisationReussie.nouveauRadar
+                    ? "Nouveau radar disponible : " + heureRadar
+                    : "Météo-France ne fournit pas de nouveau radar (dernier radar : " +
+                      heureRadar + ")";
             }
             return;
         }
