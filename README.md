@@ -91,9 +91,19 @@ modifiable dans le workflow.
 branche. Le résultat est sauvegardé comme artefact
 `arome-paquets-grib2-test`, sans publication sur `arome-data` ni sur le site.
 
-**Authentification :** secret `METEO_AROME_PAQUETS_API_KEY` si une clé distincte
-existe pour l'API Paquet AROME, sinon réutilisation de `METEO_AROME_API_KEY`
-(si autorisée pour ce service). Ne jamais mettre ces clés dans le navigateur.
+**Authentification du pilote GRIB2 :** priorité au secret
+`METEO_AROME_PAQUETS_APPLICATION_ID` (chaîne issue de « Authorization: Basic … »
+dans le portail Météo-France, permettant de renouveler automatiquement un
+jeton OAuth2). Alternativement, `METEO_AROME_PAQUETS_TOKEN` contient un jeton
+Bearer déjà généré (souvent temporaire) ou `METEO_AROME_PAQUETS_API_KEY` une
+clé d'API. Si seule `METEO_AROME_API_KEY` est définie, elle reste utilisée
+en dernier recours, à condition d'avoir les droits sur les paquets AROME.
+Le pilote ne mélange plus les en-têtes `apikey` et `Authorization: Bearer`
+dans une même requête. Ne jamais exposer ces secrets dans les logs ou le site.
+
+En cas de `HTTP 401`, vérifier l'abonnement API **Paquet AROME** et le
+type de secret utilisé. Le test rapporte une erreur d'authentification claire
+sans afficher le secret.
 
 **Étapes de validation avant bascule :**
 - confirmer les identifiants GRIB2 des trois paramètres et les six échéances ;
