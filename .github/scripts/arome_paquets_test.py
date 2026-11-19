@@ -6,7 +6,8 @@ import os
 from pathlib import Path
 import re
 import time
-from urllib.parse import urlparse, parse_qs
+from urllib.error import HTTPError
+from urllib.parse import urlparse, parse_qs, urlencode
 from urllib.request import Request, urlopen
 
 import numpy as np
@@ -14,33 +15,112 @@ from eccodes import codes_get, codes_get_values, codes_grib_new_from_file, codes
 
 ROOT = "https://public-api.meteofrance.fr/previnum/DPPaquetAROME/v1"
 URL = ROOT + "/models/AROME/grids/0.025/packages/SP1"
-KEY = os.getenv("METEO_AROME_PAQUETS_API_KEY") or os.getenv("METEO_AROME_API_KEY")
+# Clé API et jeton OAuth2 sont deux types d'identifiants différents.
+API_KEY = os.getenv("METEO_AROME_PAQUETS_API_KEY") or os.getenv("METEO_AROME_API_KEY")
+TOKEN = os.getenv("METEO_AROME_PAQUETS_TOKEN")
+APPLICATION_ID = os.getenv("METEO_AROME_PAQUETS_APPLICATION_ID")
+OAUTH_TOKEN = None
 BBOX = tuple(map(float, os.getenv("AROME_BBOX", "43.2,48.3,-5.0,-0.3").split(",")))
 OUT = Path("arome-paquets-test")
 OUT.mkdir(exist_ok=True)
 
 
+def oauth_token():
+    """Créer un vrai jeton temporaire depuis l'identifiant d'application."""
+    global OAUTH_TOKEN
+    if OAUTH_TOKEN:
+        return OAUTH_TOKEN
+    appid = APPLICATION_ID.removeprefix("Basic ").strip()
+    request = Request(
+        "https://portail-api.meteofrance.fr/token",
+        data=urlencode({"grant_type": "client_credentials"}).encode(),
+        headers={
+            "Authorization": "Basic " + appid,
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json"
+        },
+        method="POST"
+    )
+    try:
+        with urlopen(request, timeout=40) as response:
+            body = json.load(response)
+        OAUTH_TOKEN = body["access_token"]
+        print("Jeton OAuth2 récupéré automatiquement.")
+        return OAUTH_TOKEN
+    except HTTPError as error:
+        raise RuntimeError(
+            "Échec OAuth2 HTTP " + str(error.code) +
+            " : vérifier METEO_AROME_PAQUETS_APPLICATION_ID (secret Basic du portail)."
+        ) from None
+
+
+def identifiants():
+    """Préférer un jeton Bearer explicite ou auto-renouvelable.
+
+    Pour les anciennes clés, tester apikey puis Bearer, jamais les deux
+    dans la même requête (c'était la cause possible du 401 précédent).
+    """
+    if APPLICATION_ID:
+        return [("OAuth2 Bearer", "Authorization", "Bearer " + oauth_token())]
+    if TOKEN:
+        return [("Bearer", "Authorization", "Bearer " + TOKEN.removeprefix("Bearer ").strip())]
+    if API_KEY:
+        key = API_KEY.strip()
+        if key.lower().startswith("bearer "):
+            return [("Bearer", "Authorization", "Bearer " + key[7:].strip())]
+        return [
+            ("API key", "apikey", key),
+            ("Bearer", "Authorization", "Bearer " + key)
+        ]
+    raise RuntimeError(
+        "Aucun secret API : définir METEO_AROME_PAQUETS_API_KEY, "
+        "METEO_AROME_PAQUETS_TOKEN ou METEO_AROME_PAQUETS_APPLICATION_ID."
+    )
+
+
 def read(url, dest=None):
     if urlparse(url).hostname != "public-api.meteofrance.fr":
         raise ValueError("URL inattendue, domaine Météo-France requis")
-    if not KEY:
-        raise ValueError("Secret METEO_AROME_PAQUETS_API_KEY ou METEO_AROME_API_KEY absent")
-    token = KEY.removeprefix("Bearer ").strip()
-    req = Request(url, headers={
-        "apikey": token, "Authorization": "Bearer " + token,
-        "Accept": "*/*", "User-Agent": "meteo-la-rochelle-paquets-test/1"
-    })
-    with urlopen(req, timeout=120) as res:
-        if dest is None:
-            return json.loads(res.read(5 * 1024 * 1024))
-        with dest.open("wb") as f:
-            size = 0
-            while chunk := res.read(1024 * 1024):
-                size += len(chunk)
-                if size > 180 * 1024 * 1024:
-                    raise ValueError("GRIB2 supérieur à 180 Mo : arrêt du test")
-                f.write(chunk)
-            return size
+    modes = identifiants()
+    for position, (nom, entete, valeur) in enumerate(modes):
+        headers = {
+            entete: valeur, "Accept": "*/*",
+            "User-Agent": "meteo-la-rochelle-paquets-test/1"
+        }
+        req = Request(url, headers=headers)
+        try:
+            with urlopen(req, timeout=120) as res:
+                print("Authentification acceptée :", nom)
+                if dest is None:
+                    return json.loads(res.read(5 * 1024 * 1024))
+                with dest.open("wb") as f:
+                    size = 0
+                    while chunk := res.read(1024 * 1024):
+                        size += len(chunk)
+                        if size > 180 * 1024 * 1024:
+                            raise ValueError("GRIB2 supérieur à 180 Mo : arrêt du test")
+                        f.write(chunk)
+                    return size
+        except HTTPError as error:
+            if error.code == 401 and position < len(modes) - 1:
+                print("HTTP 401 avec", nom, ": essai de l'autre mode.")
+                continue
+            if error.code == 401:
+                raise RuntimeError(
+                    "Météo-France refuse l'authentification (HTTP 401). "
+                    "Vérifier le type et la validité du token, ainsi que "
+                    "l'abonnement à l'API Paquet AROME. "
+                    "Pour un traitement automatique, utiliser "
+                    "METEO_AROME_PAQUETS_APPLICATION_ID (OAuth2)."
+                ) from None
+            if error.code == 403:
+                raise RuntimeError(
+                    "Météo-France refuse l'accès (HTTP 403) : "
+                    "vérifier l'abonnement à l'API Paquet AROME."
+                ) from None
+            raise RuntimeError(
+                "Erreur HTTP " + str(error.code) + " lors du catalogue/téléchargement AROME."
+            ) from None
 
 
 def choisir():
