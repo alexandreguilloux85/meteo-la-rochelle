@@ -1488,11 +1488,28 @@ function afficherDonnees(donnees) {
         "Dernier relevé : " + new Date(dernier.date).toLocaleString("fr-FR");
 }
 
-let chargementObservationsEnCours = false;
+let promesseChargementObservations = null;
 
-async function chargerDonnees() {
-    if (chargementObservationsEnCours) return false;
-    chargementObservationsEnCours = true;
+async function chargerDonnees(forcerVerification = false) {
+    // Si un chargement automatique est en cours, attendre sa fin
+    // avant de lancer le contrôle manuel sans cache.
+    if (promesseChargementObservations) {
+        if (!forcerVerification) return false;
+        await promesseChargementObservations;
+    }
+
+    const promesse = chargerDonneesInterne(forcerVerification);
+    promesseChargementObservations = promesse;
+    try {
+        return await promesse;
+    } finally {
+        if (promesseChargementObservations === promesse) {
+            promesseChargementObservations = null;
+        }
+    }
+}
+
+async function chargerDonneesInterne(forcerVerification) {
 
     // Afficher immédiatement les dernières observations sauvegardées localement.
     const cacheInitial = lireCacheLocal(CLE_CACHE_OBSERVATIONS);
@@ -1501,11 +1518,17 @@ async function chargerDonnees() {
     }
 
     try {
-        const reponse = await fetch(URL_OBSERVATIONS_RENDER, {
+        const urlObservations = forcerVerification
+            ? URL_OBSERVATIONS_RENDER + "?refresh=1"
+            : URL_OBSERVATIONS_RENDER;
+        const reponse = await fetch(urlObservations, {
             cache: "no-store"
         });
         if (!reponse.ok) {
-            throw new Error("Render observations : HTTP " + reponse.status);
+            const detail = await reponse.json().catch(() => null);
+            throw new Error(
+                detail?.erreur || "Render observations : HTTP " + reponse.status
+            );
         }
 
         const nouvellesDonnees = normaliserObservations(await reponse.json());
@@ -1567,9 +1590,7 @@ async function chargerDonnees() {
             document.getElementById("miseAJour").textContent =
                 "Relevés indisponibles · aucune donnée en cache";
         }
-        return false;
-    } finally {
-        chargementObservationsEnCours = false;
+        return { echec: true, erreur: erreur.message };
     }
 }
 
@@ -1618,13 +1639,14 @@ async function actualiserDepuisInterface(action, bouton) {
     try {
         if (action === "observations" || action === "radar") {
             const actualisationReussie = action === "observations"
-                ? await chargerDonnees()
+                ? await chargerDonnees(true)
                 : await chargerRadar(true);
-            if (!actualisationReussie) {
+            if (!actualisationReussie || actualisationReussie.echec) {
                 throw new Error(
-                    action === "observations"
-                        ? "La récupération des observations a échoué. Consultez le statut des données."
-                        : "La récupération du radar a échoué. Consultez le statut du radar."
+                    actualisationReussie?.erreur ||
+                    (action === "observations"
+                        ? "La récupération des observations a échoué."
+                        : "La récupération du radar a échoué. Consultez le statut du radar.")
                 );
             }
             if (action === "observations") {
@@ -1641,7 +1663,7 @@ async function actualiserDepuisInterface(action, bouton) {
                     statut.textContent = "Mesures corrigées : dernier relevé " + heureReleve;
                 } else {
                     statut.textContent =
-                        "Vérification terminée : aucune nouvelle mesure (dernier relevé : " +
+                        "Météo-France ne fournit pas de nouvelle mesure (dernier relevé : " +
                         heureReleve + ")";
                 }
             } else {
