@@ -163,6 +163,55 @@ async function telechargerGrib(url, jeton, fichier) {
     return octets;
 }
 
+function verifierDependancesPython() {
+    // Vérifier avant tout téléchargement que le Python du runtime retrouve
+    // les mêmes modules que ceux installés par le script de build Render test.
+    return new Promise((resolve, reject) => {
+        const pythonPath = path.join(__dirname, ".arome-py");
+        const execution = spawn(
+            process.env.AROME_PAQUETS_PYTHON || "python3",
+            ["-c", "import numpy; import eccodes"],
+            {
+                cwd: __dirname,
+                env: {
+                    ...process.env,
+                    PYTHONPATH: pythonPath +
+                        (process.env.PYTHONPATH
+                            ? path.delimiter + process.env.PYTHONPATH : "")
+                },
+                stdio: ["ignore", "ignore", "pipe"]
+            }
+        );
+        let erreur = "";
+        execution.stderr.on("data", bloc => {
+            erreur = (erreur + bloc.toString()).slice(-1200);
+        });
+        let termine = false;
+        const limite = setTimeout(() => {
+            execution.kill("SIGKILL");
+        }, 20000);
+        function finir(echec, resultat) {
+            if (termine) return;
+            termine = true;
+            clearTimeout(limite);
+            if (echec) reject(resultat);
+            else resolve();
+        }
+        execution.on("error", e => finir(true, new Error(
+            "Impossible de lancer Python sur Render test : " + e.message
+        )));
+        execution.on("close", code => {
+            if (code === 0) return finir(false);
+            finir(true, new Error(
+                "Dépendances Python AROME indisponibles sur Render test. " +
+                "Vérifier Build Command = bash scripts/build-render-test.sh " +
+                "puis redéployer (Clear build cache si nécessaire). " +
+                (erreur || "Import NumPy/ecCodes impossible").slice(-500)
+            ));
+        });
+    });
+}
+
 function decoderAvecPython(fichier, dossier, modele) {
     return new Promise((resolve, reject) => {
         const interpreter = process.env.AROME_PAQUETS_PYTHON || "python3";
@@ -277,6 +326,9 @@ function installerTestAromePaquets(app, { verifierJetonActualisation, calculerPr
     async function executer() {
         let dossier;
         try {
+            etat = { ...etat, etape: "verification_python" };
+            await verifierDependancesPython();
+            etat = { ...etat, etape: "authentification" };
             const jeton = await jetonPaquets();
             const produit = await dernierPaquet(jeton, etape => {
                 etat = { ...etat, etape };
