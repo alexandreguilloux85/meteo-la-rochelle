@@ -24,7 +24,9 @@ APPLICATION_ID = os.getenv("METEO_AROME_PAQUETS_APPLICATION_ID")
 OAUTH_TOKEN = None
 BBOX = tuple(map(float, os.getenv("AROME_BBOX", "43.2,48.3,-5.0,-0.3").split(",")))
 OUT = Path(os.getenv("AROME_OUTPUT", "arome-paquets-test"))
-OUT.mkdir(exist_ok=True)
+HEURE_DEBUT = int(os.getenv("AROME_HEURE_DEBUT", "1"))
+HEURE_FIN = int(os.getenv("AROME_HEURE_FIN", "6"))
+OUT.mkdir(parents=True, exist_ok=True)
 
 
 def oauth_token():
@@ -329,7 +331,7 @@ def convertir(grib, run):
                     str(prop(gid, "typeOfLevel")), str(prop(gid, "level")),
                     str(prop(gid, "stepRange")), str(code)
                 ))
-                if code is None or not 1 <= hour <= 6:
+                if code is None or not HEURE_DEBUT <= hour <= HEURE_FIN:
                     continue
                 bounds, grid, dims = decoupe(gid)
                 if reference_grid and grid != reference_grid:
@@ -351,10 +353,10 @@ def convertir(grib, run):
     print("Nombre de messages GRIB2 :", count)
     for desc in sorted(descriptions):
         print("Champ :", desc)
-    print("Grille réduite :", reference_grid)
+    print("Grille réduite :", reference_grid, "| échéances H+", HEURE_DEBUT, "à H+", HEURE_FIN)
     rafales_directes = 0
     rafales_reconstruites = 0
-    for hour in range(1, 7):
+    for hour in range(HEURE_DEBUT, HEURE_FIN + 1):
         step = forecast.get(hour, {})
         if "U" not in step or "V" not in step:
             raise ValueError("H+" + str(hour) + " : composantes U/V manquantes")
@@ -385,7 +387,7 @@ def convertir(grib, run):
     print(
         "Rafales : FF_RAF directes =", rafales_directes,
         "| reconstruites avec U_RAF/V_RAF =", rafales_reconstruites,
-        "| absentes =", 6 - rafales_directes - rafales_reconstruites
+        "| absentes =", HEURE_FIN - HEURE_DEBUT + 1 - rafales_directes - rafales_reconstruites
     )
 
     latmin, latmax, lonmin, lonmax = BBOX
@@ -409,6 +411,8 @@ def convertir(grib, run):
 def main():
     if len(BBOX) != 4 or not (BBOX[0] < BBOX[1] and BBOX[2] < BBOX[3]):
         raise ValueError("AROME_BBOX attendu : latMin,latMax,lonMin,lonMax")
+    if not (1 <= HEURE_DEBUT <= HEURE_FIN <= 51):
+        raise ValueError("AROME_HEURE_DEBUT/FIN invalides : attendu H+1 à H+51")
     # Mode Render test : le serveur Node a déjà téléchargé le fichier GRIB2.
     # Le script ne contacte alors pas Météo-France et ne manipule aucun secret.
     chemin_local = os.getenv("AROME_GRIB_LOCAL")
