@@ -63,7 +63,7 @@ def nettoyer_token_bearer(secret):
         token = token.split(":", 1)[1].strip()
     if token.lower().startswith("bearer "):
         token = token.split(None, 1)[1].strip()
-    token = token.strip("'\\" ").strip()
+    token = token.strip().strip(chr(39) + chr(34)).strip()
     if not token or any(char.isspace() for char in token):
         raise RuntimeError(
             "Jeton Bearer mal copié : valeur vide ou espaces/retours à la ligne internes. "
