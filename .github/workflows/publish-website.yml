@@ -8,13 +8,9 @@ on:
       - 'public/**'
       - '.github/workflows/publish-website.yml'
   workflow_dispatch:
-  workflow_run:
-    workflows:
-      - Publish AROME cache
+  repository_dispatch:
     types:
-      - completed
-    branches:
-      - main
+      - arome-cache-updated
 
 permissions:
   contents: read
@@ -27,7 +23,7 @@ concurrency:
 
 jobs:
   publish-website:
-    if: ${{ github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') }}
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
