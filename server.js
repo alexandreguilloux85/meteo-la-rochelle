@@ -614,7 +614,7 @@ const AROME_ECHEANCES_MINIMUM = 1;
 
 function normaliserModeleArome(modele) {
     if (typeof modele !== "string") return modele;
-    return modele.replace(/T(\\d{2})\\.(\\d{2})\\.(\\d{2})Z$/, "T$1:$2:$3Z");
+    return modele.replace(/T(\d{2})\.(\d{2})\.(\d{2})Z$/, "T$1:$2:$3Z");
 }
 
 
