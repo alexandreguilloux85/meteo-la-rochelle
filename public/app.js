@@ -1562,7 +1562,7 @@ async function actualiserDepuisInterface(action, bouton) {
         }
 
         statut.textContent =
-            "Vérification AROME demandée à Render. Les prévisions seront publiées sur GitHub Pages si un nouveau modèle complet est disponible.";
+            "Vérification AROME lancée sur Render test. La publication GitHub Pages est désactivée pour cet environnement.";
     } catch (erreur) {
         console.error("Actualisation demandée impossible :", erreur);
         statut.textContent = erreur.message ||
