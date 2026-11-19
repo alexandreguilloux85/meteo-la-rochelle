@@ -16,7 +16,7 @@ from eccodes import codes_get, codes_get_values, codes_grib_new_from_file, codes
 ROOT = "https://public-api.meteofrance.fr/previnum/DPPaquetAROME/v1"
 URL = ROOT + "/models/AROME/grids/0.025/packages/SP1"
 # Clé API et jeton OAuth2 sont deux types d'identifiants différents.
-API_KEY = os.getenv("METEO_AROME_PAQUETS_API_KEY") or os.getenv("METEO_AROME_API_KEY")
+API_KEY = os.getenv("METEO_AROME_PAQUETS_API_KEY")
 TOKEN = os.getenv("METEO_AROME_PAQUETS_TOKEN")
 APPLICATION_ID = os.getenv("METEO_AROME_PAQUETS_APPLICATION_ID")
 OAUTH_TOKEN = None
@@ -55,26 +55,27 @@ def oauth_token():
 
 
 def identifiants():
-    """Préférer un jeton Bearer explicite ou auto-renouvelable.
+    """Utiliser uniquement un secret dédié aux paquets AROME.
 
-    Pour les anciennes clés, tester apikey puis Bearer, jamais les deux
-    dans la même requête (c'était la cause possible du 401 précédent).
+    Ne jamais réutiliser implicitement la clé WCS METEO_AROME_API_KEY.
     """
     if APPLICATION_ID:
+        print("Authentification : METEO_AROME_PAQUETS_APPLICATION_ID (OAuth2)")
         return [("OAuth2 Bearer", "Authorization", "Bearer " + oauth_token())]
     if TOKEN:
+        print("Authentification : METEO_AROME_PAQUETS_TOKEN (Bearer)")
         return [("Bearer", "Authorization", "Bearer " + TOKEN.removeprefix("Bearer ").strip())]
     if API_KEY:
+        print("Authentification : METEO_AROME_PAQUETS_API_KEY")
         key = API_KEY.strip()
         if key.lower().startswith("bearer "):
             return [("Bearer", "Authorization", "Bearer " + key[7:].strip())]
-        return [
-            ("API key", "apikey", key),
-            ("Bearer", "Authorization", "Bearer " + key)
-        ]
+        return [("API key", "apikey", key)]
     raise RuntimeError(
-        "Aucun secret API : définir METEO_AROME_PAQUETS_API_KEY, "
-        "METEO_AROME_PAQUETS_TOKEN ou METEO_AROME_PAQUETS_APPLICATION_ID."
+        "Aucun identifiant Paquet AROME configuré. Définir "
+        "METEO_AROME_PAQUETS_APPLICATION_ID (OAuth2 recommandé), "
+        "METEO_AROME_PAQUETS_TOKEN ou METEO_AROME_PAQUETS_API_KEY. "
+        "La clé WCS METEO_AROME_API_KEY n'est pas utilisée."
     )
 
 
@@ -108,8 +109,8 @@ def read(url, dest=None):
             if error.code == 401:
                 raise RuntimeError(
                     "Météo-France refuse l'authentification (HTTP 401). "
-                    "Vérifier le type et la validité du token, ainsi que "
-                    "l'abonnement à l'API Paquet AROME. "
+                    "Vérifier l'identifiant Paquet AROME sélectionné dans le log, "
+                    "sa validité et l'abonnement à cette API. "
                     "Pour un traitement automatique, utiliser "
                     "METEO_AROME_PAQUETS_APPLICATION_ID (OAuth2)."
                 ) from None
