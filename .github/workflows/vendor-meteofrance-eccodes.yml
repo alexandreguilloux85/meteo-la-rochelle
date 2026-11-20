@@ -34,6 +34,22 @@ jobs:
           test -s vendor/meteofrance/eccodes-definitions.tar.gz
           test -s vendor/meteofrance/manifest.json
 
+      - name: Vérifier une installation locale sans aucun téléchargement
+        run: |
+          set -euo pipefail
+          python3 scripts/install-meteofrance-eccodes.py
+          test -d .meteo-eccodes/definitions/grib2
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          manifeste = json.loads(Path("vendor/meteofrance/manifest.json").read_text())
+          defs = Path(".meteo-eccodes/definitions/grib2")
+          fichiers = list(defs.rglob("*"))
+          assert manifeste["fichiers_extraits"] > 0
+          assert any(path.is_file() for path in fichiers)
+          print("Installation ecCodes hors ligne validée :", len(fichiers), "entrées")
+          PY
+
       - name: Enregistrer archive officielle + SHA256 dans Test_fonction
         run: |
           set -euo pipefail
