@@ -11,6 +11,7 @@ import json
 import shutil
 import tarfile
 import tempfile
+import time
 import unicodedata
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlparse
@@ -36,17 +37,25 @@ def telecharger(url, maximum):
         "Accept": "application/json, application/gzip, application/octet-stream",
         "User-Agent": "Meteo-La-Rochelle/1.0 (definitions-ecCodes)"
     })
-    with urlopen(demande, timeout=45) as reponse:
-        fin = urlparse(reponse.geturl())
-        if fin.scheme != "https" or not (
-            fin.hostname == "data.gouv.fr" or
-            (fin.hostname or "").endswith(".data.gouv.fr")
-        ):
-            raise ValueError("Redirection du téléchargement non autorisée")
-        corps = reponse.read(maximum + 1)
-    if len(corps) > maximum or not corps:
-        raise ValueError("Réponse trop volumineuse ou vide")
-    return corps
+    # Deux nouvelles tentatives sur une panne réseau temporaire de data.gouv.
+    for tentative in range(3):
+        try:
+            with urlopen(demande, timeout=45) as reponse:
+                fin = urlparse(reponse.geturl())
+                if fin.scheme != "https" or not (
+                    fin.hostname == "data.gouv.fr" or
+                    (fin.hostname or "").endswith(".data.gouv.fr")
+                ):
+                    raise ValueError("Redirection du téléchargement non autorisée")
+                corps = reponse.read(maximum + 1)
+            if len(corps) > maximum or not corps:
+                raise ValueError("Réponse trop volumineuse ou vide")
+            return corps
+        except (OSError, TimeoutError) as erreur:
+            if tentative == 2:
+                raise
+            print("Ressource data.gouv indisponible, nouvelle tentative :", erreur)
+            time.sleep(2 ** tentative)
 
 
 def nettoyer(s):
