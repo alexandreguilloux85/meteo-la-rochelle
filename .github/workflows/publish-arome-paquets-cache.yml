@@ -30,10 +30,14 @@ jobs:
           EXPECTED_MODEL: ${{ github.event.client_payload.modele }}
         run: |
           set -euo pipefail
+          # Conserver le corps HTTP tel que reçu : certains intermédiaires
+          # peuvent le décompresser en JSON malgré son nom .gz.
           curl --fail --silent --show-error --location \
             --retry 3 --retry-all-errors --max-time 180 \
+            -H "Accept: application/octet-stream" \
+            --dump-header /tmp/arome-paquets-cache.headers \
             "https://station-meteo-lr-test.onrender.com/api/arome/paquets/test/cache" \
-            --output /tmp/arome-paquets-cache.json.gz
+            --output /tmp/arome-paquets-cache.download
 
           python3 - <<'PY'
           import gzip
@@ -42,28 +46,64 @@ jobs:
           import os
           from pathlib import Path
 
-          file = Path("/tmp/arome-paquets-cache.json.gz")
-          assert 1_000 < file.stat().st_size < 16 * 1024 * 1024, "Cache GZIP de taille inattendue"
+          source = Path("/tmp/arome-paquets-cache.download")
+          destination = Path("/tmp/arome-paquets-cache.json.gz")
+          body = source.read_bytes()
+          size = len(body)
+          print("Réponse Render téléchargée :", size, "octets ; premiers octets :", body[:12].hex(), flush=True)
+          if not (1_000 < size <= 45 * 1024 * 1024):
+              raise ValueError(
+                  f"Réponse Render de taille inattendue ({size} octets). "
+                  "Vérifier le cache disponible, la réponse HTTP et le déploiement Render test."
+              )
+
           expected_sha = os.getenv("EXPECTED_SHA256", "")
-          sha = hashlib.sha256(file.read_bytes()).hexdigest()
-          if expected_sha and sha != expected_sha:
-              raise ValueError("Cache remplacé sur Render entre la demande et la sauvegarde : SHA différent")
-          with gzip.open(file, "rt", encoding="utf-8") as stream:
-              cache = json.load(stream)
+          if body.startswith(b"\\x1f\\x8b"):
+              print("Format reçu : GZIP natif", flush=True)
+              sha = hashlib.sha256(body).hexdigest()
+              if expected_sha and sha != expected_sha:
+                  raise ValueError("Cache remplacé sur Render entre la demande et la sauvegarde : SHA différent")
+              raw = gzip.decompress(body)
+              if len(raw) > 45 * 1024 * 1024:
+                  raise ValueError("JSON décompressé trop volumineux")
+              destination.write_bytes(body)
+          elif body.lstrip().startswith(b"{"):
+              print("Format reçu : JSON déjà décompressé ; recompresser pour Pages", flush=True)
+              raw = body
+              # La somme SHA256 annoncée par Render concerne son gzip original,
+              # pas le JSON après décompression par un proxy HTTP.
+              if expected_sha:
+                  print("SHA256 du gzip source non comparable au JSON décompressé")
+              destination.write_bytes(gzip.compress(raw, compresslevel=6, mtime=0))
+          else:
+              raise ValueError(
+                  "La réponse HTTP n'est ni un gzip ni un JSON AROME : "
+                  + repr(body[:150])
+              )
+
+          cache = json.loads(raw)
           expected_model = os.getenv("EXPECTED_MODEL", "")
           if expected_model and cache.get("modele") != expected_model:
-              raise ValueError("Modèle AROME différent du modèle annoncé")
+              raise ValueError(
+                  f"Modèle AROME différent du modèle annoncé : {cache.get('modele')!r}"
+              )
           previsions = cache.get("previsions", [])
-          assert len(previsions) == 51, "Le cache ne contient pas exactement 51 échéances"
-          assert {p["seconde"] for p in previsions} == set(range(3600, 52*3600, 3600)), "Heures manquantes ou dupliquées"
+          if len(previsions) != 51:
+              raise ValueError(f"Cache AROME incomplet : {len(previsions)} / 51 échéances")
+          if {p["seconde"] for p in previsions} != set(range(3600, 52 * 3600, 3600)):
+              raise ValueError("Heures manquantes ou dupliquées dans le cache")
           for p in previsions:
               for field in ("U", "V", "RAFALE"):
                   grid = p[field]["grille"]
-                  assert len(p[field]["valeurs"]) == grid["Ni"] * grid["Nj"], "Grille AROME incomplète"
-          assert cache.get("zone", {}).get("latMin") == 43.2
-          assert cache.get("zone", {}).get("latMax") == 48.3
+                  if len(p[field]["valeurs"]) != grid["Ni"] * grid["Nj"]:
+                      raise ValueError(f"Grille AROME {field} incomplète à {p['seconde']} s")
+          zone = cache.get("zone", {})
+          if (zone.get("latMin"), zone.get("latMax"), zone.get("lonMin"), zone.get("lonMax")) != (43.2, 48.3, -5, -0.3):
+              raise ValueError("Zone AROME inattendue")
+          if not (1_000 < destination.stat().st_size < 16 * 1024 * 1024):
+              raise ValueError(f"Cache recompressé de taille inattendue : {destination.stat().st_size} octets")
           print("Paquets AROME vérifiés :", cache["modele"], "51 échéances / 3 variables")
-          print("Gzip:", round(file.stat().st_size / 1048576, 2), "Mo · SHA256:", sha)
+          print("Gzip sauvegardé :", round(destination.stat().st_size / 1048576, 2), "Mo", flush=True)
           PY
 
       - name: Replace dedicated data branch with one single commit
