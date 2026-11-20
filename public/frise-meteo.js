@@ -109,8 +109,8 @@
                     month: "2-digit", day: "2-digit"
                 }),
                 heure: date.toLocaleTimeString("fr-FR", {
-                    timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit"
-                }),
+                    timeZone: "Europe/Paris", hour: "2-digit", hourCycle: "h23"
+                }).match(/\d{1,2}/)?.[0].padStart(2, "0") + "h",
                 ciel: etatDuCiel(p),
                 temperature: nombreOuNull(p.temperature),
                 precipitation: nombreOuNull(p.precipitation),
@@ -174,7 +174,11 @@
         ligne("Direction", donnees.map(d => ({
             contenu: d.direction === null ? "—" :
                 '<span class="frise-fleche" style="transform:rotate(' +
-                (d.direction + 180) + 'deg)">↑</span>' +
+                (d.direction + 180) + 'deg)">' +
+                '<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">' +
+                '<path d="M12 21V4 M6 10l6-6 6 6" fill="none" stroke="currentColor" ' +
+                'stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/>' +
+                '</svg></span>' +
                 '<span class="frise-degres">' + d.direction.toFixed(0) + '°</span>'
         })));
         html += '</tbody></table>';
