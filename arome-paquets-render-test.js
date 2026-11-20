@@ -18,6 +18,7 @@ const MIN_INTERVALLE_TEST = 4 * 60 * 1000;
 const INTERVALLE_AUTO = 3 * 60 * 60 * 1000;
 const RETRY_AUTO = 20 * 60 * 1000;
 const CONTROLE_AUTO = 2 * 60 * 1000;
+const TTL_DIAGNOSTIC_CATALOGUE = 5 * 60 * 1000;
 const CACHE_PAGES_URL =
     "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-paquets-cache.json.gz";
 const GITHUB_DISPATCH_URL =
@@ -416,6 +417,9 @@ function installerTestAromePaquets(app, {
     let erreurRestauration = null;
     let publicationGitHub = "non_demarre";
     let erreurPublication = null;
+    let diagnosticCatalogue = null;
+    let diagnosticCatalogueExpire = 0;
+    let diagnosticCatalogueEnCours = null;
     const actualisationAutoActive =
         process.env.AROME_PAQUETS_AUTO_REFRESH !== "0";
     let etat = {
@@ -443,6 +447,102 @@ function installerTestAromePaquets(app, {
             prochaine_tentative: prochainEssai
                 ? new Date(prochainEssai).toISOString() : null
         });
+    });
+
+    // Diagnostic du catalogue SP1 : métadonnées uniquement, sans téléchargement
+    // des paquets GRIB2 ni changement du cache ou du calcul au point cliqué.
+    // Reproduit strictement les critères de selectionnerReseauComplet().
+    async function lireDiagnosticCatalogue() {
+        const authentification = await authentificationPaquets();
+        const description = await catalogue(SP1, authentification);
+        const reseaux = [...new Set(description.links.map(lien => {
+            const reference = new URL(lien.href || "", SP1)
+                .searchParams.get("referencetime");
+            return reference && !Number.isNaN(Date.parse(reference))
+                ? reference : null;
+        }).filter(Boolean))].sort().reverse();
+
+        const resultats = [];
+        for (const reference of reseaux.slice(0, 8)) {
+            try {
+                const url = SP1 + "?" +
+                    new URLSearchParams({ referencetime: reference });
+                const disponibilites = await catalogue(url, authentification);
+                const heuresDisponibles = new Set(
+                    disponibilites.links.filter(lien => {
+                        const params = new URL(lien.href || "", SP1).searchParams;
+                        const format = params.get("format") || "";
+                        return format.toLowerCase() === "grib2" ||
+                            /grib2/i.test(lien.title || "");
+                    }).map(lien => lien.time ||
+                        new URL(lien.href || "", SP1).searchParams.get("time"))
+                      .filter(Boolean)
+                );
+                const presents = GROUPES.filter(g =>
+                    heuresDisponibles.has(g.code)).map(g => g.code);
+                const manquants = GROUPES.filter(g =>
+                    !heuresDisponibles.has(g.code)).map(g => g.code);
+                resultats.push({
+                    modele: reference,
+                    nombre_groupes: presents.length,
+                    groupes_disponibles: presents,
+                    groupes_manquants: manquants,
+                    complet_h1_h51: manquants.length === 0
+                });
+            } catch (e) {
+                // Une erreur sur un réseau ne masque pas les autres.
+                resultats.push({
+                    modele: reference,
+                    nombre_groupes: null,
+                    groupes_disponibles: [],
+                    groupes_manquants: [],
+                    complet_h1_h51: false,
+                    erreur: e.message
+                });
+            }
+        }
+        const premierComplet = resultats.find(r => r.complet_h1_h51);
+        return {
+            source: "Météo-France DPPaquetAROME SP1 0.025",
+            date_verification: new Date().toISOString(),
+            reseaux_annonces: reseaux.length,
+            reseaux_examines: resultats.length,
+            groupes_requis: GROUPES.map(g => g.code),
+            premier_modele_complet: premierComplet?.modele || null,
+            reseaux: resultats
+        };
+    }
+
+    app.get("/api/arome/paquets/test/catalogue", async (_req, res) => {
+        res.set("Cache-Control", "no-store");
+        try {
+            if (!diagnosticCatalogue ||
+                Date.now() >= diagnosticCatalogueExpire) {
+                if (!diagnosticCatalogueEnCours) {
+                    diagnosticCatalogueEnCours = lireDiagnosticCatalogue();
+                }
+                try {
+                    const nouveau = await diagnosticCatalogueEnCours;
+                    diagnosticCatalogue = nouveau;
+                    diagnosticCatalogueExpire =
+                        Date.now() + TTL_DIAGNOSTIC_CATALOGUE;
+                } finally {
+                    diagnosticCatalogueEnCours = null;
+                }
+            }
+            return res.json({
+                succes: true,
+                ...diagnosticCatalogue,
+                modele_cache_actif: cacheTest?.modele || null,
+                actualisation_en_cours: enCours,
+                duree_cache_diagnostic_secondes: TTL_DIAGNOSTIC_CATALOGUE / 1000
+            });
+        } catch (e) {
+            return res.status(502).json({
+                succes: false,
+                erreur: "Diagnostic du catalogue AROME indisponible : " + e.message
+            });
+        }
     });
 
     app.get("/api/arome/paquets/test/previsions", (req, res) => {
