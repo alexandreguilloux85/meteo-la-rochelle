@@ -32,6 +32,10 @@
     color: #243f58;
     font-weight: 600;
 }
+/* Ligne de séparation visible entre les jours et les heures. */
+.table-frise thead tr:first-child th:not(.frise-libelle) {
+    border-bottom: 2px solid #b8c7d6;
+}
 .table-frise .frise-libelle {
     position: sticky;
     left: 0;
@@ -71,9 +75,12 @@
     font-variant-numeric: tabular-nums;
 }
 .table-frise .frise-fleche {
-    display: block;
-    font-size: 20px;
-    line-height: 19px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin: 0 auto;
     transform-origin: center center;
     color: #172e48;
 }
