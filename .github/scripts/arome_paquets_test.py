@@ -420,29 +420,36 @@ def convertir(grib, run):
                 ))
                 if code is None or not HEURE_DEBUT <= hour <= HEURE_FIN:
                     continue
-                bounds, grid, dims = decoupe(gid)
                 optionnel = code in ("T2M_METEO", "NEBUL_METEO", "PRECIP_METEO")
-                if not optionnel:
-                    if reference_grid and grid != reference_grid:
-                        raise ValueError("Grille différente des autres champs")
-                    reference_grid = grid
+                if optionnel:
+                    # Le nouveau décodage doit rester une extension facultative.
+                    # Même une grille météo illisible ne bloque pas U/V/RAFALE.
+                    try:
+                        bounds, grid, dims = decoupe(gid)
+                        data = np.asarray(codes_get_values(gid), dtype=np.float64)
+                        if data.size != dims[0] * dims[1]:
+                            raise ValueError("Dimensions de grille météo invalides")
+                        j0, j1, i0, i1 = bounds
+                        local = data.reshape(*dims)[j0:j1, i0:i1]
+                        champ = encoder_meteo(gid, code, local, grid)
+                        step = forecast.setdefault(hour, {"seconde": hour*3600})
+                        if code not in step:
+                            step[code] = champ
+                    except Exception as erreur:
+                        print("Champ météo facultatif ignoré :",
+                              code, "H+" + str(hour), str(erreur))
+                    continue
+
+                # Traitement éprouvé du vent : inchangé.
+                bounds, grid, dims = decoupe(gid)
+                if reference_grid and grid != reference_grid:
+                    raise ValueError("Grille différente des autres champs")
+                reference_grid = grid
                 data = np.asarray(codes_get_values(gid), dtype=np.float64)
                 if data.size != dims[0] * dims[1]:
                     raise ValueError("Dimensions du champ GRIB2 incohérentes")
                 j0, j1, i0, i1 = bounds
                 local = data.reshape(*dims)[j0:j1, i0:i1]
-                if optionnel:
-                    try:
-                        champ = encoder_meteo(gid, code, local, grid)
-                        step = forecast.setdefault(hour, {"seconde": hour*3600})
-                        # Une échéance peut inclure plusieurs messages du même
-                        # paramètre : conserver le premier champ valide.
-                        if code not in step:
-                            step[code] = champ
-                    except (ValueError, OverflowError) as erreur:
-                        print("Champ météo facultatif ignoré :",
-                              code, "H+" + str(hour), str(erreur))
-                    continue
                 if not np.isfinite(local).all() or np.any(np.abs(local) > 1e20):
                     raise ValueError("Valeurs absentes dans la zone : " + code)
                 step = forecast.setdefault(hour, {"seconde": hour*3600})
