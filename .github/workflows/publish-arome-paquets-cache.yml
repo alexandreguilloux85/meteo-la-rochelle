@@ -51,7 +51,7 @@ jobs:
           body = source.read_bytes()
           size = len(body)
           print("Réponse Render téléchargée :", size, "octets ; premiers octets :", body[:12].hex(), flush=True)
-          if not (1_000 < size <= 90 * 1024 * 1024):
+          if not (1_000 < size <= 45 * 1024 * 1024):
               raise ValueError(
                   f"Réponse Render de taille inattendue ({size} octets). "
                   "Vérifier le cache disponible, la réponse HTTP et le déploiement Render test."
@@ -64,7 +64,7 @@ jobs:
               if expected_sha and sha != expected_sha:
                   raise ValueError("Cache remplacé sur Render entre la demande et la sauvegarde : SHA différent")
               raw = gzip.decompress(body)
-              if len(raw) > 90 * 1024 * 1024:
+              if len(raw) > 45 * 1024 * 1024:
                   raise ValueError("JSON décompressé trop volumineux")
               destination.write_bytes(body)
           elif body.lstrip().startswith(b"{"):
@@ -100,17 +100,9 @@ jobs:
           zone = cache.get("zone", {})
           if (zone.get("latMin"), zone.get("latMax"), zone.get("lonMin"), zone.get("lonMax")) != (43.2, 48.3, -5, -0.3):
               raise ValueError("Zone AROME inattendue")
-          if not (1_000 < destination.stat().st_size < 32 * 1024 * 1024):
+          if not (1_000 < destination.stat().st_size < 16 * 1024 * 1024):
               raise ValueError(f"Cache recompressé de taille inattendue : {destination.stat().st_size} octets")
-          print("Paquets AROME vérifiés :", cache["modele"], "51 échéances / U V RAFALE")
-          if cache.get("version_cache", 1) >= 2:
-              for p in previsions:
-                  for field in ("T2M", "NEBUL", "PRECIP"):
-                      if field in p:
-                          grid = p[field]["grille"]
-                          if len(p[field]["valeurs"]) != grid["Ni"] * grid["Nj"]:
-                              raise ValueError(f"Grille {field} incomplète à {p['seconde']} s")
-              print("Cache version 2 : champs météo supplémentaires contrôlés")
+          print("Paquets AROME vérifiés :", cache["modele"], "51 échéances / 3 variables")
           print("Gzip sauvegardé :", round(destination.stat().st_size / 1048576, 2), "Mo", flush=True)
           PY
 
