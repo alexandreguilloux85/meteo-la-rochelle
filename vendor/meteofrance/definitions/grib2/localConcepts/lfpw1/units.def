@@ -1,0 +1,18 @@
+#Maximum occurrence of hail for the day
+'~'={
+centre=84;
+discipline=0;
+parameterCategory=15;
+parameterNumber=208;
+productDefinitionTemplateNumber=8;
+typeOfStatisticalProcessing=2;
+}
+#Maximum hail time dating
+'HHMM'={
+centre=84;
+discipline=0;
+parameterCategory=15;
+parameterNumber=208;
+productDefinitionTemplateNumber=8;
+typeOfStatisticalProcessing=198;
+}
