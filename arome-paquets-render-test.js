@@ -15,7 +15,7 @@ const ZONE = { latMin: 43.2, latMax: 48.3, lonMin: -5.0, lonMax: -0.3 };
 const MAX_GRIB_OCTETS = 120 * 1024 * 1024;
 const MAX_JSON_OCTETS = 45 * 1024 * 1024;
 const MIN_INTERVALLE_TEST = 4 * 60 * 1000;
-const INTERVALLE_AUTO = 3 * 60 * 60 * 1000;
+const INTERVALLE_CONTROLE_CATALOGUE = 30 * 60 * 1000;
 const RETRY_AUTO = 20 * 60 * 1000;
 const CONTROLE_AUTO = 2 * 60 * 1000;
 const TTL_DIAGNOSTIC_CATALOGUE = 5 * 60 * 1000;
@@ -412,6 +412,10 @@ function installerTestAromePaquets(app, {
     let dernierDemarrage = 0;
     let derniereReussite = 0;
     let prochainEssai = 0;
+    let controleAutoEnCours = false;
+    let dernierControleCatalogue = 0;
+    let modeleCataloguePlusRecent = null;
+    let erreurControleCatalogue = null;
     let restaurationTerminee = false;
     let restaurationPages = "non_demarre";
     let erreurRestauration = null;
@@ -441,7 +445,12 @@ function installerTestAromePaquets(app, {
             publication_github: publicationGitHub,
             erreur_publication_github: erreurPublication,
             actualisation_automatique: actualisationAutoActive,
-            intervalle_actualisation_heures: 3,
+            intervalle_controle_catalogue_minutes: 30,
+            controle_catalogue_en_cours: controleAutoEnCours,
+            dernier_controle_catalogue: dernierControleCatalogue
+                ? new Date(dernierControleCatalogue).toISOString() : null,
+            modele_catalogue_plus_recent: modeleCataloguePlusRecent,
+            erreur_controle_catalogue: erreurControleCatalogue,
             derniere_actualisation_reussie: derniereReussite
                 ? new Date(derniereReussite).toISOString() : null,
             prochaine_tentative: prochainEssai
@@ -720,8 +729,9 @@ function installerTestAromePaquets(app, {
                 derniereReussite = Number.isFinite(dateCache) &&
                     dateCache > 0 && dateCache <= Date.now()
                     ? dateCache : 0;
-                prochainEssai = derniereReussite
-                    ? derniereReussite + INTERVALLE_AUTO : 0;
+                // Contrôler le catalogue dès le démarrage, même si le cache
+                // restauré est récent : le nouveau modèle peut être disponible.
+                prochainEssai = 0;
                 etat = {
                     statut: "restaure",
                     etape: "restauration_pages",
@@ -794,7 +804,7 @@ function installerTestAromePaquets(app, {
         }
     }
 
-    async function executer(groupesDemandes) {
+    async function executer(groupesDemandes, produitSelectionne = null) {
         let dossier;
         try {
             etat = { ...etat, etape: "verification_python" };
@@ -803,7 +813,9 @@ function installerTestAromePaquets(app, {
             const authentification = await authentificationPaquets();
             console.log("AROME Paquets Render test : mode auth", authentification.mode);
             etat = { ...etat, authentification: authentification.mode };
-            const produit = await selectionnerReseauComplet(
+            // Le contrôle automatique a déjà choisi un réseau complet :
+            // éviter de relire le catalogue et de changer de modèle en route.
+            const produit = produitSelectionne || await selectionnerReseauComplet(
                 authentification, groupesDemandes,
                 etape => { etat = { ...etat, etape }; }
             );
@@ -926,7 +938,7 @@ function installerTestAromePaquets(app, {
             cacheTest = cache;
             cacheCompresse = gzip;
             derniereReussite = Date.now();
-            prochainEssai = derniereReussite + INTERVALLE_AUTO;
+            prochainEssai = derniereReussite + INTERVALLE_CONTROLE_CATALOGUE;
             etat = {
                 statut: "termine",
                 etape: "termine",
@@ -972,7 +984,7 @@ function installerTestAromePaquets(app, {
         }
     }
 
-    function lancerActualisationPaquets(groupesDemandes, origine) {
+    function lancerActualisationPaquets(groupesDemandes, origine, produitSelectionne = null) {
         if (enCours) return false;
         enCours = true;
         dernierDemarrage = Date.now();
@@ -987,24 +999,61 @@ function installerTestAromePaquets(app, {
             groupe_actuel: null,
             echeances_recuperees: 0
         };
-        void executer(groupesDemandes);
+        void executer(groupesDemandes, produitSelectionne);
         return true;
     }
 
     function verifierActualisationAutomatique() {
-        if (!restaurationTerminee ||
-            !actualisationAutoActive || enCours ||
+        if (!restaurationTerminee || !actualisationAutoActive ||
+            enCours || controleAutoEnCours ||
             Date.now() < prochainEssai ||
             Date.now() - dernierDemarrage < MIN_INTERVALLE_TEST) {
             return false;
         }
-        // Une actualisation toutes les 3 h tant que Render est éveillé.
-        // Si l'instance s'endort, le prochain démarrage relance le contrôle.
-        if (!cacheTest || !derniereReussite ||
-            Date.now() - derniereReussite >= INTERVALLE_AUTO) {
-            return lancerActualisationPaquets(GROUPES, "automatique");
-        }
-        return false;
+
+        // Un contrôle toutes les 30 min des métadonnées du catalogue.
+        // Ne télécharger les neuf GRIB2 que si le modèle complet est plus
+        // récent que le cache actif (ou si le cache est absent/incomplet).
+        controleAutoEnCours = true;
+        prochainEssai = Date.now() + INTERVALLE_CONTROLE_CATALOGUE;
+        void (async () => {
+            try {
+                const authentification = await authentificationPaquets();
+                const produit = await selectionnerReseauComplet(
+                    authentification, GROUPES, () => {}
+                );
+                dernierControleCatalogue = Date.now();
+                modeleCataloguePlusRecent = produit.modele;
+                erreurControleCatalogue = null;
+                const cacheComplet = cacheTest?.previsions?.length === 51;
+                const nouveauModele = !cacheComplet ||
+                    Date.parse(produit.modele) > Date.parse(cacheTest.modele);
+
+                if (nouveauModele) {
+                    console.log(
+                        "AROME Paquets : nouveau modèle complet disponible",
+                        produit.modele, "(cache :", cacheTest?.modele || "absent", ")"
+                    );
+                    lancerActualisationPaquets(GROUPES, "automatique", produit);
+                } else {
+                    console.log(
+                        "AROME Paquets : catalogue vérifié, cache déjà à jour",
+                        cacheTest.modele
+                    );
+                }
+            } catch (e) {
+                dernierControleCatalogue = Date.now();
+                erreurControleCatalogue = e.message;
+                prochainEssai = Date.now() + RETRY_AUTO;
+                console.warn(
+                    "AROME Paquets : échec du contrôle du catalogue :",
+                    e.message
+                );
+            } finally {
+                controleAutoEnCours = false;
+            }
+        })();
+        return true;
     }
 
     app.post("/api/arome/paquets/test/refresh", (req, res) => {
