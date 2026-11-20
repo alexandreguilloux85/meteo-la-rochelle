@@ -231,41 +231,21 @@ def prop(gid, name, default=None):
 
 
 def classification(gid):
-    """Identifier les champs SP1 (vent et météo) par niveaux et codes GRIB2.
+    """Identifier les noms Météo-France et les alias ecCodes des vents à 10 m.
 
     FF_RAF(10m) peut être 'gust' plutôt que '10fg'. Les codes GRIB2
     0.2.22/23/24 décrivent respectivement vitesse / U / V des rafales.
-    Le code 0.6.1 décrit la nébulosité totale et 0.1.8 les précipitations.
     """
     level = prop(gid, "level")
     typ = str(prop(gid, "typeOfLevel", "")).lower()
+    if level != 10 or typ not in ("heightaboveground", "hauteur"):
+        return None
+
     short = str(prop(gid, "shortName", "")).lower()
     name = str(prop(gid, "name", "")).lower()
     discipline = prop(gid, "discipline")
     categorie = prop(gid, "parameterCategory")
     numero = prop(gid, "parameterNumber")
-
-    # T(2m) : température instantanée de l'air en kelvins.
-    if level == 2 and typ in ("heightaboveground", "hauteur"):
-        if (discipline == 0 and categorie == 0 and numero == 0) or (
-            short in ("2t", "t2m") or "temperature" in name
-        ):
-            return "T2M"
-
-    # NEBUL : nébulosité totale en pourcentage (ou fraction selon ecCodes).
-    if (discipline == 0 and categorie == 6 and numero == 1) or (
-        short in ("tcc", "nebul", "totalcloudcover")
-    ) or ("total cloud cover" in name):
-        return "NEBUL"
-
-    # PRECIP : précipitations totales accumulées, 1 kg/m² = 1 mm.
-    if (discipline == 0 and categorie == 1 and numero == 8) or (
-        short in ("tp", "precip", "totalprecipitation")
-    ) or ("total precipitation" in name):
-        return "PRECIP"
-
-    if level != 10 or typ not in ("heightaboveground", "hauteur"):
-        return None
 
     # Les codes WMO sont indépendants de la version des tables de noms ecCodes.
     if discipline == 0 and categorie == 2:
@@ -364,35 +344,16 @@ def convertir(grib, run):
                 local = data.reshape(*dims)[j0:j1, i0:i1]
                 if not np.isfinite(local).all() or np.any(np.abs(local) > 1e20):
                     raise ValueError("Valeurs absentes dans la zone : " + code)
-                unites = str(prop(gid, "units", "")).strip().lower()
-                if code == "NEBUL":
-                    # Les tables ecCodes peuvent coder la couverture en 0..1.
-                    if unites in ("1", "fraction", "numeric", "(0 - 1)", "0-1"):
-                        local = local * 100.0
-                    local = np.clip(local, 0, 100)
-                elif code == "PRECIP":
-                    # Le GRIB AROME utilise normalement kg/m² ; convertir si m.
-                    if unites in ("m", "metre", "meter"):
-                        local = local * 1000.0
-                    local = np.maximum(local, 0)
                 step = forecast.setdefault(hour, {"seconde": hour*3600})
                 if code in step:
                     raise ValueError("Champ répété : " + code + " H+" + str(hour))
-                champ = {"grille": grid, "valeurs": np.round(local, 2).ravel().tolist()}
-                if code == "PRECIP":
-                    # Période d'accumulation : 0→H ou (H-1)→H selon GRIB.
-                    champ["debut_cumul"] = int(prop(gid, "startStep", 0) or 0)
-                step[code] = champ
+                step[code] = {"grille": grid, "valeurs": np.round(local, 2).ravel().tolist()}
             finally:
                 codes_release(gid)
     print("Nombre de messages GRIB2 :", count)
     for desc in sorted(descriptions):
         print("Champ :", desc)
     print("Grille réduite :", reference_grid, "| échéances H+", HEURE_DEBUT, "à H+", HEURE_FIN)
-    print("Météo SP1 reconnue :", {
-        key: sum(key in item for item in forecast.values())
-        for key in ("T2M", "NEBUL", "PRECIP")
-    })
     rafales_directes = 0
     rafales_reconstruites = 0
     for hour in range(HEURE_DEBUT, HEURE_FIN + 1):
