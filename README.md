@@ -281,19 +281,29 @@ un téléchargement WCS ni le modifier.
 `/api/arome/paquets/test/previsions?lat=…&lon=…`. Render interpole la
 grille conservée en mémoire et renvoie **uniquement les 51 prévisions au
 point demandé** (U/V, vitesse, direction, rafales). Le navigateur ne
-télécharge pas la grille de 31 Mo, et **aucun cache GRIB2 n'est publié
-sur GitHub Pages**. Le WCS reste un secours au point cliqué via
+télécharge pas la grille de 31 Mo. Une **sauvegarde** GRIB2 est publiée
+sur GitHub Pages pour Render uniquement ; elle n'est pas téléchargée
+par le navigateur. Le WCS reste un secours au point cliqué via
 `/api/arome/previsions` si le cache Paquets n'est pas encore prêt.
 
-**Actualisation automatique (Render test) :** un cycle de **9 paquets**
-est lancé lors du démarrage de l'instance, puis toutes les trois heures
-après la dernière actualisation réussie. En cas d'échec, un nouvel essai
-est prévu au plus tôt 20 minutes après ; **le dernier cache valide est
-conservé**. Le contrôle a lieu toutes les deux minutes quand Render est
-éveillé. Un service gratuit en veille n'exécute pas de tâche planifiée :
-au prochain redémarrage, le contrôle reprend. Le cache reste pour
-l'instant en mémoire de l'instance : il est perdu au redéploiement ou
-au redémarrage du processus et doit être reconstruit.
+**Actualisation automatique (Render test) :** à chaque démarrage, Render
+restaure d'abord le cache depuis GitHub Pages, puis vérifie le **catalogue
+Météo-France**. Ensuite, le catalogue est contrôlé toutes les **30 minutes**
+(surveillance par minuteur toutes les 2 minutes lorsque le serveur est
+éveillé). Un nouveau cycle de **9 paquets** n'est téléchargé que lorsqu'un
+**modèle plus récent avec les 9 groupes complets** est annoncé. Si le modèle
+est identique, aucun GRIB2 n'est retéléchargé. En cas d'échec de contrôle
+ou de téléchargement, un nouvel essai intervient au plus tôt 20 minutes
+après ; **le dernier cache valide reste utilisable**. En veille, le service
+gratuit n'exécute pas de tâche ; le contrôle reprend au réveil.
+
+Le diagnostic `/api/arome/paquets/test/catalogue` donne les huit derniers
+réseaux, les groupes manquants et le modèle complet le plus récent.
+`/api/arome/paquets/test/status` expose désormais
+`intervalle_controle_catalogue_minutes`, `dernier_controle_catalogue`,
+`modele_catalogue_plus_recent`, `erreur_controle_catalogue` et
+`prochaine_tentative`. Le téléchargement et la sauvegarde sur GitHub Pages
+ne se déclenchent pas si aucun nouveau modèle complet n'est disponible.
 
 La clé longue durée `METEO_AROME_PAQUETS_API_KEY` (ou l'identifiant
 OAuth2 `METEO_AROME_PAQUETS_APPLICATION_ID`) doit être configurée dans
@@ -303,7 +313,8 @@ définir `AROME_PAQUETS_AUTO_REFRESH=0`. Le POST de test avec
 
 **Sécurité :** ces modifications s'appliquent exclusivement à
 `Test_fonction` sur `station-meteo-lr-test`, sans modifier le WCS
-de production, ni publier les paquets GRIB2 sur GitHub Pages. Le bouton
+de production. Seule la **sauvegarde compressée** est publiée sur Pages,
+sans modifier le site ni la consultation au point. Le bouton
 AROME sur Render test relit les prévisions au point et affiche le statut
 du traitement : il ne déclenche pas de téléchargement sans autorisation.
 La clé API Météo-France reste uniquement sur le serveur.
