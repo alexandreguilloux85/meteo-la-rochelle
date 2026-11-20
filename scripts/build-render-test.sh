@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pour le service station-meteo-lr-test uniquement.
+# Pour les services Render qui décodent les paquets AROME GRIB2.
 # Sur le runtime Node Render, Python 3 et pip sont disponibles.
 npm ci
 python3 -m pip install --no-cache-dir --target .arome-py -r requirements-arome.txt

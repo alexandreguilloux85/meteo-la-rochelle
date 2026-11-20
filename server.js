@@ -769,8 +769,8 @@ function verifierJetonActualisation(req, res) {
     return true;
 }
 
-// Test isolé des paquets GRIB2 : routes actives uniquement sur Render test.
-// Les prévisions WCS et le cache GitHub Pages ne sont jamais modifiés ici.
+// Paquets GRIB2 actifs sur Render test et sur les services activés explicitement.
+// Le cache GRIB2 utilise une sauvegarde distincte du WCS.
 require("./arome-paquets-render-test").installerTestAromePaquets(app, {
     verifierJetonActualisation,
     calculerPrevisionsArome,
