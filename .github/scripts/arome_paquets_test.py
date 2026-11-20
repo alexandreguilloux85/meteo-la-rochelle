@@ -323,11 +323,13 @@ def encoder_meteo(gid, code, local, grille):
     elif code == "NEBUL_METEO":
         if unites in ("1", "fraction", "0-1", "(0 - 1)"):
             valeurs *= 100
+        elif unites in ("okta", "oktas", "octa", "octas"):
+            valeurs *= 12.5
         elif unites in ("%", "percent", "percentage"):
             pass
-        elif unites in ("unknown", "~", "", "undefined"):
-            # Champ NEBUL local « unknown » : l'unité peut aussi être
-            # inconnue d'ecCodes. Examiner sa plage sans inventer de pluie.
+        elif unites in ("unknown", "~", "", "undefined", "none"):
+            # Champ local « unknown » dans les vrais paquets SP1 : déterminer
+            # l'échelle numérique lorsque l'unité ecCodes est inconnue.
             finies = valeurs[np.isfinite(valeurs) & (np.abs(valeurs) < 1e10)]
             if finies.size == 0:
                 raise ValueError("NEBUL sans données valides")
@@ -335,6 +337,10 @@ def encoder_meteo(gid, code, local, grille):
             if vmax <= 1.01:
                 valeurs *= 100
                 print("NEBUL local : fraction 0..1 convertie en %")
+            elif vmax <= 8.01 and np.all(np.abs(finies - np.rint(finies)) < 0.01):
+                # Niveaux entiers 0..8 : octas météorologiques.
+                valeurs *= 12.5
+                print("NEBUL local : 0..8 octas convertis en %")
             elif vmax <= 100.01:
                 print("NEBUL local : valeurs 0..100 conservées en %")
             else:
