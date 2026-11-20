@@ -581,17 +581,34 @@ function installerTestAromePaquets(app, {
                 throw new Error("GitHub Pages HTTP " + reponse.status);
             }
             const longueur = Number(reponse.headers.get("content-length"));
-            if (longueur > MAX_CACHE_GZIP_OCTETS) {
+            if (longueur > MAX_JSON_OCTETS) {
                 throw new Error("Sauvegarde Pages trop volumineuse");
             }
-            const compresse = Buffer.from(await reponse.arrayBuffer());
-            if (compresse.length < 1000 || compresse.length > MAX_CACHE_GZIP_OCTETS ||
-                compresse[0] !== 0x1f || compresse[1] !== 0x8b) {
-                throw new Error("Sauvegarde Pages absente ou non gzip");
+            const telecharge = Buffer.from(await reponse.arrayBuffer());
+            if (telecharge.length < 1000 ||
+                telecharge.length > MAX_JSON_OCTETS) {
+                throw new Error("Sauvegarde Pages absente ou trop volumineuse");
             }
-            const texte = gunzipSync(compresse, {
-                maxOutputLength: MAX_JSON_OCTETS
-            }).toString("utf8");
+
+            // Certains serveurs décompressent automatiquement HTTP gzip.
+            // Accepter le vrai .gz ET le JSON déjà décompressé par fetch().
+            let compresse;
+            let texte;
+            if (telecharge[0] === 0x1f && telecharge[1] === 0x8b) {
+                if (telecharge.length > MAX_CACHE_GZIP_OCTETS) {
+                    throw new Error("Cache gzip Pages trop volumineux");
+                }
+                compresse = telecharge;
+                texte = gunzipSync(compresse, {
+                    maxOutputLength: MAX_JSON_OCTETS
+                }).toString("utf8");
+            } else {
+                if (!telecharge.toString("utf8", 0, 32).trimStart().startsWith("{")) {
+                    throw new Error("Sauvegarde Pages : format non reconnu");
+                }
+                texte = telecharge.toString("utf8");
+                compresse = gzipSync(telecharge, { level: 6 });
+            }
             const restaure = JSON.parse(texte);
             validerCacheAromePaquets(restaure, calculerPrevisionsArome);
 
