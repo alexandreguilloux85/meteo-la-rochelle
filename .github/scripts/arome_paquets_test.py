@@ -23,7 +23,7 @@ from eccodes import (
 # build Render test), tout en conservant les tables standard ecCodes.
 # Le test GitHub Actions reste compatible sans le dossier optionnel.
 DEFINITIONS_METEO_FRANCE = (
-    Path(__file__).resolve().parents[2] / ".meteo-eccodes" / "definitions"
+    Path(__file__).resolve().parents[2] / "vendor" / "meteofrance" / "definitions"
 )
 if (DEFINITIONS_METEO_FRANCE / "grib2").is_dir():
     definitions_standard = codes_definition_path()
