@@ -940,18 +940,6 @@ function calculerPrevisionsArome(cache, latitude, longitude) {
     const previsions = [];
     const erreurs = [];
 
-    // Paramètres météo optionnels : les anciens caches WCS et GRIB2 restent
-    // valides, et une absence de T2M/NEBUL/PRECIP ne bloque pas le vent.
-    const interpolerOptionnel = champ => {
-        if (!champ?.grille || !Array.isArray(champ.valeurs)) return null;
-        try {
-            const valeur = interpoler(champ.grille, champ.valeurs, latitude, longitude);
-            return Number.isFinite(valeur) ? valeur : null;
-        } catch (_erreur) {
-            return null;
-        }
-    };
-
     for (let h = 1; h <= 51; h++) {
         const seconde = h * 3600;
         const donnees = cache.previsions.find(p => p.seconde === seconde);
@@ -985,30 +973,6 @@ function calculerPrevisionsArome(cache, latitude, longitude) {
                 );
             }
 
-            const kelvin = interpolerOptionnel(donnees.T2M);
-            const nebulositeBrute = interpolerOptionnel(donnees.NEBUL);
-            const cumulPrecipitation = interpolerOptionnel(donnees.PRECIP);
-            let precipitation = null;
-            if (cumulPrecipitation !== null) {
-                const debutCumul = Number(donnees.PRECIP?.debut_cumul ?? 0);
-                if (debutCumul === h - 1) {
-                    // Précipitation déjà accumulée sur l'heure H-1 → H.
-                    precipitation = cumulPrecipitation;
-                } else if (debutCumul === 0) {
-                    // Accumulation depuis le réseau : différencier deux heures.
-                    const precedent = h > 1
-                        ? cache.previsions.find(p => p.seconde === (h - 1) * 3600)
-                        : null;
-                    const cumulPrecedent = h > 1 && precedent?.PRECIP &&
-                        Number(precedent.PRECIP.debut_cumul ?? 0) === 0
-                        ? interpolerOptionnel(precedent.PRECIP) : null;
-                    if (h === 1) {
-                        precipitation = cumulPrecipitation;
-                    } else if (cumulPrecedent !== null) {
-                        precipitation = cumulPrecipitation - cumulPrecedent;
-                    }
-                }
-            }
             const direction = (
                 Math.atan2(-u, -v) * 180 / Math.PI + 360
             ) % 360;
@@ -1024,12 +988,6 @@ function calculerPrevisionsArome(cache, latitude, longitude) {
                     ? Number(rafale.toFixed(2))
                     : null,
                 direction: Number(direction.toFixed(1)),
-                temperature: kelvin !== null
-                    ? Number((kelvin - 273.15).toFixed(1)) : null,
-                nebulosite: nebulositeBrute !== null
-                    ? Math.round(Math.max(0, Math.min(100, nebulositeBrute))) : null,
-                precipitation: precipitation !== null
-                    ? Number(Math.max(0, precipitation).toFixed(2)) : null,
                 composante_U: Number(u.toFixed(3)),
                 composante_V: Number(v.toFixed(3))
             });
