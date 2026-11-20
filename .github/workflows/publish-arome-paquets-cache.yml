@@ -58,7 +58,7 @@ jobs:
               )
 
           expected_sha = os.getenv("EXPECTED_SHA256", "")
-          if body.startswith(b"\\x1f\\x8b"):
+          if body.startswith(b"\x1f\x8b"):
               print("Format reçu : GZIP natif", flush=True)
               sha = hashlib.sha256(body).hexdigest()
               if expected_sha and sha != expected_sha:
