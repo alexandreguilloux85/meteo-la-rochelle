@@ -382,3 +382,56 @@ les événements `repository_dispatch` GitHub sont pris en compte sur
 la branche par défaut. Seuls ces workflows ont changé sur `main` ;
 le code applicatif de production, les observations, le radar et le
 calcul au point cliqué de `Test_fonction` restent inchangés.
+
+
+## Frise météo AROME — prévisualisation sans modification du cache (Render test)
+
+La frise expérimentale est affichée **au-dessus du tableau AROME existant**,
+uniquement depuis la branche `Test_fonction`. Les fichiers
+`public/frise-meteo.js` et `public/frise-meteo.css` en assurent
+l'affichage indépendant : ils utilisent les **prévisions au point déjà
+chargées** par `public/app.js`, sans nouvelle requête météo ni téléchargement
+GRIB2 supplémentaire. Le tableau existant, le calcul d'interpolation, le
+contenu du cache et la restauration GitHub Pages ne sont **pas modifiés**.
+
+### Règles des icônes météo (seuils propres au site)
+
+| Priorité | Critère à l'heure H | Icône de jour | Icône de nuit |
+| --- | --- | --- | --- |
+| 1 | Précipitation horaire **≥ 0,2 mm** | Nuage + pluie | Nuage + pluie |
+| 2 | Précipitation **< 0,2 mm** et nébulosité **< 25 %** | Soleil | Lune |
+| 3 | Précipitation **< 0,2 mm** et nébulosité **≥ 25 % et < 65 %** | Soleil + nuage | Lune + nuage |
+| 4 | Précipitation **< 0,2 mm** et nébulosité **≥ 65 %** | Nuage | Nuage |
+| Secours | Précipitation ou nébulosité absente / invalide | — (inconnu) | — (inconnu) |
+
+- La priorité est donnée à la pluie dès **0,2 mm sur l'heure**, quelle que
+  soit la nébulosité. Au-dessous de cette limite, la couverture nuageuse
+  détermine l'icône.
+- Les limites de nuages sont **25 %** et **65 %** ; l'égalité appartient
+  à la catégorie supérieure.
+- La période jour/nuit est déterminée à partir de la date UTC de prévision
+  et des coordonnées GPS choisies. Le seuil de hauteur apparente du Soleil
+  est **−0,833°** (horizon apparent approximatif).
+- Ces seuils sont des **choix d'affichage pour Météo La Rochelle** : ils ne
+  constituent pas une transcription de seuils officiels Windy.
+- Les icônes sont des **SVG originaux intégrés localement**, sans lien
+  avec les fichiers d'images hébergés par Windy.
+
+### Données nécessaires et compatibilité
+
+La frise sait exploiter, *si elles existent dans la réponse au point* :
+`temperature` (°C), `nebulosite` (%) et `precipitation` (mm sur l'heure).
+**Le cache GRIB2 actuel ne fournit pas ces trois champs au navigateur.**
+En conséquence, la frise affiche actuellement `—` pour le ciel, la
+température et la pluie ; il ne faut **jamais** interpréter cette absence
+comme du soleil ou du temps sec. L'ajout ultérieur de véritables prévisions
+météo nécessitera une évolution séparée, après validation de sa compatibilité
+avec le pipeline GRIB2 et la restauration Pages. Cette première étape ne
+modifie pas ce pipeline.
+
+Le vent et les rafales restent immédiatement exploitables : mêmes vitesses
+en nœuds que le tableau, avec la palette `couleurVentWindy()` interpolée,
+bornée à **`#F4F4F4` pour ≤ 5 kt** et **`#FF0097` pour ≥ 38 kt**.
+Les couleurs de cellules sont interpolées entre les heures afin d'obtenir
+le dégradé de type frise. La direction reprend l'orientation de flèche déjà
+validée sur le tableau AROME.
