@@ -41,18 +41,35 @@ function verifierURLAPI(url) {
     return verifiee;
 }
 
-async function jetonPaquets() {
+async function authentificationPaquets() {
+    // Priorité à la clé API longue durée si elle est configurée.
+    // Le portail API Météo-France attend le champ HTTP 'apikey',
+    // et non 'Authorization: Bearer', dans ce mode.
+    const cleApi = process.env.METEO_AROME_PAQUETS_API_KEY?.trim();
+    if (cleApi) {
+        if (/\\s/.test(cleApi) || /^(Bearer|Basic|Authorization:)\\b/i.test(cleApi)) {
+            throw new Error(
+                "METEO_AROME_PAQUETS_API_KEY invalide : copier uniquement la clé API, " +
+                "sans préfixe Bearer/Basic ni espaces"
+            );
+        }
+        return { mode: "apikey", headers: { apikey: cleApi } };
+    }
+
     const identifiant = process.env.METEO_AROME_PAQUETS_APPLICATION_ID?.trim();
     if (identifiant) {
         // Réutiliser un Bearer tant qu'il reste au moins deux minutes de validité.
         if (OAUTH_CACHE && OAUTH_CACHE.expireLe - Date.now() > 120000) {
-            return OAUTH_CACHE.jeton;
+            return {
+                mode: "oauth2",
+                headers: { Authorization: "Bearer " + OAUTH_CACHE.jeton }
+            };
         }
         const reponse = await fetch("https://portail-api.meteofrance.fr/token", {
             method: "POST",
             redirect: "error",
             headers: {
-                Authorization: "Basic " + identifiant.replace(/^Basic\s+/i, ""),
+                Authorization: "Basic " + identifiant.replace(/^Basic\\s+/i, ""),
                 "Content-Type": "application/x-www-form-urlencoded",
                 Accept: "application/json"
             },
@@ -70,30 +87,36 @@ async function jetonPaquets() {
             expireLe: Date.now() +
                 (Number.isFinite(duree) && duree > 0 ? duree : 3600) * 1000
         };
-        return OAUTH_CACHE.jeton;
+        return {
+            mode: "oauth2",
+            headers: { Authorization: "Bearer " + OAUTH_CACHE.jeton }
+        };
     }
 
     const secret = process.env.METEO_AROME_PAQUETS_TOKEN?.trim();
     if (!secret) {
         throw new Error(
-            "Configurer METEO_AROME_PAQUETS_APPLICATION_ID (recommandé) " +
-            "ou METEO_AROME_PAQUETS_TOKEN sur Render test"
+            "Configurer METEO_AROME_PAQUETS_API_KEY (recommandé), " +
+            "METEO_AROME_PAQUETS_APPLICATION_ID ou METEO_AROME_PAQUETS_TOKEN sur Render test"
         );
     }
-    const jeton = secret.replace(/^Authorization:\s*/i, "")
-        .replace(/^Bearer\s+/i, "").replace(/^['"]|['"]$/g, "").trim();
-    if (!jeton || /\s/.test(jeton)) {
+    const jeton = secret.replace(/^Authorization:\\s*/i, "")
+        .replace(/^Bearer\\s+/i, "").replace(/^['"]|['"]$/g, "").trim();
+    if (!jeton || /\\s/.test(jeton)) {
         throw new Error("METEO_AROME_PAQUETS_TOKEN mal copié");
     }
-    return jeton;
+    return {
+        mode: "bearer",
+        headers: { Authorization: "Bearer " + jeton }
+    };
 }
 
-async function requeteMeteo(url, jeton, timeout = 30000) {
+async function requeteMeteo(url, authentification, timeout = 30000) {
     const urlVerifiee = verifierURLAPI(url);
     const reponse = await fetch(urlVerifiee, {
         redirect: "error",
         headers: {
-            Authorization: "Bearer " + jeton,
+            ...authentification.headers,
             Accept: "*/*"
         },
         cache: "no-store",
@@ -101,8 +124,14 @@ async function requeteMeteo(url, jeton, timeout = 30000) {
     });
     if (!reponse.ok) {
         const code = reponse.status;
-        if (code === 401) throw new Error("Jeton Paquet AROME refusé (401) : expiré ou invalide");
-        if (code === 403) throw new Error("Accès Paquet AROME interdit (403) : vérifier l'abonnement");
+        if (code === 401) {
+            throw new Error(authentification.mode === "apikey"
+                ? "Clé API Paquet AROME refusée (401) : vérifier la clé et son abonnement"
+                : "Jeton Paquet AROME refusé (401) : expiré ou invalide");
+        }
+        if (code === 403) {
+            throw new Error("Accès Paquet AROME interdit (403) : vérifier l'abonnement");
+        }
         throw new Error("API Paquet AROME HTTP " + code);
     }
     return reponse;
@@ -472,9 +501,11 @@ function installerTestAromePaquets(app, {
             etat = { ...etat, etape: "verification_python" };
             await verifierDependancesPython();
             etat = { ...etat, etape: "authentification" };
-            const jeton = await jetonPaquets();
+            const authentification = await authentificationPaquets();
+            console.log("AROME Paquets Render test : mode auth", authentification.mode);
+            etat = { ...etat, authentification: authentification.mode };
             const produit = await selectionnerReseauComplet(
-                jeton, groupesDemandes,
+                authentification, groupesDemandes,
                 etape => { etat = { ...etat, etape }; }
             );
 
@@ -497,10 +528,10 @@ function installerTestAromePaquets(app, {
                 };
                 // Avec un secret Basic, renouveler le Bearer au début de chaque
                 // groupe (utile si le traitement total approche 1 heure).
-                const jetonCourant = process.env.METEO_AROME_PAQUETS_APPLICATION_ID
-                    ? await jetonPaquets() : jeton;
+                const authentificationCourante = authentification.mode === "oauth2"
+                    ? await authentificationPaquets() : authentification;
                 const tailleGrib = await telechargerGrib(
-                    groupe.url, jetonCourant, fichier
+                    groupe.url, authentificationCourante, fichier
                 );
                 nombreOctetsGrib += tailleGrib;
 
@@ -600,6 +631,7 @@ function installerTestAromePaquets(app, {
                 etape: "termine",
                 modele: produit.modele,
                 erreur: null,
+                authentification: authentification.mode,
                 zone: cache.zone,
                 grille: cache.previsions[0].U.grille,
                 groupes_total: groupesDemandes.length,
