@@ -386,13 +386,14 @@ calcul au point cliqué de `Test_fonction` restent inchangés.
 
 ## Frise météo AROME — prévisualisation sans modification du cache (Render test)
 
-La frise expérimentale est affichée **au-dessus du tableau AROME existant**,
-uniquement depuis la branche `Test_fonction`. Les fichiers
+La frise expérimentale est désormais **l'unique tableau des prévisions AROME**
+sur la branche `Test_fonction`. L'ancien tableau et son rendu ont été supprimés
+de l'interface, sans modification des données. Les fichiers
 `public/frise-meteo.js` et `public/frise-meteo.css` en assurent
 l'affichage indépendant : ils utilisent les **prévisions au point déjà
 chargées** par `public/app.js`, sans nouvelle requête météo ni téléchargement
-GRIB2 supplémentaire. Le tableau existant, le calcul d'interpolation, le
-contenu du cache et la restauration GitHub Pages ne sont **pas modifiés**.
+GRIB2 supplémentaire. Le calcul d'interpolation, le contenu du cache et
+la restauration GitHub Pages ne sont **pas modifiés**.
 
 ### Règles des icônes météo (seuils propres au site)
 
@@ -430,8 +431,10 @@ avec le pipeline GRIB2 et la restauration Pages. Cette première étape ne
 modifie pas ce pipeline.
 
 Le vent et les rafales restent immédiatement exploitables : mêmes vitesses
-en nœuds que le tableau, avec la palette `couleurVentWindy()` interpolée,
+en nœuds que précédemment, avec la palette `couleurVentWindy()` interpolée,
 bornée à **`#F4F4F4` pour ≤ 5 kt** et **`#FF0097` pour ≥ 38 kt**.
 Les couleurs de cellules sont interpolées entre les heures afin d'obtenir
 le dégradé de type frise. La direction reprend l'orientation de flèche déjà
-validée sur le tableau AROME.
+validée ; elle est dessinée par un SVG d'épaisseur 2,7 px.
+Les heures sont affichées au format `11h`, sans minutes ni secondes, et
+un trait horizontal de 2 px sépare les jours des heures.
