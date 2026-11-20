@@ -135,23 +135,34 @@ Dans **Render → station-meteo-lr-test → Settings → Build & Deploy** :
 Le script de build exécute `npm ci` puis installe `numpy` et `eccodes`
 dans `.arome-py/`, un dossier privé au service et ignoré par Git.
 
-**Tables officielles ecCodes Météo-France :** le même build exécute ensuite
-`scripts/install-meteofrance-eccodes.py`. Ce script interroge le jeu de
-données public [Définition des gribs de Météo-France](https://www.data.gouv.fr/datasets/definition-des-gribs-de-meteo-france),
-sélectionne explicitement l'archive « Définition des gribs sauf les modèles
-de vague en grib2 » et la télécharge depuis data.gouv.fr. Il refuse les
-archives non valides et n'exécute aucun script issu du téléchargement.
-La ressource sélectionnée, la date de publication et le SHA256 sont conservés
-dans `.meteo-eccodes/source.json` (fichier local au service, ignoré par Git).
+**Tables officielles ecCodes Météo-France, conservées dans Git :**
+l'archive officielle « Définition des gribs sauf les modèles de vague en
+grib2 » a été téléchargée une seule fois par le workflow
+[Copier definitions ecCodes Meteo-France dans Test_fonction](https://github.com/alexandreguilloux85/meteo-la-rochelle/actions/workflows/vendor-meteofrance-eccodes.yml)
+et ajoutée directement à la branche `Test_fonction`.
 
-Les fichiers sont installés sous `.meteo-eccodes/definitions/` ; le
-décodeur Python ajoute ce dossier **en tête** du chemin des définitions
-ecCodes, suivi du chemin standard de la bibliothèque. Les tables Météo-France
-complètent donc les définitions standard sans les écraser. Le build vérifie
-l'activation réelle de `ECCODES_DEFINITION_PATH` ; si le téléchargement
-ou cette vérification échoue, le **nouveau déploiement** échoue plutôt que
-de présenter les tables comme installées. Le déploiement précédent reste
-en service. Aucune variable à ajouter manuellement sur Render.
+Les deux fichiers versionnés sont :
+- `vendor/meteofrance/eccodes-definitions.tar.gz` (archive officielle,
+  516 951 octets, 106 fichiers de définition).
+- `vendor/meteofrance/manifest.json` (URL de la ressource, date,
+  SHA-256 et attribution Météo-France).
+
+**Render n'a plus besoin de contacter data.gouv.fr à chaque build.**
+`scripts/install-meteofrance-eccodes.py` lit ces fichiers **locaux**, vérifie
+leur SHA-256 et l'arborescence GRIB2, puis extrait les définitions dans
+`.meteo-eccodes/definitions/`. Le script n'effectue aucune requête réseau
+dans ce mode. Les définitions Météo-France sont ajoutées **avant** le chemin
+standard ecCodes, sans remplacer celui-ci. La validation du build vérifie
+l'activation du chemin `ECCODES_DEFINITION_PATH`.
+
+Pour mettre à jour volontairement la copie de l'archive, relancer le workflow
+GitHub Actions de copie, qui effectue `--update-vendor` puis commit l'archive
+et le manifeste. Le build Render reste complètement indépendant de la
+disponibilité de data.gouv.fr. Source : [jeu de données officiel Météo-France](https://www.data.gouv.fr/datasets/definition-des-gribs-de-meteo-france),
+**Licence Ouverte / Open Licence 2.0** (Météo-France, mise à jour du
+30 janvier 2026). Si le fichier local manque ou est corrompu, le nouveau
+build échoue explicitement, sans activer des définitions non vérifiées.
+Aucune variable d'environnement supplémentaire n'est nécessaire sur Render.
 
 Le statut public `/api/arome/paquets/test/status` indique
 `definitions_meteofrance_installees: true` lorsque les fichiers sont bien
