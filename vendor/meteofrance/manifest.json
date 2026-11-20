@@ -1,0 +1,12 @@
+{
+  "source": "https://www.data.gouv.fr/api/1/datasets/r/5048c25d-b329-4d09-8f57-cb17c9da4af9",
+  "jeu_de_donnees": "https://www.data.gouv.fr/datasets/67eb8c7c30daf1fd537258de",
+  "titre": "Definition des gribs sauf les modeles de vague en grib2",
+  "ressource_id": "5048c25d-b329-4d09-8f57-cb17c9da4af9",
+  "date_publication": "2026-01-30T13:33:55.156000+00:00",
+  "sha256": "7ca1ba878f63905bfe028ea27d0b588cd2fd4916dc56d936c3e7de3b0ed53fce",
+  "sha256_definitions": "753a2b6e8938a2cf6b8a2653e9b3ae3c3d7d404ff77f58d4d12a523187afe134",
+  "fichiers_extraits": 106,
+  "licence": "Licence Ouverte / Open Licence version 2.0",
+  "producteur": "Météo-France"
+}

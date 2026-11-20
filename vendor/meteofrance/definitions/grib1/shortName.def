@@ -1,0 +1,8967 @@
+'ARRC'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       248;
+}
+'ICEP_MOY'={
+centre=	74;
+table2Version=    003;
+indicatorOfParameter=       168;
+}
+'ICEP_MAX'={
+centre=	74;
+table2Version=    003;
+indicatorOfParameter=       169;
+}
+'CLDTURP_MOY'={
+centre=	74;
+table2Version=    003;
+indicatorOfParameter=       170;
+}
+'CLDTURP_MAX'={
+centre=	74;
+table2Version=    003;
+indicatorOfParameter=       171;
+}
+'CATP_MOY'={
+centre=	74;
+table2Version=    003;
+indicatorOfParameter=       172;
+}
+'CATP_MAX'={
+centre=	74;
+table2Version=    003;
+indicatorOfParameter=       173;
+}
+'ET_HORIZ_CB'={
+centre=	74;
+table2Version=    003;
+indicatorOfParameter=       174;
+}
+'QS_ORAGE'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       119;
+}
+'CLAS_FOUDRE'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       128;
+}
+'HNUAGE'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       129;
+}
+'TEND_HNUAGE'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       130;
+}
+'TEND_RFLCTVT'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       131;
+}
+'CLAS_PHASE'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       132;
+}
+'PROB_ORAGE'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       133;
+}
+'PROB_GRELE'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       134;
+}
+'CLAS_FX'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       135;
+}
+'INTRRX_MIN'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       136;
+}
+'INTRRX_MAX'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       137;
+}
+'CLAS_ORAGE'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       138;
+}
+'QNH'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       129;
+}
+'CANOPW_U'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       106;
+}
+'SWI_T_U'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       107;
+}
+'TPRO_U'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       108;
+}
+'WG_U'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       109;
+}
+'WGI_U'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       110;
+}
+'DRAINC_U'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       111;
+}
+'FLCND_U'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       112;
+}
+'FLEVAP_U'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       113;
+}
+'FLLAT_U'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       114;
+}
+'FLSEN_U'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       115;
+}
+'RNC_U'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       116;
+}
+'RUNC_U'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       117;
+}
+'ZDTSEC'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       118;
+}
+'ZRESTOREC'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       119;
+}
+'ZSHEATD'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       120;
+}
+'ZEICEC'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       121;
+}
+'ZISBA_ENR_BC'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       122;
+}
+'ZSNOW_ENR_BC'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       123;
+}
+'T_U'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       124;
+}
+'UCURR_MOY'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       240;
+}
+'VCURR_MOY'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       241;
+}
+'WTMP_MOY'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       242;
+}
+'HTEKMAN_MOY'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       239;
+}
+'LMDO'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       145;
+}
+'QLMDO'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       146;
+}
+'HAUTEUR'={
+centre=	98;
+table2Version=    002;
+indicatorOfParameter=       250;
+}
+'N_MODE'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       147;
+}
+'N_PROB_0'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       148;
+}
+'N_PROB_1'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       149;
+}
+'N_PROB_2'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       150;
+}
+'N_PROB_3'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       151;
+}
+'N_PROB_4'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       152;
+}
+'N_PROB_5'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       153;
+}
+'N_PROB_6'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       154;
+}
+'N_PROB_7'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       155;
+}
+'N_PROB_8'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       156;
+}
+'NBAS'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       157;
+}
+'OC_CBTCU'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       158;
+}
+'VAR_N'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       159;
+}
+'COMPLT_ALTI'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       160;
+}
+'Q_CAPRICORNE'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       161;
+}
+'INFO_CONV'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       162;
+}
+'FFQ_STAT1'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=         1;
+}
+'FFQ_STAT2'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=         2;
+}
+'FFQ_MIN'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=         3;
+}
+'FFQ_MAX'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=         4;
+}
+'FFQ_Q10'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=         5;
+}
+'FFQ_Q20'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=         6;
+}
+'FFQ_Q30'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=         7;
+}
+'FFQ_Q40'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=         8;
+}
+'FFQ_Q50'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=         9;
+}
+'FFQ_Q60'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        10;
+}
+'FFQ_Q70'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        11;
+}
+'FFQ_Q80'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        12;
+}
+'FFQ_Q90'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        13;
+}
+'RAFQ_STAT1'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        14;
+}
+'RAFQ_STAT2'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        15;
+}
+'RAFQ_MIN'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        16;
+}
+'RAFQ_MAX'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        17;
+}
+'RAFQ_Q10'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        18;
+}
+'RAFQ_Q20'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        19;
+}
+'RAFQ_Q30'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        20;
+}
+'RAFQ_Q40'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        21;
+}
+'RAFQ_Q50'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        22;
+}
+'RAFQ_Q60'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        23;
+}
+'RAFQ_Q70'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        24;
+}
+'RAFQ_Q80'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        25;
+}
+'RAFQ_Q90'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        26;
+}
+'DDQ_STAT1'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        27;
+}
+'PROB_DDQ_0'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        28;
+}
+'PROB_DDQ_1'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        29;
+}
+'PROB_DDQ_2'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        30;
+}
+'PROB_DDQ_3'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        31;
+}
+'PROB_DDQ_4'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        32;
+}
+'PROB_DDQ_5'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        33;
+}
+'PROB_DDQ_6'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        34;
+}
+'PROB_DDQ_7'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        35;
+}
+'PROB_DDQ_8'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        36;
+}
+'PROB_DDQ_9'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        37;
+}
+'PROB_DDQ_10'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        38;
+}
+'PROB_DDQ_11'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        39;
+}
+'PROB_DDQ_12'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        40;
+}
+'PROB_DDQ_13'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        41;
+}
+'PROB_DDQ_14'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        42;
+}
+'PROB_DDQ_15'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        43;
+}
+'PROB_DDQ_16'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        44;
+}
+'NEB_STAT1'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        45;
+}
+'PROB_NEB_0'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        46;
+}
+'PROB_NEB_1'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        47;
+}
+'PROB_NEB_2'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        48;
+}
+'PROB_NEB_3'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        49;
+}
+'PROB_NEB_4'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        50;
+}
+'PROB_NEB_5'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        51;
+}
+'PROB_NEB_6'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        52;
+}
+'PROB_NEB_7'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        53;
+}
+'PROB_NEB_8'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        54;
+}
+'NEBQ_STAT1'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        55;
+}
+'PROB_NEBQ_0'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        56;
+}
+'PROB_NEBQ_1'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        57;
+}
+'PROB_NEBQ_2'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        58;
+}
+'PROB_NEBQ_3'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        59;
+}
+'PROB_NEBQ_4'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        60;
+}
+'PROB_NEBQ_5'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        61;
+}
+'PROB_NEBQ_6'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        62;
+}
+'PROB_NEBQ_7'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        63;
+}
+'PROB_NEBQ_8'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        64;
+}
+'RR24_STAT1'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        65;
+}
+'RR24_STAT2'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        66;
+}
+'PROB_RR24_0'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        67;
+}
+'RR24_MIN'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        68;
+}
+'RR24_MAX'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        69;
+}
+'RR24_Q10'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        70;
+}
+'RR24_Q20'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        71;
+}
+'RR24_Q30'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        72;
+}
+'RR24_Q40'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        73;
+}
+'RR24_Q50'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        74;
+}
+'RR24_Q60'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        75;
+}
+'RR24_Q70'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        76;
+}
+'RR24_Q80'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        77;
+}
+'RR24_Q90'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        78;
+}
+'NEI3_STAT1'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        79;
+}
+'NEI3_STAT2'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        80;
+}
+'PROB_NEI3_0'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        81;
+}
+'NEI3_MIN'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        82;
+}
+'NEI3_MAX'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        83;
+}
+'NEI3_Q10'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        84;
+}
+'NEI3_Q20'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        85;
+}
+'NEI3_Q30'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        86;
+}
+'NEI3_Q40'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        87;
+}
+'NEI3_Q50'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        88;
+}
+'NEI3_Q60'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        89;
+}
+'NEI3_Q70'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        90;
+}
+'NEI3_Q80'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        91;
+}
+'NEI3_Q90'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        92;
+}
+'NEI6_STAT1'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        93;
+}
+'NEI6_STAT2'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        94;
+}
+'PROB_NEI6_0'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        95;
+}
+'NEI6_MIN'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        96;
+}
+'NEI6_MAX'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        97;
+}
+'NEI6_Q10'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        98;
+}
+'NEI6_Q20'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=        99;
+}
+'NEI6_Q30'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       100;
+}
+'NEI6_Q40'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       101;
+}
+'NEI6_Q50'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       102;
+}
+'NEI6_Q60'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       103;
+}
+'NEI6_Q70'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       104;
+}
+'NEI6_Q80'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       105;
+}
+'NEI6_Q90'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       106;
+}
+'NEI24_STAT1'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       107;
+}
+'NEI24_STAT2'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       108;
+}
+'PROB_NEI24_0'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       109;
+}
+'NEI24_MIN'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       110;
+}
+'NEI24_MAX'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       111;
+}
+'NEI24_Q10'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       112;
+}
+'NEI24_Q20'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       113;
+}
+'NEI24_Q30'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       114;
+}
+'NEI24_Q40'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       115;
+}
+'NEI24_Q50'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       116;
+}
+'NEI24_Q60'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       117;
+}
+'NEI24_Q70'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       118;
+}
+'NEI24_Q80'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       119;
+}
+'NEI24_Q90'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       120;
+}
+'TS'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       121;
+}
+'TSQ'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       122;
+}
+'IC'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       123;
+}
+'ICQ'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       124;
+}
+'PROB_DD_16'={
+centre=	84;
+table2Version=    179;
+indicatorOfParameter=       125;
+}
+'ETP'={
+centre=	84;
+table2Version=    001;
+indicatorOfParameter=       168;
+}
+'OCC_CDR'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       215;
+}
+'INT_CDR'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       216;
+}
+'VIS_IRB1'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       244;
+}
+'VIS_IRB2'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       245;
+}
+'VIS_IRB3'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       246;
+}
+'PROB_NEB1'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=         1;
+}
+'PROB_NEB2'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=         2;
+}
+'PROB_NEB3'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=         3;
+}
+'PROB_NEB4'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=         4;
+}
+'HELICITE'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       237;
+}
+'RAF_ORAGE'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       238;
+}
+'P'={
+centre=	84;
+table2Version=    001;
+indicatorOfParameter=         2;
+}
+'P'={
+centre=	84;
+table2Version=    002;
+indicatorOfParameter=         2;
+}
+'P'={
+centre=	84;
+table2Version=    003;
+indicatorOfParameter=         2;
+}
+'P'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=         2;
+}
+'Z'={
+centre=	84;
+table2Version=    001;
+indicatorOfParameter=         6;
+}
+'Z'={
+centre=	84;
+table2Version=    002;
+indicatorOfParameter=         6;
+}
+'Z'={
+centre=	84;
+table2Version=    003;
+indicatorOfParameter=         6;
+}
+'Z'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=         6;
+}
+'T'={
+centre=	84;
+table2Version=    001;
+indicatorOfParameter=        11;
+}
+'T'={
+centre=	84;
+table2Version=    002;
+indicatorOfParameter=        11;
+}
+'T'={
+centre=	84;
+table2Version=    003;
+indicatorOfParameter=        11;
+}
+'T'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=        11;
+}
+'PRECI_MOY'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=        19;
+}
+'PRECI_SIGTEM'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=        20;
+}
+'PRECI_SIGENS'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=        21;
+}
+'T_MOY'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=        22;
+}
+'T_SIGTEM'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=        23;
+}
+'T_SIGENS'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=        24;
+}
+'Z_MOY'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=        25;
+}
+'Z_SIGTEM'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=        26;
+}
+'Z_SIGENS'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=        27;
+}
+'P_MOY'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=        28;
+}
+'P_SIGTEM'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=        29;
+}
+'P_SIGENS'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=        30;
+}
+'ANOM_N_Z500'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        39;
+}
+'ANOM_Z500'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        40;
+}
+'STUD_Z500'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        41;
+}
+'ANOM_N_T850'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        42;
+}
+'ANOM_T850'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        43;
+}
+'STUD_T850'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        44;
+}
+'ANOM_N_T2M'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        45;
+}
+'ANOM_T2M'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        46;
+}
+'STUD_T2M'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        47;
+}
+'ANOM_N_TSOL'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        48;
+}
+'ANOM_TSOL'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        49;
+}
+'STUD_TSOL'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        50;
+}
+'ANOM_N_PRECI'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        51;
+}
+'ANOM_PRECIP'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        52;
+}
+'STUD_PRECIP'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        53;
+}
+'ANOM_N_PMER'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        54;
+}
+'ANOM_PMER'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        55;
+}
+'STUD_PMER'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        56;
+}
+'PTINF_Z500'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        57;
+}
+'PINF_Z500'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        58;
+}
+'PNORM_Z500'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        59;
+}
+'PSUP_Z500'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        60;
+}
+'PRECIP'={
+centre=	84;
+table2Version=    001;
+indicatorOfParameter=        61;
+}
+'PRECIP'={
+centre=	84;
+table2Version=    002;
+indicatorOfParameter=        61;
+}
+'PRECIP'={
+centre=	84;
+table2Version=    003;
+indicatorOfParameter=        61;
+}
+'PRECIP'={
+centre=	84;
+table2Version=    128;
+indicatorOfParameter=        61;
+}
+'PTSUP_Z500'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        61;
+}
+'PTOT_Z500'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        62;
+}
+'PTINF_T850'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        63;
+}
+'PINF_T850'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        64;
+}
+'PNORM_T850'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        65;
+}
+'PSUP_T850'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        66;
+}
+'PTSUP_T850'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        67;
+}
+'PTOT_T850'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        68;
+}
+'PTINF_T2M'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        69;
+}
+'PINF_T2M'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        70;
+}
+'PNORM_T2M'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        71;
+}
+'PSUP_T2M'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        72;
+}
+'PTSUP_T2M'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        73;
+}
+'PTOT_T2M'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        74;
+}
+'PTINF_TSOL'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        75;
+}
+'PINF_TSOL'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        76;
+}
+'PNORM_TSOL'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        77;
+}
+'PSUP_TSOL'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        78;
+}
+'PTSUP_TSOL'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        79;
+}
+'PTOT_TSOL'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        80;
+}
+'PTINF_PRECIP'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        81;
+}
+'PINF_PRECIP'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        82;
+}
+'PNORM_PRECIP'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        83;
+}
+'PSUP_PRECIP'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        84;
+}
+'PTSUP_PRECIP'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        85;
+}
+'PTOT_PRECIP'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        86;
+}
+'PTINF_PMER'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        87;
+}
+'PINF_PMER'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        88;
+}
+'PNORM_PMER'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        89;
+}
+'PSUP_PMER'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        90;
+}
+'PTSUP_PMER'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        91;
+}
+'PTOT_PMER'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=        92;
+}
+'DJ+18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       101;
+}
+'DJ+18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       101;
+}
+'DJ-18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       102;
+}
+'DJ-18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       102;
+}
+'ANOM_N_Z'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       103;
+}
+'ANOM_N_Z'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       103;
+}
+'ANOM_Z'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       104;
+}
+'ANOM_Z'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       104;
+}
+'STUD_Z'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       105;
+}
+'STUD_Z'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       105;
+}
+'ANOM_N_T'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       106;
+}
+'ANOM_N_T'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       106;
+}
+'ANOM_T'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       107;
+}
+'ANOM_T'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       107;
+}
+'STUD_T'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       108;
+}
+'STUD_T'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       108;
+}
+'ANOM_N_DJ+18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       109;
+}
+'ANOM_N_DJ+18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       109;
+}
+'ANOM_DJ+18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       110;
+}
+'ANOM_DJ+18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       110;
+}
+'STUD_DJ+18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       111;
+}
+'STUD_DJ+18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       111;
+}
+'ANOM_N_DJ-18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       112;
+}
+'ANOM_N_DJ-18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       112;
+}
+'ANOM_DJ-18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       113;
+}
+'ANOM_DJ-18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       113;
+}
+'STUD_DJ-18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       114;
+}
+'STUD_DJ-18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       114;
+}
+'ANOM_N_P'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       115;
+}
+'ANOM_N_P'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       115;
+}
+'ANOM_P'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       116;
+}
+'ANOM_P'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       116;
+}
+'STUD_P'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       117;
+}
+'STUD_P'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       117;
+}
+'PTINF_Z'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       118;
+}
+'PTINF_Z'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       118;
+}
+'PINF_Z'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       119;
+}
+'PINF_Z'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       119;
+}
+'PNORM_Z'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       120;
+}
+'PNORM_Z'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       120;
+}
+'PSUP_Z'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       121;
+}
+'PSUP_Z'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       121;
+}
+'PTSUP_Z'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       122;
+}
+'PTSUP_Z'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       122;
+}
+'PTOT_Z'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       123;
+}
+'PTOT_Z'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       123;
+}
+'PTINF_T'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       124;
+}
+'PTINF_T'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       124;
+}
+'PINF_T'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       125;
+}
+'PINF_T'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       125;
+}
+'PNORM_T'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       126;
+}
+'PNORM_T'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       126;
+}
+'PSUP_T'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       127;
+}
+'PSUP_T'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       127;
+}
+'PTSUP_T'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       128;
+}
+'PTSUP_T'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       128;
+}
+'PTOT_T'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       129;
+}
+'PTOT_T'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       129;
+}
+'PTINF_DJ+18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       130;
+}
+'PTINF_DJ+18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       130;
+}
+'PINF_DJ+18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       131;
+}
+'PINF_DJ+18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       131;
+}
+'PNORM_DJ+18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       132;
+}
+'PNORM_DJ+18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       132;
+}
+'PSUP_DJ+18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       133;
+}
+'PSUP_DJ+18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       133;
+}
+'PTSUP_DJ+18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       134;
+}
+'PTSUP_DJ+18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       134;
+}
+'PTOT_DJ+18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       135;
+}
+'PTOT_DJ+18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       135;
+}
+'PTINF_DJ-18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       136;
+}
+'PTINF_DJ-18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       136;
+}
+'PINF_DJ-18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       137;
+}
+'PINF_DJ-18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       137;
+}
+'PNORM_DJ-18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       138;
+}
+'PNORM_DJ-18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       138;
+}
+'PSUP_DJ-18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       139;
+}
+'PSUP_DJ-18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       139;
+}
+'PTSUP_DJ-18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       140;
+}
+'PTSUP_DJ-18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       140;
+}
+'PTOT_DJ-18'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       141;
+}
+'PTOT_DJ-18'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       141;
+}
+'PTINF_P'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       142;
+}
+'PTINF_P'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       142;
+}
+'PINF_P'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       143;
+}
+'PINF_P'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       143;
+}
+'PNORM_P'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       144;
+}
+'PNORM_P'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       144;
+}
+'PSUP_P'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       145;
+}
+'PSUP_P'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       145;
+}
+'PTSUP_P'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       146;
+}
+'PTSUP_P'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       146;
+}
+'PTOT_P'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       147;
+}
+'PTOT_P'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       147;
+}
+'DJ+18_MOY'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       148;
+}
+'DJ+18_MOY'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       148;
+}
+'DJ+18_SIGTEM'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       149;
+}
+'DJ+18_SIGTEM'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       149;
+}
+'DJ+18_SIGENS'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       150;
+}
+'DJ+18_SIGENS'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       150;
+}
+'DJ-18_MOY'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       151;
+}
+'DJ-18_MOY'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       151;
+}
+'DJ-18_SIGTEM'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       152;
+}
+'DJ-18_SIGTEM'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       152;
+}
+'DJ-18_SIGENS'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       153;
+}
+'DJ-18_SIGENS'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       153;
+}
+'HELICITE'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       237;
+}
+'RAF_ORAGE'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       238;
+}
+'DIAG_GRELE'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       248;
+}
+'DENS_NEIGE'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       239;
+}
+'IVIS_C'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       240;
+}
+'PNEBBAS'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       241;
+}
+'PNEBMOY'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       242;
+}
+'PNEBHAU'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       243;
+}
+'P_SIG'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       123;
+}
+'P_MIN'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       124;
+}
+'P_MAX'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       125;
+}
+'P_VAR'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       126;
+}
+'P_01PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       127;
+}
+'P_10PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       128;
+}
+'P_20PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       129;
+}
+'P_MED'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       130;
+}
+'P_80PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       131;
+}
+'P_90PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       132;
+}
+'P_99PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       133;
+}
+'T_SIG'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       134;
+}
+'T_MIN'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       135;
+}
+'T_MAX'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       136;
+}
+'T_VAR'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       137;
+}
+'T_01PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       138;
+}
+'T_10PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       139;
+}
+'T_20PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       140;
+}
+'T_MED'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       141;
+}
+'T_80PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       142;
+}
+'T_90PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       143;
+}
+'T_99PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       144;
+}
+'PRECI_SIG'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       145;
+}
+'PRECI_MIN'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       146;
+}
+'PRECI_MAX'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       147;
+}
+'PRECI_VAR'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       148;
+}
+'PRECI_10PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       149;
+}
+'PRECI_MED'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       150;
+}
+'PRECI_90PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       151;
+}
+'SSRD_MOY'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       152;
+}
+'SSRD_SIG'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       153;
+}
+'SSRD_MIN'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       154;
+}
+'SSRD_MAX'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       155;
+}
+'SSRD_VAR'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       156;
+}
+'SSRD_01PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       157;
+}
+'SSRD_10PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       158;
+}
+'SSRD_20PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       159;
+}
+'SSRD_MED'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       160;
+}
+'SSRD_80PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       161;
+}
+'SSRD_90PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       162;
+}
+'SSRD_99PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       163;
+}
+'FF_MOY'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       164;
+}
+'FF_SIG'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       165;
+}
+'FF_MIN'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       166;
+}
+'FF_MAX'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       167;
+}
+'FF_VAR'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       168;
+}
+'FF_01PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       169;
+}
+'FF_10PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       170;
+}
+'FF_20PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       171;
+}
+'FF_MED'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       172;
+}
+'FF_80PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       173;
+}
+'FF_90PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       174;
+}
+'FF_99PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       175;
+}
+'Z_SIG'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       176;
+}
+'Z_MIN'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       177;
+}
+'Z_MAX'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       178;
+}
+'Z_VAR'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       179;
+}
+'Z_01PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       180;
+}
+'Z_10PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       181;
+}
+'Z_20PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       182;
+}
+'Z_MED'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       183;
+}
+'Z_80PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       184;
+}
+'Z_90PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       185;
+}
+'Z_99PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       186;
+}
+'HU_MOY'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       187;
+}
+'HU_SIG'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       188;
+}
+'HU_MIN'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       189;
+}
+'HU_MAX'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       190;
+}
+'HU_VAR'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       191;
+}
+'HU_01PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       192;
+}
+'HU_10PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       193;
+}
+'HU_20PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       194;
+}
+'HU_MED'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       195;
+}
+'HU_80PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       196;
+}
+'HU_90PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       197;
+}
+'HU_99PCT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       198;
+}
+'MSL'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       151;
+}
+'TCC'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       164;
+}
+'10U'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       165;
+}
+'10V'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       166;
+}
+'2T'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       167;
+}
+'2D'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       168;
+}
+'U_MOY'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       189;
+}
+'U_SIGTEM'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       190;
+}
+'U_SIGENS'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       191;
+}
+'V_MOY'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       192;
+}
+'V_SIGTEM'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       193;
+}
+'V_SIGENS'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       194;
+}
+'DI_MOY'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       195;
+}
+'DI_SIGTEM'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       196;
+}
+'DI_SIGENS'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       197;
+}
+'TB_MOY'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       198;
+}
+'TB_SIGTEM'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       199;
+}
+'TB_SIGENS'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       200;
+}
+'ANOM_U'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       201;
+}
+'ANOM_N_U'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       202;
+}
+'PINF_U'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       203;
+}
+'PNORM_U'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       204;
+}
+'PSUP_U'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       205;
+}
+'PTINF_U'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       206;
+}
+'PTOT_U'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       207;
+}
+'PTSUP_U'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       208;
+}
+'STUD_U'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       209;
+}
+'ANOM_V'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       210;
+}
+'ANOM_N_V'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       211;
+}
+'PINF_V'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       212;
+}
+'PNORM_V'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       213;
+}
+'PSUP_V'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       214;
+}
+'PTINF_V'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       215;
+}
+'PTOT_V'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       216;
+}
+'PTSUP_V'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       217;
+}
+'STUD_V'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       218;
+}
+'ANOM_DI'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       219;
+}
+'ANOM_N_DI'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       220;
+}
+'PINF_DI'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       221;
+}
+'PNORM_DI'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       222;
+}
+'PSUP_DI'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       223;
+}
+'PTINF_DI'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       224;
+}
+'PTOT_DI'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       225;
+}
+'PTSUP_DI'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       226;
+}
+'STUD_DI'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       227;
+}
+'ANOM_TB'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       228;
+}
+'ANOM_N_TB'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       229;
+}
+'PINF_TB'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       230;
+}
+'PNORM_TB'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       231;
+}
+'PSUP_TB'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       232;
+}
+'PTINF_TB'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       233;
+}
+'PTOT_TB'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       234;
+}
+'PTSUP_TB'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       235;
+}
+'STUD_TB'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       236;
+}
+'WDW'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       222;
+}
+'O3_M'={
+centre=	98;
+table2Version=    159;
+indicatorOfParameter=         1;
+}
+'NEBULOC'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       161;
+}
+'SHS'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       105;
+}
+'MDS'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       104;
+}
+'MPS'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       106;
+}
+'MDSS'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       109;
+}
+'MPSS'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       110;
+}
+'PRECIPMMH'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       180;
+}
+'CPRECIP'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       181;
+}
+'BASEMOY'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       182;
+}
+'BASEHAU'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       183;
+}
+'SOMMOY'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       184;
+}
+'SOMHAU'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       185;
+}
+'PLUIEMMH'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       186;
+}
+'NEIGEMMH'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       187;
+}
+'T_MOY'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       200;
+}
+'P_MOY'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       199;
+}
+'PRECI_MOY'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       201;
+}
+'Z_MOY'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       202;
+}
+'FF_RAF_MIN'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        20;
+}
+'FF_RAF_MAX'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        21;
+}
+'FF_RAF_Q10'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        22;
+}
+'FF_RAF_Q20'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        23;
+}
+'FF_RAF_Q30'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        24;
+}
+'FF_RAF_Q40'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        25;
+}
+'FF_RAF_Q50'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        26;
+}
+'FF_RAF_Q60'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        27;
+}
+'FF_RAF_Q70'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        28;
+}
+'FF_RAF_Q80'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        29;
+}
+'FF_RAF_Q90'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        30;
+}
+'PROB_DD_0'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       109;
+}
+'RR1_STAT1'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        47;
+}
+'VISI_Q10'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       110;
+}
+'VISI_Q20'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       111;
+}
+'VISI_Q30'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       112;
+}
+'VISI_Q40'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       113;
+}
+'VISI_Q50'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       114;
+}
+'VISI_Q60'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       115;
+}
+'VISI_Q70'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       116;
+}
+'VISI_Q80'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       117;
+}
+'VISI_Q90'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       118;
+}
+'PRECIP_Q10'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=         9;
+}
+'PRECIP_Q20'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        10;
+}
+'PRECIP_Q30'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        11;
+}
+'PRECIP_Q40'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        12;
+}
+'PRECIP_Q50'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        13;
+}
+'PRECIP_Q60'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        14;
+}
+'PRECIP_Q70'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        15;
+}
+'PRECIP_Q80'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        16;
+}
+'PRECIP_Q90'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        17;
+}
+'SV'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       247;
+}
+'SH'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       249;
+}
+'MP1'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       220;
+}
+'MP2'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       221;
+}
+'P1WW'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       223;
+}
+'P2WW'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       224;
+}
+'DWWW'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       225;
+}
+'P1PS'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       226;
+}
+'P2PS'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       227;
+}
+'DWPS'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       228;
+}
+'SWH'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       229;
+}
+'MWD'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       230;
+}
+'PP1D'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       231;
+}
+'MWP'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       232;
+}
+'CDWW'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       233;
+}
+'SHWW'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       234;
+}
+'MDWW'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       235;
+}
+'MPWW'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       236;
+}
+'SHPS'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       237;
+}
+'MDPS'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       238;
+}
+'MPPS'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       239;
+}
+'MSQS'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       244;
+}
+'WIND'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       245;
+}
+'DWI'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       249;
+}
+'WSK'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       252;
+}
+'BFI'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       253;
+}
+'WSP'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       254;
+}
+'HMAX'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       218;
+}
+'PMAX'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       217;
+}
+'FF_STAT1'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=         5;
+}
+'FF_STAT2'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=         6;
+}
+'FF_MIN'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=         7;
+}
+'FF_MAX'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=         8;
+}
+'FF_Q10'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=         9;
+}
+'FF_Q20'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        10;
+}
+'FF_Q30'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        11;
+}
+'FF_Q40'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        12;
+}
+'FF_Q50'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        13;
+}
+'FF_Q60'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        14;
+}
+'FF_Q70'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        15;
+}
+'FF_Q80'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        16;
+}
+'FF_Q90'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        17;
+}
+'FF_RAF_STAT1'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        18;
+}
+'FF_RAF_STAT2'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        19;
+}
+'IFM'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       154;
+}
+'IS'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       155;
+}
+'IH'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       156;
+}
+'ICL'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       157;
+}
+'IP'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       158;
+}
+'ICD'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       159;
+}
+'IR'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       160;
+}
+'DENSITE'={
+table2Version=         1;
+indicatorOfParameter=        89;
+}
+'LMDO_Q20'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       139;
+}
+'PROB_DD_1'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        31;
+}
+'PROB_DD_2'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        32;
+}
+'PROB_DD_3'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        33;
+}
+'PROB_DD_4'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        34;
+}
+'PROB_DD_5'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        35;
+}
+'PROB_DD_6'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        36;
+}
+'PROB_DD_7'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        37;
+}
+'PROB_DD_8'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        38;
+}
+'PROB_DD_9'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        39;
+}
+'PROB_DD_10'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        40;
+}
+'PROB_DD_11'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        41;
+}
+'PROB_DD_12'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        42;
+}
+'PROB_DD_13'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        43;
+}
+'PROB_DD_14'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        44;
+}
+'PROB_DD_15'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        45;
+}
+'PROB_RR1_0'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        46;
+}
+'LMDO_Q50'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       140;
+}
+'RR1_STAT2'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        48;
+}
+'RR1_Q10'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        49;
+}
+'RR1_Q20'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        50;
+}
+'RR1_Q30'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        51;
+}
+'RR1_Q40'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        52;
+}
+'RR1_Q50'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        53;
+}
+'RR1_Q60'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        54;
+}
+'RR1_Q70'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        55;
+}
+'RR1_Q80'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        56;
+}
+'RR1_Q90'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        57;
+}
+'PROB_RR3_0'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        58;
+}
+'RR3_STAT1'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        59;
+}
+'RR3_STAT2'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        60;
+}
+'RR3_MIN'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        61;
+}
+'RR3_MAX'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        62;
+}
+'RR3_Q10'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        63;
+}
+'RR3_Q20'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        64;
+}
+'RR3_Q30'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        65;
+}
+'RR3_Q40'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        66;
+}
+'RR3_Q50'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        67;
+}
+'RR3_Q60'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        68;
+}
+'RR3_Q70'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        69;
+}
+'RR3_Q80'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        70;
+}
+'RR3_Q90'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        71;
+}
+'PROB_RR6_0'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        72;
+}
+'RR6_STAT1'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        73;
+}
+'RR6_STAT2'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        74;
+}
+'RR6_MIN'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        75;
+}
+'RR6_MAX'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        76;
+}
+'RR6_Q10'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        77;
+}
+'RR6_Q20'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        78;
+}
+'RR6_Q30'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        79;
+}
+'RR6_Q40'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        80;
+}
+'RR6_Q50'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        81;
+}
+'RR6_Q60'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        82;
+}
+'RR6_Q70'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        83;
+}
+'RR6_Q80'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        84;
+}
+'RR6_Q90'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        85;
+}
+'ALT_STAT1'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        86;
+}
+'ALT_STAT2'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        87;
+}
+'ALT_MIN'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        88;
+}
+'ALT_MAX'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        89;
+}
+'ALT_Q10'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=        90;
+}
+'ALT_Q20'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       100;
+}
+'ALT_Q30'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       101;
+}
+'ALT_Q40'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       102;
+}
+'ALT_Q50'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       103;
+}
+'ALT_Q60'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       104;
+}
+'ALT_Q70'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       105;
+}
+'ALT_Q80'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       106;
+}
+'ALT_Q90'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       107;
+}
+'DD_STAT1'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       108;
+}
+'PRECI06+1'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        72;
+}
+'PRECI06+10'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        73;
+}
+'PRECI06+20'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        74;
+}
+'PRECI06+5'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        75;
+}
+'PRECI06-05'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        76;
+}
+'DYNSAL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       189;
+}
+'TC_DYNSAL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       190;
+}
+'DSEC_DYNSAL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       191;
+}
+'DHUM_DYNSAL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       192;
+}
+'DSEDI_DYNSAL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       193;
+}
+'EMISS_DYNSAL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       194;
+}
+'BLACKC'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       195;
+}
+'TC_BLACKC'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       196;
+}
+'DSEC_BLACKC'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       197;
+}
+'DHUM_BLACKC'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       198;
+}
+'DSEDI_BLACKC'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       199;
+}
+'EMISS_BLACKC'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       200;
+}
+'PMANTH'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       201;
+}
+'TC_PMANTH'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       202;
+}
+'DSEC_PMANTH'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       203;
+}
+'DHUM_PMANTH'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       204;
+}
+'DSEDI_PMANTH'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       205;
+}
+'EMISS_PMANTH'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       206;
+}
+'PM25'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       207;
+}
+'TC_PM25'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       208;
+}
+'PM10'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       209;
+}
+'TC_PM10'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       210;
+}
+'LMDO_Q80'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       141;
+}
+'QLMDO_Q20'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       142;
+}
+'QLMDO_Q50'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       143;
+}
+'QLMDO_Q80'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       144;
+}
+'ANOR'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       162;
+}
+'U_RAF'={
+table2Version=         1;
+indicatorOfParameter=       163;
+}
+'U_RAF'={
+table2Version=         2;
+indicatorOfParameter=       163;
+}
+'U_RAF'={
+table2Version=         3;
+indicatorOfParameter=       163;
+}
+'U_RAF'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       163;
+}
+'U_RAF'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       163;
+}
+'U_RAF'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       163;
+}
+'V_RAF'={
+table2Version=         1;
+indicatorOfParameter=       164;
+}
+'V_RAF'={
+table2Version=         2;
+indicatorOfParameter=       164;
+}
+'V_RAF'={
+table2Version=         3;
+indicatorOfParameter=       164;
+}
+'V_RAF'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       164;
+}
+'V_RAF'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       164;
+}
+'V_RAF'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       164;
+}
+'H_COULIM'={
+table2Version=         1;
+indicatorOfParameter=       165;
+}
+'H_COULIM'={
+table2Version=         2;
+indicatorOfParameter=       165;
+}
+'H_COULIM'={
+table2Version=         3;
+indicatorOfParameter=       165;
+}
+'H_COULIM'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       165;
+}
+'H_COULIM'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       165;
+}
+'H_COULIM'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       165;
+}
+'MOCON'={
+table2Version=         1;
+indicatorOfParameter=       166;
+}
+'MOCON'={
+table2Version=         2;
+indicatorOfParameter=       166;
+}
+'MOCON'={
+table2Version=         3;
+indicatorOfParameter=       166;
+}
+'MOCON'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       166;
+}
+'MOCON'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       166;
+}
+'MOCON'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       166;
+}
+'COLONNE_VAPO'={
+table2Version=         1;
+indicatorOfParameter=       167;
+}
+'COLONNE_VAPO'={
+table2Version=         2;
+indicatorOfParameter=       167;
+}
+'COLONNE_VAPO'={
+table2Version=         3;
+indicatorOfParameter=       167;
+}
+'COLONNE_VAPO'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       167;
+}
+'COLONNE_VAPO'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       167;
+}
+'COLONNE_VAPO'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       167;
+}
+'COLONNE_VAPO'={
+centre=	98;
+table2Version=    002;
+indicatorOfParameter=       167;
+}
+'ETP'={
+table2Version=         1;
+indicatorOfParameter=       168;
+}
+'ETP'={
+table2Version=         2;
+indicatorOfParameter=       168;
+}
+'ETP'={
+table2Version=         3;
+indicatorOfParameter=       168;
+}
+'ETP'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       168;
+}
+'ETP'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       168;
+}
+'ETP'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       168;
+}
+'FLRASOL_CC'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       168;
+}
+'PRELIQ_INS'={
+table2Version=         3;
+indicatorOfParameter=       169;
+}
+'PRELIQ_INS'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       169;
+}
+'FLRATHE_CC'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       169;
+}
+'TB_OZ_CLR'={
+table2Version=         1;
+indicatorOfParameter=       170;
+}
+'TB_OZ_CLR'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       170;
+}
+'DST'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       170;
+}
+'TB_OZ_CLD'={
+table2Version=         1;
+indicatorOfParameter=       171;
+}
+'TB_OZ_CLD'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       171;
+}
+'TB_IR_CLR'={
+table2Version=         1;
+indicatorOfParameter=       172;
+}
+'TB_IR_CLR'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       172;
+}
+'LSM'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       172;
+}
+'TB_IR_CLD'={
+table2Version=         1;
+indicatorOfParameter=       173;
+}
+'TB_IR_CLD'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       173;
+}
+'SR'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       173;
+}
+'TB_WV_CLR'={
+table2Version=         1;
+indicatorOfParameter=       174;
+}
+'TB_WV_CLR'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       174;
+}
+'AL'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       174;
+}
+'TB_WV_CLD'={
+table2Version=         1;
+indicatorOfParameter=       175;
+}
+'TB_WV_CLD'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       175;
+}
+'SSR'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       176;
+}
+'STR'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       177;
+}
+'EWSS'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       180;
+}
+'NSSS'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       181;
+}
+'E'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       182;
+}
+'CDST'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       183;
+}
+'MWD'={
+table2Version=         1;
+indicatorOfParameter=       200;
+}
+'MWD'={
+table2Version=         2;
+indicatorOfParameter=       200;
+}
+'MWD'={
+table2Version=         3;
+indicatorOfParameter=       200;
+}
+'MWD'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       200;
+}
+'MWD'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       200;
+}
+'MWD'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       200;
+}
+'MWD'={
+centre=	98;
+table2Version=    002;
+indicatorOfParameter=       200;
+}
+'MWP'={
+table2Version=         1;
+indicatorOfParameter=       201;
+}
+'MWP'={
+table2Version=         2;
+indicatorOfParameter=       201;
+}
+'MWP'={
+table2Version=         3;
+indicatorOfParameter=       201;
+}
+'MWP'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       201;
+}
+'MWP'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       201;
+}
+'MWP'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       201;
+}
+'MWP'={
+centre=	98;
+table2Version=    002;
+indicatorOfParameter=       201;
+}
+'SHPS'={
+table2Version=         1;
+indicatorOfParameter=       202;
+}
+'SHPS'={
+table2Version=         2;
+indicatorOfParameter=       202;
+}
+'SHPS'={
+table2Version=         3;
+indicatorOfParameter=       202;
+}
+'SHPS'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       202;
+}
+'SHPS'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       202;
+}
+'SHPS'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       202;
+}
+'SHPS'={
+centre=	98;
+table2Version=    002;
+indicatorOfParameter=       202;
+}
+'SHSS'={
+table2Version=         1;
+indicatorOfParameter=       203;
+}
+'SHSS'={
+table2Version=         2;
+indicatorOfParameter=       203;
+}
+'SHSS'={
+table2Version=         3;
+indicatorOfParameter=       203;
+}
+'SHSS'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       203;
+}
+'SHSS'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       203;
+}
+'SHSS'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       203;
+}
+'SHSS'={
+centre=	98;
+table2Version=    002;
+indicatorOfParameter=       203;
+}
+'PP1D'={
+table2Version=         1;
+indicatorOfParameter=       204;
+}
+'PP1D'={
+table2Version=         2;
+indicatorOfParameter=       204;
+}
+'PP1D'={
+table2Version=         3;
+indicatorOfParameter=       204;
+}
+'PP1D'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       204;
+}
+'PP1D'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       204;
+}
+'PP1D'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       204;
+}
+'PP1D'={
+centre=	98;
+table2Version=    002;
+indicatorOfParameter=       204;
+}
+'TCV'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       206;
+}
+'NBIMP'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       207;
+}
+'QPRECIP'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       208;
+}
+'PRCVPRECIP'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       209;
+}
+'QSST'={
+table2Version=         1;
+indicatorOfParameter=       210;
+}
+'QSST'={
+table2Version=         2;
+indicatorOfParameter=       210;
+}
+'QSST'={
+table2Version=         3;
+indicatorOfParameter=       210;
+}
+'QSST'={
+table2Version=    211001;
+indicatorOfParameter=       210;
+}
+'QSST'={
+table2Version=    211002;
+indicatorOfParameter=       210;
+}
+'QSST'={
+table2Version=    211003;
+indicatorOfParameter=       210;
+}
+'HSST'={
+table2Version=         1;
+indicatorOfParameter=       211;
+}
+'HSST'={
+table2Version=         2;
+indicatorOfParameter=       211;
+}
+'HSST'={
+table2Version=         3;
+indicatorOfParameter=       211;
+}
+'HSST'={
+table2Version=    211001;
+indicatorOfParameter=       211;
+}
+'HSST'={
+table2Version=    211002;
+indicatorOfParameter=       211;
+}
+'HSST'={
+table2Version=    211003;
+indicatorOfParameter=       211;
+}
+'QDLI'={
+table2Version=         1;
+indicatorOfParameter=       215;
+}
+'QDLI'={
+table2Version=         2;
+indicatorOfParameter=       215;
+}
+'QDLI'={
+table2Version=         3;
+indicatorOfParameter=       215;
+}
+'QDLI'={
+table2Version=    211001;
+indicatorOfParameter=       215;
+}
+'QDLI'={
+table2Version=    211002;
+indicatorOfParameter=       215;
+}
+'QDLI'={
+table2Version=    211003;
+indicatorOfParameter=       215;
+}
+'QSSI'={
+table2Version=         1;
+indicatorOfParameter=       216;
+}
+'QSSI'={
+table2Version=         2;
+indicatorOfParameter=       216;
+}
+'QSSI'={
+table2Version=         3;
+indicatorOfParameter=       216;
+}
+'QSSI'={
+table2Version=    211001;
+indicatorOfParameter=       216;
+}
+'QSSI'={
+table2Version=    211002;
+indicatorOfParameter=       216;
+}
+'QSSI'={
+table2Version=    211003;
+indicatorOfParameter=       216;
+}
+'EASWH'={
+table2Version=         1;
+indicatorOfParameter=       222;
+}
+'EASWH'={
+table2Version=         2;
+indicatorOfParameter=       222;
+}
+'EASWH'={
+table2Version=         3;
+indicatorOfParameter=       222;
+}
+'EASWH'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       222;
+}
+'EASWH'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       222;
+}
+'EASWH'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       222;
+}
+'EOSWH'={
+table2Version=         1;
+indicatorOfParameter=       223;
+}
+'EOSWH'={
+table2Version=         2;
+indicatorOfParameter=       223;
+}
+'EOSWH'={
+table2Version=         3;
+indicatorOfParameter=       223;
+}
+'EOSWH'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       223;
+}
+'EOSWH'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       223;
+}
+'EOSWH'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       223;
+}
+'EAFF'={
+table2Version=         1;
+indicatorOfParameter=       224;
+}
+'EAFF'={
+table2Version=         2;
+indicatorOfParameter=       224;
+}
+'EAFF'={
+table2Version=         3;
+indicatorOfParameter=       224;
+}
+'EAFF'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       224;
+}
+'EAFF'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       224;
+}
+'EAFF'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       224;
+}
+'EOFF'={
+table2Version=         1;
+indicatorOfParameter=       225;
+}
+'EOFF'={
+table2Version=         2;
+indicatorOfParameter=       225;
+}
+'EOFF'={
+table2Version=         3;
+indicatorOfParameter=       225;
+}
+'EOFF'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       225;
+}
+'EOFF'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       225;
+}
+'EOFF'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       225;
+}
+'STL4'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       236;
+}
+'CIWC'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       247;
+}
+'DUST'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        93;
+}
+'TC_DUST'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        94;
+}
+'OD_DUST'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        95;
+}
+'DSEC_DUST'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        96;
+}
+'DHUM_DUST'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        97;
+}
+'DSEDI_DUST'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        98;
+}
+'EMISS_DUST'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        99;
+}
+'PREC_CONVEC'={
+table2Version=      7002;
+indicatorOfParameter=       156;
+}
+'SLT'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=        43;
+}
+'PREC06+100'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        76;
+}
+'RAYTHERM_D'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        76;
+}
+'PINF_TSOL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        76;
+}
+'PRECI24+30'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        77;
+}
+'PROPRESMAX'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        77;
+}
+'PNORM_TSOL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        77;
+}
+'PRNCV'={
+table2Version=         1;
+indicatorOfParameter=        78;
+}
+'PRNCV'={
+table2Version=         2;
+indicatorOfParameter=        78;
+}
+'PRNCV'={
+table2Version=         3;
+indicatorOfParameter=        78;
+}
+'PRECI24+50'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        78;
+}
+'CON_CT_TUR'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        78;
+}
+'PSUP_TSOL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        78;
+}
+'PRNGE'={
+table2Version=         1;
+indicatorOfParameter=        79;
+}
+'PRNGE'={
+table2Version=         2;
+indicatorOfParameter=        79;
+}
+'PRNGE'={
+table2Version=         3;
+indicatorOfParameter=        79;
+}
+'PREC24+100'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        79;
+}
+'CON_Q_TUR'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        79;
+}
+'PTSUP_TSOL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        79;
+}
+'DUTOT_RR'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        80;
+}
+'PTOT_TSOL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        80;
+}
+'T_TUBE_0'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        80;
+}
+'TERRE_MER'={
+table2Version=         1;
+indicatorOfParameter=        81;
+}
+'TERRE_MER'={
+table2Version=         2;
+indicatorOfParameter=        81;
+}
+'TERRE_MER'={
+table2Version=         3;
+indicatorOfParameter=        81;
+}
+'FLNEI_INS'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        81;
+}
+'PTINF_PRECIP'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        81;
+}
+'T_TUBE_1'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        81;
+}
+'FLQ_INS'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        82;
+}
+'PINF_PRECIP'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        82;
+}
+'T_TUBE_2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        82;
+}
+'RUGOSITE'={
+table2Version=         1;
+indicatorOfParameter=        83;
+}
+'RUGOSITE'={
+table2Version=         2;
+indicatorOfParameter=        83;
+}
+'RUGOSITE'={
+table2Version=         3;
+indicatorOfParameter=        83;
+}
+'FLEAU_INS'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        83;
+}
+'PNORM_PRECIP'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        83;
+}
+'T_TUBE_3'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        83;
+}
+'ALBEDO'={
+table2Version=         1;
+indicatorOfParameter=        84;
+}
+'ALBEDO'={
+table2Version=         2;
+indicatorOfParameter=        84;
+}
+'ALBEDO'={
+table2Version=         3;
+indicatorOfParameter=        84;
+}
+'FLEVAP_INS'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        84;
+}
+'PSUP_PRECIP'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        84;
+}
+'T_TUBE_4'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        84;
+}
+'FLRUI_INS'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        85;
+}
+'PTSUP_PRECIP'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        85;
+}
+'T_TUBE_5'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        85;
+}
+'RESERVE_EAU'={
+table2Version=         1;
+indicatorOfParameter=        86;
+}
+'RESERVE_EAU'={
+table2Version=         2;
+indicatorOfParameter=        86;
+}
+'RESERVE_EAU'={
+table2Version=         3;
+indicatorOfParameter=        86;
+}
+'FLETP_INS'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        86;
+}
+'PTOT_PRECIP'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        86;
+}
+'T_TUBE_6'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        86;
+}
+'VEGETATION'={
+table2Version=         1;
+indicatorOfParameter=        87;
+}
+'VEGETATION'={
+table2Version=         2;
+indicatorOfParameter=        87;
+}
+'VEGETATION'={
+table2Version=         3;
+indicatorOfParameter=        87;
+}
+'FLTRSP_INS'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        87;
+}
+'PTINF_PMER'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        87;
+}
+'T_TUBE_7'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        87;
+}
+'FLRUIF_INS'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        88;
+}
+'PINF_PMER'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        88;
+}
+'T_TUBE_8'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        88;
+}
+'HUMAX'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        89;
+}
+'PNORM_PMER'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        89;
+}
+'T_TUBE_9'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        89;
+}
+'HUMIN'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        90;
+}
+'PSUP_PMER'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        90;
+}
+'Z_TUBE_0'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        90;
+}
+'VERTIC_DI'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        91;
+}
+'PTSUP_PMER'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        91;
+}
+'Z_TUBE_1'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        91;
+}
+'PRESS_DEP'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        92;
+}
+'PTOT_PMER'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        92;
+}
+'Z_TUBE_2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        92;
+}
+'ET_GEOPOT'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        93;
+}
+'Z_TUBE_3'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        93;
+}
+'TRANSP'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        94;
+}
+'Z_TUBE_4'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        94;
+}
+'ICE_EDGE'={
+centre=	88;
+table2Version=    001;
+indicatorOfParameter=       220;
+}
+'ICE_TYPE'={
+centre=	88;
+table2Version=    001;
+indicatorOfParameter=       221;
+}
+'ICE_CONC'={
+centre=	88;
+table2Version=    001;
+indicatorOfParameter=       219;
+}
+'MAXSWHI'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       158;
+}
+'10WSI'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       159;
+}
+'10FGI'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       160;
+}
+'2TI'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       161;
+}
+'MN2TI'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       162;
+}
+'MX2TI'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       163;
+}
+'SFI'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       164;
+}
+'TPI'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       165;
+}
+'BFI'={
+centre=	98;
+table2Version=    140;
+indicatorOfParameter=       253;
+}
+'H_COULIM'={
+centre=	98;
+table2Version=    002;
+indicatorOfParameter=       165;
+}
+'LAI_LV'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=        66;
+}
+'LAI_HV'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=        67;
+}
+'SRC'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       198;
+}
+'ES'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=        44;
+}
+'FSR'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       244;
+}
+'RFLCTVT_MAX'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       217;
+}
+'FDIR'={
+centre=	98;
+table2Version=    228;
+indicatorOfParameter=        21;
+}
+'COLONNE_EAU'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       136;
+}
+'CLWC'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       246;
+}
+'PREC_CONVEC'={
+table2Version=      7001;
+indicatorOfParameter=       156;
+}
+'FLSOLAIRE_DD'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       137;
+}
+'EDR'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       135;
+}
+'FF_RAF_MAX3'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       142;
+}
+'PPWW'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       240;
+}
+'PPPS'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       241;
+}
+'PPSS'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       242;
+}
+'OCC_GRELE'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       243;
+}
+'USTOKES'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       215;
+}
+'VSTOKES'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       216;
+}
+'OCC_GRELEMAX'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       244;
+}
+'EOLIEN_RESV'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       163;
+}
+'EOLIEN_RESV2'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       164;
+}
+'NH3'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        18;
+}
+'AMMONI'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        19;
+}
+'SULFAT'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        20;
+}
+'NITRAT'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        21;
+}
+'MAX_PM10'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        22;
+}
+'MAX_PM25'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        23;
+}
+'MAX_CO'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        24;
+}
+'MAX_SO2'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        25;
+}
+'TCNH3'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        26;
+}
+'TCSO2'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        27;
+}
+'TCNO2'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        28;
+}
+'TC_AMMONI'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        29;
+}
+'DHUM_AMMONI'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        30;
+}
+'DSEC_AMMONI'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        31;
+}
+'DSEDI_AMMONI'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        32;
+}
+'TC_NITRAT'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        33;
+}
+'DHUM_NITRAT'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        34;
+}
+'DSEC_NITRAT'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        35;
+}
+'DSEDI_NITRAT'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        36;
+}
+'TC_SULFAT'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        37;
+}
+'DHUM_SULFAT'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        38;
+}
+'DSEC_SULFAT'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        39;
+}
+'DSEDI_SULFAT'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        40;
+}
+'ORGANC'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        41;
+}
+'TC_ORGANC'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        42;
+}
+'DHUM_ORGANC'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        43;
+}
+'DSEC_ORGANC'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        44;
+}
+'DSEDI_ORGANC'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        45;
+}
+'EMISS_ORGANC'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        46;
+}
+'FLTHERM_D'={
+table2Version=      7149;
+indicatorOfParameter=       104;
+}
+'FLSOLAIRE_D'={
+table2Version=      7149;
+indicatorOfParameter=       105;
+}
+'CAPE_INS'={
+table2Version=      7001;
+indicatorOfParameter=       160;
+}
+'CAPE_INS'={
+table2Version=      7002;
+indicatorOfParameter=       160;
+}
+'CAPE_INS'={
+table2Version=      7003;
+indicatorOfParameter=       160;
+}
+'FF_RAF'={
+table2Version=      7001;
+indicatorOfParameter=       162;
+}
+'FF_RAF'={
+table2Version=      7002;
+indicatorOfParameter=       162;
+}
+'FF_RAF'={
+table2Version=      7003;
+indicatorOfParameter=       162;
+}
+'FF_RAF'={
+table2Version=      7149;
+indicatorOfParameter=       162;
+}
+'FLTHERM_M'={
+table2Version=      7149;
+indicatorOfParameter=       203;
+}
+'FLSOLAIRE_M'={
+table2Version=      7149;
+indicatorOfParameter=       204;
+}
+'SNOW_MELT'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       125;
+}
+'DIAG_EHI'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       126;
+}
+'DIAG_STP'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       127;
+}
+'DIAG_SCP'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       128;
+}
+'DIAG_BROUILL'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       129;
+}
+'BR_VERG_FC'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       130;
+}
+'BR_VERG_SC'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       131;
+}
+'NEIGE_SC'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       132;
+}
+'RR_SOL_GELE'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       133;
+}
+'HEUREGRELEQ'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       245;
+}
+'OCC_GRELECUM'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       246;
+}
+'HEUREGRELE'={
+centre=	84;
+table2Version=    159;
+indicatorOfParameter=       247;
+}
+'P'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       134;
+}
+'DIAG_VISI'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       135;
+}
+'TYPE_PRECIP'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       136;
+}
+'TPS'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       137;
+}
+'FAL'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       243;
+}
+'RDATEDEB'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        47;
+}
+'RMAX'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        48;
+}
+'RPASMAX'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        49;
+}
+'RRMAX'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        50;
+}
+'RMAXQS'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=        51;
+}
+'SIGMA_AERO'={
+centre=	84;
+table2Version=    169;
+indicatorOfParameter=       165;
+}
+'RUI_RESINT'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        95;
+}
+'Z_TUBE_5'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        95;
+}
+'FLGEL'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        96;
+}
+'Z_TUBE_6'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        96;
+}
+'RAYDIRECT'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        97;
+}
+'Z_TUBE_7'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        97;
+}
+'P_MIN24'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        98;
+}
+'Z_TUBE_8'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        98;
+}
+'CI'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=        98;
+}
+'NEIGE'={
+table2Version=         1;
+indicatorOfParameter=        99;
+}
+'NEIGE'={
+table2Version=         2;
+indicatorOfParameter=        99;
+}
+'NEIGE'={
+table2Version=         3;
+indicatorOfParameter=        99;
+}
+'FF_MAX24'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        99;
+}
+'Z_TUBE_9'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        99;
+}
+'SWH'={
+table2Version=         1;
+indicatorOfParameter=       100;
+}
+'SWH'={
+table2Version=         2;
+indicatorOfParameter=       100;
+}
+'SWH'={
+table2Version=         3;
+indicatorOfParameter=       100;
+}
+'TRP'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       100;
+}
+'SWHP+9'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       100;
+}
+'MDWW'={
+table2Version=         1;
+indicatorOfParameter=       101;
+}
+'MDWW'={
+table2Version=         2;
+indicatorOfParameter=       101;
+}
+'MDWW'={
+table2Version=         3;
+indicatorOfParameter=       101;
+}
+'HU_TUBE_1'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       101;
+}
+'SHWW'={
+table2Version=         1;
+indicatorOfParameter=       102;
+}
+'SHWW'={
+table2Version=         2;
+indicatorOfParameter=       102;
+}
+'SHWW'={
+table2Version=         3;
+indicatorOfParameter=       102;
+}
+'HU_TUBE_2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       102;
+}
+'MPWW'={
+table2Version=         1;
+indicatorOfParameter=       103;
+}
+'MPWW'={
+table2Version=         2;
+indicatorOfParameter=       103;
+}
+'MPWW'={
+table2Version=         3;
+indicatorOfParameter=       103;
+}
+'HU_TUBE_3'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       103;
+}
+'MDS'={
+table2Version=         1;
+indicatorOfParameter=       104;
+}
+'MDS'={
+table2Version=         2;
+indicatorOfParameter=       104;
+}
+'MDS'={
+table2Version=         3;
+indicatorOfParameter=       104;
+}
+'FLTHERM_D'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       104;
+}
+'HU_TUBE_4'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       104;
+}
+'FLTHERM_D'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       104;
+}
+'SHS'={
+table2Version=         1;
+indicatorOfParameter=       105;
+}
+'SHS'={
+table2Version=         2;
+indicatorOfParameter=       105;
+}
+'SHS'={
+table2Version=         3;
+indicatorOfParameter=       105;
+}
+'FLSOLAIRE_D'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=       105;
+}
+'HU_TUBE_5'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       105;
+}
+'FLSOLAIRE_D'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       105;
+}
+'MPS'={
+table2Version=         1;
+indicatorOfParameter=       106;
+}
+'MPS'={
+table2Version=         2;
+indicatorOfParameter=       106;
+}
+'MPS'={
+table2Version=         3;
+indicatorOfParameter=       106;
+}
+'HU_TUBE_6'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       106;
+}
+'MDPS'={
+table2Version=         1;
+indicatorOfParameter=       107;
+}
+'MDPS'={
+table2Version=         2;
+indicatorOfParameter=       107;
+}
+'MDPS'={
+table2Version=         3;
+indicatorOfParameter=       107;
+}
+'HU_TUBE_7'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       107;
+}
+'MPPS'={
+table2Version=         1;
+indicatorOfParameter=       108;
+}
+'MPPS'={
+table2Version=         2;
+indicatorOfParameter=       108;
+}
+'MPPS'={
+table2Version=         3;
+indicatorOfParameter=       108;
+}
+'HU_TUBE_8'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       108;
+}
+'MDSS'={
+table2Version=         1;
+indicatorOfParameter=       109;
+}
+'MDSS'={
+table2Version=         2;
+indicatorOfParameter=       109;
+}
+'MDSS'={
+table2Version=         3;
+indicatorOfParameter=       109;
+}
+'HU_TUBE_9'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       109;
+}
+'MPSS'={
+table2Version=         1;
+indicatorOfParameter=       110;
+}
+'MPSS'={
+table2Version=         2;
+indicatorOfParameter=       110;
+}
+'MPSS'={
+table2Version=         3;
+indicatorOfParameter=       110;
+}
+'TPW_TUBE_0'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       110;
+}
+'FLSOLAIRE'={
+table2Version=         128;
+indicatorOfParameter=       111;
+}
+'FLSOLAIRE'={
+table2Version=         1;
+indicatorOfParameter=       111;
+}
+'FLSOLAIRE'={
+table2Version=         2;
+indicatorOfParameter=       111;
+}
+'FLSOLAIRE'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       111;
+}
+'TPW_TUBE_1'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       111;
+}
+'FLSOLAIRE'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       111;
+}
+'FLTHERM'={
+table2Version=         128;
+indicatorOfParameter=       112;
+}
+'FLTHERM'={
+table2Version=         1;
+indicatorOfParameter=       112;
+}
+'FLTHERM'={
+table2Version=         2;
+indicatorOfParameter=       112;
+}
+'FLTHERM'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       112;
+}
+'TPW_TUBE_2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       112;
+}
+'FLTHERM'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       112;
+}
+'FLSOLAIRE'={
+table2Version=         128;
+indicatorOfParameter=       113;
+}
+'FLSOLAIRE'={
+table2Version=         1;
+indicatorOfParameter=       113;
+}
+'FLSOLAIRE'={
+table2Version=         2;
+indicatorOfParameter=       113;
+}
+'FLSOLAIRE'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       113;
+}
+'TPW_TUBE_3'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       113;
+}
+'TCO3'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       113;
+}
+'FLTHERM'={
+table2Version=         1;
+indicatorOfParameter=       114;
+}
+'FLTHERM'={
+table2Version=         2;
+indicatorOfParameter=       114;
+}
+'FLTHERM'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       114;
+}
+'TPW_TUBE_4'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       114;
+}
+'DLI'={
+table2Version=         1;
+indicatorOfParameter=       115;
+}
+'DLI'={
+table2Version=         2;
+indicatorOfParameter=       115;
+}
+'DLI'={
+table2Version=         3;
+indicatorOfParameter=       115;
+}
+'TPW_TUBE_5'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       115;
+}
+'SSI'={
+table2Version=         1;
+indicatorOfParameter=       116;
+}
+'SSI'={
+table2Version=         2;
+indicatorOfParameter=       116;
+}
+'SSI'={
+table2Version=         3;
+indicatorOfParameter=       116;
+}
+'TPW_TUBE_6'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       116;
+}
+'TPW_TUBE_7'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       117;
+}
+'TPW_TUBE_8'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       118;
+}
+'TPW_TUBE_9'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       119;
+}
+'SWHP+25'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       120;
+}
+'FLLAT'={
+table2Version=         1;
+indicatorOfParameter=       121;
+}
+'FLLAT'={
+table2Version=         2;
+indicatorOfParameter=       121;
+}
+'FLLAT'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       121;
+}
+'SWHP_J57+2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       121;
+}
+'FLLAT'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       121;
+}
+'FLSEN'={
+table2Version=         128;
+indicatorOfParameter=       122;
+}
+'FLSEN'={
+table2Version=         1;
+indicatorOfParameter=       122;
+}
+'FLSEN'={
+table2Version=         2;
+indicatorOfParameter=       122;
+}
+'FLSEN'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       122;
+}
+'SWHP_J57+4'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       122;
+}
+'FLSEN'={
+centre=	98;
+table2Version=    149;
+indicatorOfParameter=       122;
+}
+'SWHP_J57+6'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       123;
+}
+'SWHP_J57+8'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       124;
+}
+'MWPP_J57+8'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       125;
+}
+'MWPP_J57+10'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       126;
+}
+'MWPP_J57+12'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       127;
+}
+'MWPP_J57+15'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       128;
+}
+'Z'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       129;
+}
+'SWHP_J510+2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       129;
+}
+'USTR'={
+table2Version=         1;
+indicatorOfParameter=       130;
+}
+'USTR'={
+table2Version=         2;
+indicatorOfParameter=       130;
+}
+'USTR'={
+table2Version=         3;
+indicatorOfParameter=       130;
+}
+'USTR'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       130;
+}
+'USTR'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       130;
+}
+'USTR'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       130;
+}
+'USTR'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       130;
+}
+'T'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       130;
+}
+'SWHP_J510+4'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       130;
+}
+'VSTR'={
+table2Version=         1;
+indicatorOfParameter=       131;
+}
+'VSTR'={
+table2Version=         2;
+indicatorOfParameter=       131;
+}
+'VSTR'={
+table2Version=         3;
+indicatorOfParameter=       131;
+}
+'VSTR'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       131;
+}
+'VSTR'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       131;
+}
+'VSTR'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       131;
+}
+'VSTR'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       131;
+}
+'SWHP_J510+6'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       131;
+}
+'TPWCLS'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       132;
+}
+'SWHP_J510+8'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       132;
+}
+'FLP'={
+table2Version=         1;
+indicatorOfParameter=       133;
+}
+'FLP'={
+table2Version=         2;
+indicatorOfParameter=       133;
+}
+'FLP'={
+table2Version=         3;
+indicatorOfParameter=       133;
+}
+'FLP'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       133;
+}
+'FLP'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       133;
+}
+'FLP'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       133;
+}
+'FLP'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       133;
+}
+'Q'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       133;
+}
+'MWPP_J510+8'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       133;
+}
+'CAT'={
+table2Version=         1;
+indicatorOfParameter=       134;
+}
+'CAT'={
+table2Version=         2;
+indicatorOfParameter=       134;
+}
+'CAT'={
+table2Version=         3;
+indicatorOfParameter=       134;
+}
+'CAT'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       134;
+}
+'CAT'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       134;
+}
+'CAT'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       134;
+}
+'MWPP_J510+10'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       134;
+}
+'AIR_CS'={
+table2Version=         2;
+indicatorOfParameter=       135;
+}
+'AIR_CS'={
+table2Version=         3;
+indicatorOfParameter=       135;
+}
+'AIR_CS'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       135;
+}
+'AIR_CS'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       135;
+}
+'MWPP_J510+12'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       135;
+}
+'SOL_CS'={
+table2Version=         2;
+indicatorOfParameter=       136;
+}
+'SOL_CS'={
+table2Version=         3;
+indicatorOfParameter=       136;
+}
+'SOL_CS'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       136;
+}
+'SOL_CS'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       136;
+}
+'MWPP_J510+15'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       136;
+}
+'AIR_IO'={
+table2Version=         2;
+indicatorOfParameter=       137;
+}
+'AIR_IO'={
+table2Version=         3;
+indicatorOfParameter=       137;
+}
+'AIR_IO'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       137;
+}
+'AIR_IO'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       137;
+}
+'SWHP_J710+2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       137;
+}
+'SOL_IO'={
+table2Version=         2;
+indicatorOfParameter=       138;
+}
+'SOL_IO'={
+table2Version=         3;
+indicatorOfParameter=       138;
+}
+'SOL_IO'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       138;
+}
+'SOL_IO'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       138;
+}
+'PRNGE'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       138;
+}
+'VO'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       138;
+}
+'SWHP_J710+4'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       138;
+}
+'AIR_RAD'={
+table2Version=         2;
+indicatorOfParameter=       139;
+}
+'AIR_RAD'={
+table2Version=         3;
+indicatorOfParameter=       139;
+}
+'AIR_RAD'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       139;
+}
+'AIR_RAD'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       139;
+}
+'PRNCV'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       139;
+}
+'ST'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       139;
+}
+'SWHP_J710+6'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       139;
+}
+'ENERCINTUR'={
+table2Version=         1;
+indicatorOfParameter=       140;
+}
+'SOL_RAD'={
+table2Version=         2;
+indicatorOfParameter=       140;
+}
+'SOL_RAD'={
+table2Version=         3;
+indicatorOfParameter=       140;
+}
+'ENERCINTUR'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       140;
+}
+'SOL_RAD'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       140;
+}
+'SOL_RAD'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       140;
+}
+'THKA'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       140;
+}
+'SWHP_J710+8'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       140;
+}
+'AIR_CHIM'={
+table2Version=         2;
+indicatorOfParameter=       141;
+}
+'AIR_CHIM'={
+table2Version=         3;
+indicatorOfParameter=       141;
+}
+'AIR_CHIM'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       141;
+}
+'AIR_CHIM'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       141;
+}
+'TPWCLS'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       141;
+}
+'SD'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       141;
+}
+'MWPP_J710+8'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       141;
+}
+'SOL_CHIM'={
+table2Version=         2;
+indicatorOfParameter=       142;
+}
+'SOL_CHIM'={
+table2Version=         3;
+indicatorOfParameter=       142;
+}
+'SOL_CHIM'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       142;
+}
+'SOL_CHIM'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       142;
+}
+'LSP'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       142;
+}
+'MWPP_J710+10'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       142;
+}
+'AIR_PASS'={
+table2Version=         2;
+indicatorOfParameter=       143;
+}
+'AIR_PASS'={
+table2Version=         3;
+indicatorOfParameter=       143;
+}
+'AIR_PASS'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       143;
+}
+'AIR_PASS'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       143;
+}
+'CP'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       143;
+}
+'MWPP_J710+12'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       143;
+}
+'AIR_VOLCAN'={
+table2Version=         2;
+indicatorOfParameter=       144;
+}
+'AIR_VOLCAN'={
+table2Version=         3;
+indicatorOfParameter=       144;
+}
+'AIR_VOLCAN'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       144;
+}
+'AIR_VOLCAN'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       144;
+}
+'MWPP_J710+15'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       144;
+}
+'SOL_VOLCAN'={
+table2Version=         1;
+indicatorOfParameter=       145;
+}
+'SOL_VOLCAN'={
+table2Version=         2;
+indicatorOfParameter=       145;
+}
+'SOL_VOLCAN'={
+table2Version=         3;
+indicatorOfParameter=       145;
+}
+'SOL_VOLCAN'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       145;
+}
+'SOL_VOLCAN'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       145;
+}
+'SOL_VOLCAN'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       145;
+}
+'PRECI48+1'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       145;
+}
+'ENERCINTUR'={
+table2Version=         2;
+indicatorOfParameter=       146;
+}
+'ENERCINTUR'={
+table2Version=         3;
+indicatorOfParameter=       146;
+}
+'ENERCINTUR'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       146;
+}
+'ENERCINTUR'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       146;
+}
+'SSHF'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       146;
+}
+'PRECI48+5'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       146;
+}
+'SLHF'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       147;
+}
+'PRECI48+10'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       147;
+}
+'PRECI48+20'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       148;
+}
+'TP'={
+table2Version=         1;
+indicatorOfParameter=       149;
+}
+'TP'={
+table2Version=         2;
+indicatorOfParameter=       149;
+}
+'TP'={
+table2Version=         3;
+indicatorOfParameter=       149;
+}
+'TP'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       149;
+}
+'TP'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       149;
+}
+'TP'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       149;
+}
+'NEIGE24+05'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       149;
+}
+'EAU'={
+table2Version=         1;
+indicatorOfParameter=       150;
+}
+'EAU'={
+table2Version=         2;
+indicatorOfParameter=       150;
+}
+'EAU'={
+table2Version=         3;
+indicatorOfParameter=       150;
+}
+'EAU'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       150;
+}
+'EAU'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       150;
+}
+'EAU'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       150;
+}
+'NEIGE06+1'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=       150;
+}
+'BILANHY'={
+table2Version=         1;
+indicatorOfParameter=       151;
+}
+'BILANHY'={
+table2Version=         2;
+indicatorOfParameter=       151;
+}
+'BILANHY'={
+table2Version=         3;
+indicatorOfParameter=       151;
+}
+'BILANHY'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       151;
+}
+'BILANHY'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       151;
+}
+'BILANHY'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       151;
+}
+'NEIGE24+1'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=       151;
+}
+'RESERVE_GLAC'={
+table2Version=         1;
+indicatorOfParameter=       152;
+}
+'RESERVE_GLAC'={
+table2Version=         2;
+indicatorOfParameter=       152;
+}
+'RESERVE_GLAC'={
+table2Version=         3;
+indicatorOfParameter=       152;
+}
+'RESERVE_GLAC'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       152;
+}
+'RESERVE_GLAC'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       152;
+}
+'RESERVE_GLAC'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       152;
+}
+'HTNEIGE+1'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=       152;
+}
+'LNSP'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       152;
+}
+'RESERVE_LIQU'={
+table2Version=         1;
+indicatorOfParameter=       153;
+}
+'RESERVE_LIQU'={
+table2Version=         2;
+indicatorOfParameter=       153;
+}
+'RESERVE_LIQU'={
+table2Version=         3;
+indicatorOfParameter=       153;
+}
+'RESERVE_LIQU'={
+centre=	84;
+table2Version=    001;
+indicatorOfParameter=       153;
+}
+'RESERVE_LIQU'={
+centre=	84;
+table2Version=    002;
+indicatorOfParameter=       153;
+}
+'RESERVE_LIQU'={
+centre=	84;
+table2Version=    003;
+indicatorOfParameter=       153;
+}
+'RESERVE_LIQU'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       153;
+}
+'RESERVE_LIQU'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       153;
+}
+'RESERVE_LIQU'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       153;
+}
+'FF_7'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=       153;
+}
+'GIVRAGE'={
+table2Version=         1;
+indicatorOfParameter=       154;
+}
+'GIVRAGE'={
+table2Version=         2;
+indicatorOfParameter=       154;
+}
+'GIVRAGE'={
+table2Version=         3;
+indicatorOfParameter=       154;
+}
+'GIVRAGE'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       154;
+}
+'GIVRAGE'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       154;
+}
+'GIVRAGE'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       154;
+}
+'FF_20'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=       154;
+}
+'GIVRAGE_VV'={
+table2Version=         1;
+indicatorOfParameter=       155;
+}
+'GIVRAGE_VV'={
+table2Version=         2;
+indicatorOfParameter=       155;
+}
+'GIVRAGE_VV'={
+table2Version=         3;
+indicatorOfParameter=       155;
+}
+'GIVRAGE_VV'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       155;
+}
+'GIVRAGE_VV'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       155;
+}
+'GIVRAGE_VV'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       155;
+}
+'D'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       155;
+}
+'HU+60'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       155;
+}
+'PREC_CONVEC'={
+table2Version=         1;
+indicatorOfParameter=       156;
+}
+'PREC_CONVEC'={
+table2Version=         2;
+indicatorOfParameter=       156;
+}
+'PREC_CONVEC'={
+table2Version=         3;
+indicatorOfParameter=       156;
+}
+'PREC_CONVEC'={
+centre=	74;
+table2Version=    002;
+indicatorOfParameter=       156;
+}
+'PREC_CONVEC'={
+centre=	74;
+table2Version=    003;
+indicatorOfParameter=       156;
+}
+'PREC_CONVEC'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       156;
+}
+'PREC_CONVEC'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       156;
+}
+'PREC_CONVEC'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       156;
+}
+'PREC_CONVEC'={
+centre=	98;
+table2Version=    002;
+indicatorOfParameter=       156;
+}
+'HU+70'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       156;
+}
+'PREC_GDE_ECH'={
+table2Version=         1;
+indicatorOfParameter=       157;
+}
+'PREC_GDE_ECH'={
+table2Version=         2;
+indicatorOfParameter=       157;
+}
+'PREC_GDE_ECH'={
+table2Version=         3;
+indicatorOfParameter=       157;
+}
+'PREC_GDE_ECH'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       157;
+}
+'PREC_GDE_ECH'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       157;
+}
+'PREC_GDE_ECH'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       157;
+}
+'PREC_GDE_ECH'={
+centre=	98;
+table2Version=    002;
+indicatorOfParameter=       157;
+}
+'HU+80'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=       157;
+}
+'FLLUNAIRE_D'={
+table2Version=         1;
+indicatorOfParameter=       158;
+}
+'FLLUNAIRE_D'={
+table2Version=         2;
+indicatorOfParameter=       158;
+}
+'FLLUNAIRE_D'={
+table2Version=         3;
+indicatorOfParameter=       158;
+}
+'FLLUNAIRE_D'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       158;
+}
+'FLLUNAIRE_D'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       158;
+}
+'FLLUNAIRE_D'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       158;
+}
+'FLLUNAIRE_TH'={
+table2Version=         1;
+indicatorOfParameter=       159;
+}
+'FLLUNAIRE_TH'={
+table2Version=         2;
+indicatorOfParameter=       159;
+}
+'FLLUNAIRE_TH'={
+table2Version=         3;
+indicatorOfParameter=       159;
+}
+'FLLUNAIRE_TH'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       159;
+}
+'FLLUNAIRE_TH'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       159;
+}
+'FLLUNAIRE_TH'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       159;
+}
+'CAPE_INS'={
+table2Version=         1;
+indicatorOfParameter=       160;
+}
+'CAPE_INS'={
+table2Version=         2;
+indicatorOfParameter=       160;
+}
+'CAPE_INS'={
+table2Version=         3;
+indicatorOfParameter=       160;
+}
+'CAPE_INS'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       160;
+}
+'CAPE_INS'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       160;
+}
+'CAPE_INS'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       160;
+}
+'CAPE_INS'={
+centre=	98;
+table2Version=    001;
+indicatorOfParameter=       160;
+}
+'CAPE_INS'={
+centre=	98;
+table2Version=    002;
+indicatorOfParameter=       160;
+}
+'CAPE_INS'={
+centre=	98;
+table2Version=    003;
+indicatorOfParameter=       160;
+}
+'SDOR'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       160;
+}
+'DD_RAF'={
+table2Version=         1;
+indicatorOfParameter=       161;
+}
+'DD_RAF'={
+table2Version=         2;
+indicatorOfParameter=       161;
+}
+'DD_RAF'={
+table2Version=         3;
+indicatorOfParameter=       161;
+}
+'DD_RAF'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       161;
+}
+'DD_RAF'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       161;
+}
+'DD_RAF'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       161;
+}
+'ISOR'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       161;
+}
+'ISOR'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=       161;
+}
+'FF_RAF'={
+table2Version=         1;
+indicatorOfParameter=       162;
+}
+'FF_RAF'={
+table2Version=         2;
+indicatorOfParameter=       162;
+}
+'FF_RAF'={
+table2Version=         3;
+indicatorOfParameter=       162;
+}
+'FF_RAF'={
+centre=	85;
+table2Version=     001;
+indicatorOfParameter=       162;
+}
+'FF_RAF'={
+centre=	85;
+table2Version=     002;
+indicatorOfParameter=       162;
+}
+'FF_RAF'={
+centre=	85;
+table2Version=     003;
+indicatorOfParameter=       162;
+}
+'ANOR'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=       162;
+}
+'FF_RAF'={
+centre=	98;
+table2Version=    002;
+indicatorOfParameter=       162;
+}
+'CYGETOT'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        17;
+}
+'ENS_ZMOY5'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        17;
+}
+'SWI_T'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        18;
+}
+'GLYOX'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        18;
+}
+'CYGEMOD'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        18;
+}
+'ENS_ZMOY6'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        18;
+}
+'PRECI_MOY'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        19;
+}
+'CANOPW'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        19;
+}
+'MGLYOX'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        19;
+}
+'ENS_ZSIG1'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        19;
+}
+'PRECI_SIGTEM'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        20;
+}
+'WG'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        20;
+}
+'CH3COE'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        20;
+}
+'ENS_ZSIG2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        20;
+}
+'PRECI_SIGENS'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        21;
+}
+'WGI'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        21;
+}
+'TCCH4'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        21;
+}
+'TGEOP'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        21;
+}
+'ENS_ZSIG3'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        21;
+}
+'T_MOY'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        22;
+}
+'TPRO'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        22;
+}
+'TCNOX'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        22;
+}
+'TTEMP'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        22;
+}
+'ENS_ZSIG4'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        22;
+}
+'T_SIGTEM'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        23;
+}
+'FLEVAP_GAZ'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        23;
+}
+'MAX_O3'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        23;
+}
+'TJAC'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        23;
+}
+'ENS_ZSIG5'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        23;
+}
+'T_SIGENS'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        24;
+}
+'DRAINC_GAZ'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        24;
+}
+'TCCO'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        24;
+}
+'ENS_ZSIG6'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        24;
+}
+'Z_MOY'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        25;
+}
+'RUNC_GAZ'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        25;
+}
+'MAX_NO'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        25;
+}
+'ANOM_T_-8'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        25;
+}
+'Z_SIGTEM'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        26;
+}
+'RNC_GAZ'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        26;
+}
+'MAX_NO2'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        26;
+}
+'ANOM_T_-4'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        26;
+}
+'Z_SIGENS'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        27;
+}
+'FLSEN_GAZ'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        27;
+}
+'MAX_IUVCC'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        27;
+}
+'CVL'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=        27;
+}
+'ANOM_T_4'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        27;
+}
+'P_MOY'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        28;
+}
+'FLLAT_GAZ'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        28;
+}
+'MAX_IUVCN'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        28;
+}
+'CVH'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=        28;
+}
+'ANOM_T_8'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        28;
+}
+'P_SIGTEM'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        29;
+}
+'PRECIP_1'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        29;
+}
+'FLCND_GAZ'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        29;
+}
+'GRAUPEL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        29;
+}
+'TVL'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=        29;
+}
+'PRECIP_1'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        29;
+}
+'P_SIGENS'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        30;
+}
+'SWI_T_GAZ'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        30;
+}
+'GRELE'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        30;
+}
+'TVH'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=        30;
+}
+'PRECIP_5'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        30;
+}
+'DD'={
+table2Version=         1;
+indicatorOfParameter=        31;
+}
+'DD'={
+table2Version=         2;
+indicatorOfParameter=        31;
+}
+'DD'={
+table2Version=         3;
+indicatorOfParameter=        31;
+}
+'PRECIP_10'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        31;
+}
+'CANOPW_GAZ'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        31;
+}
+'RFLCTVT'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        31;
+}
+'UVGEO'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        31;
+}
+'PRECIP_10'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        31;
+}
+'FF'={
+table2Version=         1;
+indicatorOfParameter=        32;
+}
+'FF'={
+table2Version=         2;
+indicatorOfParameter=        32;
+}
+'FF'={
+table2Version=         3;
+indicatorOfParameter=        32;
+}
+'WG_GAZ'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        32;
+}
+'CLD_WATER'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        32;
+}
+'VVGEO'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        32;
+}
+'ASN'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=        32;
+}
+'PRECIP_20'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        32;
+}
+'U'={
+table2Version=         1;
+indicatorOfParameter=        33;
+}
+'U'={
+table2Version=         2;
+indicatorOfParameter=        33;
+}
+'U'={
+table2Version=         3;
+indicatorOfParameter=        33;
+}
+'FF_10'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        33;
+}
+'WGI_GAZ'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        33;
+}
+'CLD_RAIN'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        33;
+}
+'FVGEO'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        33;
+}
+'RSN'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=        33;
+}
+'FF_10'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        33;
+}
+'V'={
+table2Version=         1;
+indicatorOfParameter=        34;
+}
+'V'={
+table2Version=         2;
+indicatorOfParameter=        34;
+}
+'V'={
+table2Version=         3;
+indicatorOfParameter=        34;
+}
+'FF_15'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        34;
+}
+'T_GAZ'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        34;
+}
+'CLD_SNOW'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        34;
+}
+'OROG'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        34;
+}
+'FF_15'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        34;
+}
+'FONC_COUR'={
+table2Version=         1;
+indicatorOfParameter=        35;
+}
+'TPRO_GAZ'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        35;
+}
+'CLD_GRAUPL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        35;
+}
+'ANOM_TJ67-2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        35;
+}
+'POT_VIT'={
+table2Version=         1;
+indicatorOfParameter=        36;
+}
+'CLD_FRACT'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        36;
+}
+'ANOM_TJ67+2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        36;
+}
+'MAREE'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        37;
+}
+'TKE'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        37;
+}
+'PREC_J67<01'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        37;
+}
+'HTEUR_EAU'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        38;
+}
+'THETAV'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        38;
+}
+'TPREC_J67<1'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        38;
+}
+'VV'={
+table2Version=         1;
+indicatorOfParameter=        39;
+}
+'VV'={
+table2Version=         2;
+indicatorOfParameter=        39;
+}
+'VV'={
+table2Version=         3;
+indicatorOfParameter=        39;
+}
+'U_COUR'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        39;
+}
+'ANOM_N_Z500'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        39;
+}
+'SWVL1'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=        39;
+}
+'TPREC_J67>3'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        39;
+}
+'VV2'={
+table2Version=         1;
+indicatorOfParameter=        40;
+}
+'VV2'={
+table2Version=         2;
+indicatorOfParameter=        40;
+}
+'VV2'={
+table2Version=         3;
+indicatorOfParameter=        40;
+}
+'P'={
+table2Version=         1;
+indicatorOfParameter=         1;
+}
+'P'={
+table2Version=         2;
+indicatorOfParameter=         1;
+}
+'P'={
+table2Version=         3;
+indicatorOfParameter=         1;
+}
+'P'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=         1;
+}
+'DRAINC'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=         1;
+}
+'O3'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=         1;
+}
+'VVLADVT'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=         1;
+}
+'ENS_TMOY1'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=         1;
+}
+'BT'={
+table2Version=    211129;
+indicatorOfParameter=         1;
+}
+'P'={
+table2Version=         1;
+indicatorOfParameter=         2;
+}
+'P'={
+table2Version=         2;
+indicatorOfParameter=         2;
+}
+'P'={
+table2Version=         3;
+indicatorOfParameter=         2;
+}
+'P'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=         2;
+}
+'RUNC'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=         2;
+}
+'NO2'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=         2;
+}
+'VVADVV'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=         2;
+}
+'ENS_TMOY2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=         2;
+}
+'DATE'={
+table2Version=    211129;
+indicatorOfParameter=         2;
+}
+'TDPS'={
+table2Version=         1;
+indicatorOfParameter=         3;
+}
+'TDPS'={
+table2Version=         2;
+indicatorOfParameter=         3;
+}
+'TDPS'={
+table2Version=         3;
+indicatorOfParameter=         3;
+}
+'SNOW_RHO'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=         3;
+}
+'NO'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=         3;
+}
+'VVLSEN'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=         3;
+}
+'ENS_TMOY3'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=         3;
+}
+'P2ST'={
+table2Version=    211129;
+indicatorOfParameter=         3;
+}
+'TP'={
+table2Version=         1;
+indicatorOfParameter=         4;
+}
+'TP'={
+table2Version=         2;
+indicatorOfParameter=         4;
+}
+'TP'={
+table2Version=         3;
+indicatorOfParameter=         4;
+}
+'SNOW_FRAC'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=         4;
+}
+'PAN'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=         4;
+}
+'VVLLAT'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=         4;
+}
+'ENS_TMOY4'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=         4;
+}
+'P3SP'={
+table2Version=    211129;
+indicatorOfParameter=         4;
+}
+'HZ'={
+table2Version=         1;
+indicatorOfParameter=         5;
+}
+'HZ'={
+table2Version=         2;
+indicatorOfParameter=         5;
+}
+'HZ'={
+table2Version=         3;
+indicatorOfParameter=         5;
+}
+'FLP'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=         5;
+}
+'SNOW_ALB'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=         5;
+}
+'HNO3'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=         5;
+}
+'VVFRIC'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=         5;
+}
+'ENS_TMOY5'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=         5;
+}
+'P2SQ'={
+table2Version=    211129;
+indicatorOfParameter=         5;
+}
+'Z'={
+table2Version=         1;
+indicatorOfParameter=         6;
+}
+'Z'={
+table2Version=         2;
+indicatorOfParameter=         6;
+}
+'Z'={
+table2Version=         3;
+indicatorOfParameter=         6;
+}
+'Z'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=         6;
+}
+'RUNC_TOWN'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=         6;
+}
+'SO2'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=         6;
+}
+'VVOROG'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=         6;
+}
+'ENS_TMOY6'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=         6;
+}
+'P3SQ'={
+table2Version=    211129;
+indicatorOfParameter=         6;
+}
+'RNC'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=         7;
+}
+'CO'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=         7;
+}
+'VVTOT'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=         7;
+}
+'ENS_TSIG1'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=         7;
+}
+'LAT'={
+table2Version=    211129;
+indicatorOfParameter=         7;
+}
+'ALTITUDE'={
+table2Version=         1;
+indicatorOfParameter=         8;
+}
+'ALTITUDE'={
+table2Version=         2;
+indicatorOfParameter=         8;
+}
+'ALTITUDE'={
+table2Version=         3;
+indicatorOfParameter=         8;
+}
+'ALTITUDE'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=         8;
+}
+'FLCND'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=         8;
+}
+'CH4'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=         8;
+}
+'ALTITUDE'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=         8;
+}
+'VVMOD'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=         8;
+}
+'ALTITUDE'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=         8;
+}
+'ENS_TSIG2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=         8;
+}
+'ALTITUDE'={
+centre=	98;
+table2Version=    169;
+indicatorOfParameter=         8;
+}
+'LON'={
+table2Version=    211129;
+indicatorOfParameter=         8;
+}
+'T_SNOW'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=         9;
+}
+'C2H6'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=         9;
+}
+'ENS_TSIG3'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=         9;
+}
+'AZISAT'={
+table2Version=    211129;
+indicatorOfParameter=         9;
+}
+'TCO3'={
+table2Version=         1;
+indicatorOfParameter=        10;
+}
+'TCO3'={
+table2Version=         2;
+indicatorOfParameter=        10;
+}
+'TCO3'={
+table2Version=         3;
+indicatorOfParameter=        10;
+}
+'SHEATDC'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        10;
+}
+'NC4H10'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        10;
+}
+'ENS_TSIG4'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        10;
+}
+'ZENSAT'={
+table2Version=    211129;
+indicatorOfParameter=        10;
+}
+'T'={
+table2Version=         1;
+indicatorOfParameter=        11;
+}
+'T'={
+table2Version=         2;
+indicatorOfParameter=        11;
+}
+'T'={
+table2Version=         3;
+indicatorOfParameter=        11;
+}
+'T'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        11;
+}
+'FLUXSNOWC'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        11;
+}
+'C2H4'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        11;
+}
+'CYGELADVT'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        11;
+}
+'ENS_TSIG5'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        11;
+}
+'FLCND_GRND'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        12;
+}
+'C3H6'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        12;
+}
+'CYGEADVV'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        12;
+}
+'ENS_TSIG6'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        12;
+}
+'THETA'={
+table2Version=         1;
+indicatorOfParameter=        13;
+}
+'THETA'={
+table2Version=         2;
+indicatorOfParameter=        13;
+}
+'THETA'={
+table2Version=         3;
+indicatorOfParameter=        13;
+}
+'T_TOWN'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        13;
+}
+'OXYL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        13;
+}
+'CYGELSEN'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        13;
+}
+'ENS_ZMOY1'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        13;
+}
+'TPW'={
+table2Version=         1;
+indicatorOfParameter=        14;
+}
+'TPW'={
+table2Version=         2;
+indicatorOfParameter=        14;
+}
+'TPW'={
+table2Version=         3;
+indicatorOfParameter=        14;
+}
+'RNC_TOWN'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        14;
+}
+'C5H8'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        14;
+}
+'CYGELLAT'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        14;
+}
+'ENS_ZMOY2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        14;
+}
+'TMAX'={
+table2Version=         1;
+indicatorOfParameter=        15;
+}
+'TMAX'={
+table2Version=         2;
+indicatorOfParameter=        15;
+}
+'TMAX'={
+table2Version=         3;
+indicatorOfParameter=        15;
+}
+'FLSEN_TOWN'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        15;
+}
+'APINEN'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        15;
+}
+'CYGEFRIC'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        15;
+}
+'ENS_ZMOY3'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        15;
+}
+'TMIN'={
+table2Version=         1;
+indicatorOfParameter=        16;
+}
+'TMIN'={
+table2Version=         2;
+indicatorOfParameter=        16;
+}
+'TMIN'={
+table2Version=         3;
+indicatorOfParameter=        16;
+}
+'FLLAT_TOWN'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        16;
+}
+'HCHO'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        16;
+}
+'CYGEOROG'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        16;
+}
+'ENS_ZMOY4'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        16;
+}
+'TD'={
+table2Version=         1;
+indicatorOfParameter=        17;
+}
+'TD'={
+table2Version=         2;
+indicatorOfParameter=        17;
+}
+'TD'={
+table2Version=         3;
+indicatorOfParameter=        17;
+}
+'FLCND_TOWN'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        17;
+}
+'CH3CHO'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        17;
+}
+'V_COUR'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        40;
+}
+'ANOM_Z500'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        40;
+}
+'SWVL2'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=        40;
+}
+'TPREC_J67>5'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        40;
+}
+'TA'={
+table2Version=         1;
+indicatorOfParameter=        41;
+}
+'TA'={
+table2Version=         2;
+indicatorOfParameter=        41;
+}
+'TA'={
+table2Version=         3;
+indicatorOfParameter=        41;
+}
+'BATHY'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        41;
+}
+'STUD_Z500'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        41;
+}
+'GVOR'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        41;
+}
+'SWVL3'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=        41;
+}
+'ANOM_TJ610-2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        41;
+}
+'SURC_INS'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        42;
+}
+'ANOM_N_T850'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        42;
+}
+'STAB'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        42;
+}
+'SWVL4'={
+centre=	98;
+table2Version=    128;
+indicatorOfParameter=        42;
+}
+'ANOM_TJ610+2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        42;
+}
+'TB'={
+table2Version=         1;
+indicatorOfParameter=        43;
+}
+'TB'={
+table2Version=         2;
+indicatorOfParameter=        43;
+}
+'TB'={
+table2Version=         3;
+indicatorOfParameter=        43;
+}
+'SURC_MAX3'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        43;
+}
+'ANOM_T850'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        43;
+}
+'ADVT'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        43;
+}
+'PREC_J610<01'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        43;
+}
+'DI'={
+table2Version=         1;
+indicatorOfParameter=        44;
+}
+'DI'={
+table2Version=         2;
+indicatorOfParameter=        44;
+}
+'DI'={
+table2Version=         3;
+indicatorOfParameter=        44;
+}
+'SURC_MAX24'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        44;
+}
+'STUD_T850'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        44;
+}
+'ADVTOURB'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        44;
+}
+'TPREC_J610<1'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        44;
+}
+'T_ROAD'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        45;
+}
+'ANOM_N_T2M'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        45;
+}
+'DTSEN'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        45;
+}
+'TPREC_J610>3'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        45;
+}
+'WG_ROAD'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        46;
+}
+'ANOM_T2M'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        46;
+}
+'DTLAT'={
+centre=	85;
+table2Version=     200;
+indicatorOfParameter=        46;
+}
+'TPREC_J610>5'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        46;
+}
+'WGI_ROAD'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        47;
+}
+'STUD_T2M'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        47;
+}
+'ANOM_TJ810-2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        47;
+}
+'ALB_HISTO'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        48;
+}
+'ANOM_N_TSOL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        48;
+}
+'ANOM_TJ810+2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        48;
+}
+'ALB_SOLNU'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        49;
+}
+'ANOM_TSOL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        49;
+}
+'PREC_J810<01'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        49;
+}
+'CTA'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        50;
+}
+'STUD_TSOL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        50;
+}
+'TPREC_J810<1'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        50;
+}
+'Q'={
+table2Version=         1;
+indicatorOfParameter=        51;
+}
+'Q'={
+table2Version=         2;
+indicatorOfParameter=        51;
+}
+'Q'={
+table2Version=         3;
+indicatorOfParameter=        51;
+}
+'EP_RES_PFD'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        51;
+}
+'ANOM_N_PRECI'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        51;
+}
+'TPREC_J810>3'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        51;
+}
+'HU'={
+table2Version=         1;
+indicatorOfParameter=        52;
+}
+'HU'={
+table2Version=         2;
+indicatorOfParameter=        52;
+}
+'HU'={
+table2Version=         3;
+indicatorOfParameter=        52;
+}
+'FLLAT_EVAP'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        52;
+}
+'ANOM_PRECIP'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        52;
+}
+'TPREC_J810>5'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        52;
+}
+'R'={
+table2Version=         1;
+indicatorOfParameter=        53;
+}
+'R'={
+table2Version=         2;
+indicatorOfParameter=        53;
+}
+'R'={
+table2Version=         3;
+indicatorOfParameter=        53;
+}
+'ENS_TMOY_TOT'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        53;
+}
+'FLLAT_SUB'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        53;
+}
+'STUD_PRECIP'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        53;
+}
+'ENS_TMOY_TOT'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        53;
+}
+'ENS_TSIG_TOT'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        54;
+}
+'ET_ERANA_P'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        54;
+}
+'ANOM_N_PMER'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        54;
+}
+'ENS_TSIG_TOT'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        54;
+}
+'ENS_ZMOY_TOT'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        55;
+}
+'ET_ERPRE_P'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        55;
+}
+'ANOM_PMER'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        55;
+}
+'ENS_ZMOY_TOT'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        55;
+}
+'ENS_ZSIG_TOT'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        56;
+}
+'DMTGX_ZON'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        56;
+}
+'STUD_PMER'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        56;
+}
+'ENS_ZSIG_TOT'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        56;
+}
+'FLEVAP'={
+table2Version=         1;
+indicatorOfParameter=        57;
+}
+'FLEVAP'={
+table2Version=         2;
+indicatorOfParameter=        57;
+}
+'FLEVAP'={
+table2Version=         3;
+indicatorOfParameter=        57;
+}
+'T_TUR_ZON'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        57;
+}
+'PTINF_Z500'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        57;
+}
+'SWHP+2'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        57;
+}
+'DMTGX_MERI'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        58;
+}
+'PINF_Z500'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        58;
+}
+'SWHP+4'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        58;
+}
+'T_TUR_MERI'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        59;
+}
+'PNORM_Z500'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        59;
+}
+'SWHP+6'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        59;
+}
+'EMISSIVITE'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        60;
+}
+'PSUP_Z500'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        60;
+}
+'SWHP+8'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        60;
+}
+'PRECIP'={
+table2Version=         1;
+indicatorOfParameter=        61;
+}
+'PRECIP'={
+table2Version=         2;
+indicatorOfParameter=        61;
+}
+'PRECIP'={
+table2Version=         3;
+indicatorOfParameter=        61;
+}
+'PRECIP'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        61;
+}
+'IND_VEG'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        61;
+}
+'PTSUP_Z500'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        61;
+}
+'MWPP+8'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        61;
+}
+'PRLGE'={
+table2Version=         1;
+indicatorOfParameter=        62;
+}
+'PRLGE'={
+table2Version=         2;
+indicatorOfParameter=        62;
+}
+'PRLGE'={
+table2Version=         3;
+indicatorOfParameter=        62;
+}
+'PRLGE'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        62;
+}
+'R_STO_MIN'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        62;
+}
+'PTOT_Z500'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        62;
+}
+'MWPP+10'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        62;
+}
+'PRLCV'={
+table2Version=         1;
+indicatorOfParameter=        63;
+}
+'PRLCV'={
+table2Version=         2;
+indicatorOfParameter=        63;
+}
+'PRLCV'={
+table2Version=         3;
+indicatorOfParameter=        63;
+}
+'PROPARGILE'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        63;
+}
+'PTINF_T850'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        63;
+}
+'MWPP+12'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        63;
+}
+'PRENEI_INS'={
+table2Version=         1;
+indicatorOfParameter=        64;
+}
+'PRENEI_INS'={
+table2Version=         2;
+indicatorOfParameter=        64;
+}
+'PRENEI_INS'={
+table2Version=         3;
+indicatorOfParameter=        64;
+}
+'PROPSABLE'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        64;
+}
+'PINF_T850'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        64;
+}
+'MWPP+15'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        64;
+}
+'RESR_NEIGE'={
+table2Version=         1;
+indicatorOfParameter=        65;
+}
+'RESR_NEIGE'={
+table2Version=         2;
+indicatorOfParameter=        65;
+}
+'RESR_NEIGE'={
+table2Version=         3;
+indicatorOfParameter=        65;
+}
+'IND_FOLIAI'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        65;
+}
+'PNORM_T850'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        65;
+}
+'HU+60_AMAS'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        65;
+}
+'HTEURNEIGE'={
+table2Version=         1;
+indicatorOfParameter=        66;
+}
+'HTEURNEIGE'={
+table2Version=         2;
+indicatorOfParameter=        66;
+}
+'HTEURNEIGE'={
+table2Version=         3;
+indicatorOfParameter=        66;
+}
+'RESIS_ETP'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        66;
+}
+'PSUP_T850'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        66;
+}
+'FF_RAF+15'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        66;
+}
+'HTMELANGE'={
+table2Version=         1;
+indicatorOfParameter=        67;
+}
+'HTMELANGE'={
+table2Version=         2;
+indicatorOfParameter=        67;
+}
+'HTMELANGE'={
+table2Version=         3;
+indicatorOfParameter=        67;
+}
+'LRUG_THERM'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        67;
+}
+'PTSUP_T850'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        67;
+}
+'FF_RAF+20'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        67;
+}
+'RESR_INTER'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        68;
+}
+'PTOT_T850'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        68;
+}
+'FF_RAF+25'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        68;
+}
+'FLHU_TUR'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        69;
+}
+'PTINF_T2M'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        69;
+}
+'SWHP+3'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        69;
+}
+'FLCT_TUR'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        70;
+}
+'PINF_T2M'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        70;
+}
+'PRECI24-05'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        70;
+}
+'NEBUL'={
+table2Version=         1;
+indicatorOfParameter=        71;
+}
+'NEBUL'={
+table2Version=         2;
+indicatorOfParameter=        71;
+}
+'NEBUL'={
+table2Version=         3;
+indicatorOfParameter=        71;
+}
+'FLSUB_NEI'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        71;
+}
+'PNORM_T2M'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        71;
+}
+'PRECI48-05'={
+centre=	98;
+table2Version=    139;
+indicatorOfParameter=        71;
+}
+'NEBCON'={
+table2Version=         1;
+indicatorOfParameter=        72;
+}
+'NEBCON'={
+table2Version=         2;
+indicatorOfParameter=        72;
+}
+'NEBCON'={
+table2Version=         3;
+indicatorOfParameter=        72;
+}
+'NEBCON'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        72;
+}
+'PRECI06+1'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        72;
+}
+'FLEVAP_EAU'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        72;
+}
+'PSUP_T2M'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        72;
+}
+'NEBBAS'={
+table2Version=         1;
+indicatorOfParameter=        73;
+}
+'NEBBAS'={
+table2Version=         2;
+indicatorOfParameter=        73;
+}
+'NEBBAS'={
+table2Version=         3;
+indicatorOfParameter=        73;
+}
+'NEBBAS'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        73;
+}
+'PRECI06+10'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        73;
+}
+'LRUGFOISG'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        73;
+}
+'PTSUP_T2M'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        73;
+}
+'NEBMOY'={
+table2Version=         1;
+indicatorOfParameter=        74;
+}
+'NEBMOY'={
+table2Version=         2;
+indicatorOfParameter=        74;
+}
+'NEBMOY'={
+table2Version=         3;
+indicatorOfParameter=        74;
+}
+'NEBMOY'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        74;
+}
+'PRECI06+30'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        74;
+}
+'ALB_VEG'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        74;
+}
+'PTOT_T2M'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        74;
+}
+'NEBHAU'={
+table2Version=         1;
+indicatorOfParameter=        75;
+}
+'NEBHAU'={
+table2Version=         2;
+indicatorOfParameter=        75;
+}
+'NEBHAU'={
+table2Version=         3;
+indicatorOfParameter=        75;
+}
+'NEBHAU'={
+centre=	85;
+table2Version=     128;
+indicatorOfParameter=        75;
+}
+'PRECI06+50'={
+centre=	85;
+table2Version=     139;
+indicatorOfParameter=        75;
+}
+'RAYDIFF_D'={
+centre=	85;
+table2Version=     149;
+indicatorOfParameter=        75;
+}
+'PTINF_TSOL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=        75;
+}
+'GRELE_3D'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       100;
+}
+'CAPE_MOD'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       154;
+}
+'NIV_EQUI_CV'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       155;
+}
+'U_RAFKT'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       156;
+}
+'V_RAFKT'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       157;
+}
+'TCEL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       158;
+}
+'HA'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       159;
+}
+'DENSITE'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       160;
+}
+'NEBULOC'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       161;
+}
+'TRES'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       162;
+}
+'BASEBAS'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       163;
+}
+'SOMBAS'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       164;
+}
+'CSTA'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       165;
+}
+'NRICH'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       166;
+}
+'FFKT'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       167;
+}
+'IVIS'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       168;
+}
+'HNEIGEINCH'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       169;
+}
+'ALTIZERO'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       170;
+}
+'ALTINVT'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       171;
+}
+'FLSENW'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       172;
+}
+'FLSOLAIREW'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       173;
+}
+'FLTHERMW'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       174;
+}
+'RBOWEN'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       175;
+}
+'M'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       176;
+}
+'TDCEL'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       177;
+}
+'SKT'={
+centre=	98;
+table2Version=    159;
+indicatorOfParameter=       178;
+}
+'PNEIGE'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       188;
+}
+'BT'={
+centre=	85;
+table2Version=     129;
+indicatorOfParameter=         1;
+}
+'CAT_E1'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=       108;
+}
+'CAT_E2'={
+centre=	85;
+table2Version=     169;
+indicatorOfParameter=       109;
+}
+'WCI'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       178;
+}
+'FFBFT'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       179;
+}
+'HX'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       211;
+}
+'GRADM'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       212;
+}
+'HCONDSURF'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       213;
+}
+'GRADMOYM'={
+centre=	85;
+table2Version=     159;
+indicatorOfParameter=       214;
+}
+'AWH'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       246;
+}
+'ACWH'={
+centre=	85;
+table2Version=     140;
+indicatorOfParameter=       247;
+}

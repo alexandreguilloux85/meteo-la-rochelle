@@ -10,6 +10,7 @@
     <title>Météo La Rochelle</title>
 
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="frise-meteo.css">
 
     <!-- Leaflet : bibliothèque cartographique -->
     <link
@@ -183,22 +184,15 @@
             </div>
 
 
-            <div class="previsions-table-container">
-                <table class="table-previsions">
-                    <thead id="entetePrevisions">
-                        <tr>
-                            <th rowspan="2" class="colonne-parametre"></th>
-                        </tr>
-                        <tr></tr>
-                    </thead>
-
-                    <tbody id="tableauPrevisions">
-                        <tr>
-                            <td colspan="2">Chargement des prévisions...</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <!-- Frise météo autonome : les icônes restent neutres tant que
+                 les paramètres météo ne figurent pas dans le cache existant. -->
+            <div id="frise-meteo" class="frise-meteo-scroll"
+                 aria-label="Frise horaire des prévisions AROME">
+                <p style="padding:12px">Chargement de la frise...</p>
             </div>
+            <p id="frise-meteo-note" class="frise-meteo-note"></p>
+
+
 
 
         </section>
@@ -314,6 +308,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <!-- Application -->
+    <script src="frise-meteo.js"></script>
     <script src="app.js"></script>
 
 </body>

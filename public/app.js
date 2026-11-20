@@ -9,6 +9,7 @@ let graphiqueTemperature = null;
 
 let carteRadar = null;
 let coucheRadar = null;
+let contourZoneGrib = null;
 let cercle5Nm = null;
 let cercle15Nm = null;
 let etiquette5Nm = null;
@@ -325,6 +326,30 @@ function initialiserCarteRadar() {
         maxZoom: 19
     }).addTo(carteRadar);
 
+    // Limites de la zone du cache AROME GRIB2 (sur Render test seulement).
+    // Un pane dédié maintient le tracé au-dessus des tuiles radar.
+    // Le rectangle ne doit pas intercepter les clics destinés aux prévisions.
+    if (window.location.hostname === "station-meteo-lr-test.onrender.com") {
+        carteRadar.createPane("contourZoneGribPane");
+        const paneGrib = carteRadar.getPane("contourZoneGribPane");
+        paneGrib.style.zIndex = 425;
+        paneGrib.style.pointerEvents = "none";
+
+        contourZoneGrib = L.rectangle(
+            [[43.2, -5.0], [48.3, -0.3]],
+            {
+                pane: "contourZoneGribPane",
+                color: "#000000",
+                weight: 2,
+                opacity: 1,
+                dashArray: "4, 7",
+                lineCap: "round",
+                fill: false,
+                interactive: false
+            }
+        ).addTo(carteRadar);
+    }
+
         reconstruireRadarGraphique(
             centreLat,
             centreLon
@@ -455,6 +480,59 @@ function couleurVent(vitesse) {
 
 
 // --------------------------------------------------
+// PALETTE WINDY POUR LA FUTURE FRISE AROME
+// --------------------------------------------------
+
+// Couleurs relevées dans les deux extraits Windy fournis : vent et rafales.
+// Vitesse en nœuds. En dehors de [5, 38] kt, conserver la couleur limite.
+const PALETTE_VENT_WINDY = [
+    { kt: 5,  hex: "#F4F4F4" },
+    { kt: 7,  hex: "#73DDFA" },
+    { kt: 8,  hex: "#13CCFE" },
+    { kt: 9,  hex: "#00D3DE" },
+    { kt: 10, hex: "#00E96E" },
+    { kt: 11, hex: "#00EC36" },
+    { kt: 12, hex: "#00E90B" },
+    { kt: 15, hex: "#4DE200" },
+    { kt: 18, hex: "#C6C100" },
+    { kt: 20, hex: "#FFAB00" },
+    { kt: 22, hex: "#FF9205" },
+    { kt: 25, hex: "#FF7713" },
+    { kt: 30, hex: "#FF394E" },
+    { kt: 35, hex: "#FF0C89" },
+    { kt: 38, hex: "#FF0097" }
+];
+
+// Retourne une couleur CSS #RRGGBB. null signifie vitesse indisponible.
+// Ne change pas le tableau existant : il utilise toujours couleurVent().
+function couleurVentWindy(vitesseKt) {
+    if (!Number.isFinite(vitesseKt)) return null;
+
+    const palette = PALETTE_VENT_WINDY;
+    if (vitesseKt <= palette[0].kt) return palette[0].hex;
+    if (vitesseKt >= palette[palette.length - 1].kt) {
+        return palette[palette.length - 1].hex;
+    }
+
+    for (let i = 1; i < palette.length; i++) {
+        const bas = palette[i - 1];
+        const haut = palette[i];
+        if (vitesseKt > haut.kt) continue;
+
+        const fraction = (vitesseKt - bas.kt) / (haut.kt - bas.kt);
+        const composantes = [1, 3, 5].map(index => {
+            const debut = parseInt(bas.hex.slice(index, index + 2), 16);
+            const fin = parseInt(haut.hex.slice(index, index + 2), 16);
+            return Math.round(debut + fraction * (fin - debut))
+                .toString(16).padStart(2, "0");
+        });
+        return "#" + composantes.join("").toUpperCase();
+    }
+
+    return palette[palette.length - 1].hex;
+}
+
+// --------------------------------------------------
 // CACHE AROME ET INTERPOLATION LOCALE DANS LE NAVIGATEUR
 // --------------------------------------------------
 
@@ -462,6 +540,12 @@ function couleurVent(vitesse) {
 // lit son cache. GitHub Pages lit toujours le JSON publié en production.
 const EST_SITE_RENDER_TEST =
     window.location.hostname === "station-meteo-lr-test.onrender.com";
+// Sur Render test, les paquets GRIB2 sont interpolés côté serveur :
+// aucune grille AROME complète n'est envoyée au navigateur ni à GitHub Pages.
+const URL_PREVISIONS_PAQUETS_POINT =
+    window.location.origin + "/api/arome/paquets/test/previsions";
+const URL_PREVISIONS_WCS_POINT =
+    window.location.origin + "/api/arome/previsions";
 const URL_CACHE_AROME = EST_SITE_RENDER_TEST
     ? window.location.origin + "/api/arome/cache/public"
     : "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json";
@@ -659,6 +743,65 @@ function calculerPrevisionsAromeNavigateur(cache, latitude, longitude) {
 }
 
 // --------------------------------------------------
+// PREVISIONS AU POINT CLIQUE : UNIQUEMENT SUR RENDER TEST
+// --------------------------------------------------
+
+async function obtenirPrevisionsAromeAuPoint(url, lat, lon) {
+    const adresse = new URL(url);
+    adresse.searchParams.set("lat", String(lat));
+    adresse.searchParams.set("lon", String(lon));
+
+    const reponse = await fetch(adresse, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(25000)
+    });
+    if (!reponse.ok) {
+        let detail;
+        try {
+            detail = (await reponse.json()).erreur;
+        } catch (_erreur) {
+            detail = null;
+        }
+        throw new Error(detail || "HTTP " + reponse.status);
+    }
+    const resultat = await reponse.json();
+    if (!resultat.succes || !Array.isArray(resultat.previsions) ||
+        resultat.previsions.length === 0) {
+        throw new Error(resultat.erreur || "Réponse AROME au point invalide");
+    }
+    return resultat;
+}
+
+async function obtenirPrevisionsAromePourAffichage(lat, lon) {
+    if (!EST_SITE_RENDER_TEST) {
+        // Comportement GitHub Pages inchangé jusqu'à validation de l'essai.
+        const cache = await chargerCacheAromeNavigateur();
+        return calculerPrevisionsAromeNavigateur(cache, lat, lon);
+    }
+
+    try {
+        return await obtenirPrevisionsAromeAuPoint(
+            URL_PREVISIONS_PAQUETS_POINT, lat, lon
+        );
+    } catch (erreurPaquets) {
+        console.warn(
+            "AROME Paquets au point indisponible ; WCS de secours :",
+            erreurPaquets.message
+        );
+        // Même en secours, ne pas envoyer une grille au navigateur :
+        // Render calcule les prévisions pour la latitude/longitude cliquées.
+        const resultat = await obtenirPrevisionsAromeAuPoint(
+            URL_PREVISIONS_WCS_POINT, lat, lon
+        );
+        return {
+            ...resultat,
+            cache: true,
+            origine_cache: "WCS Render test (secours)"
+        };
+    }
+}
+
+// --------------------------------------------------
 // CHARGEMENT DES PREVISIONS AROME
 // --------------------------------------------------
 
@@ -666,8 +809,8 @@ function calculerPrevisionsAromeNavigateur(cache, latitude, longitude) {
 async function chargerPrevisionsArome(lat, lon, options = {}) {
 
     const statut = document.getElementById("previsionsMiseAJour");
-    const tableau = document.getElementById("tableauPrevisions");
-    const entete = document.getElementById("entetePrevisions");
+    const frise = document.getElementById("frise-meteo");
+    const noteFrise = document.getElementById("frise-meteo-note");
 
     const numeroRequete = ++numeroRequetePrevisions;
     const tentativesActualisation = options.tentativesActualisation || 0;
@@ -675,21 +818,17 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
     if (!options.silencieux) {
         statut.textContent = "Récupération des prévisions AROME...";
 
-        tableau.innerHTML = `
-            <tr><td colspan="2">Chargement des prévisions...</td></tr>
-        `;
+        if (frise) {
+            frise.textContent = "Chargement de la frise...";
+        }
+        if (noteFrise) noteFrise.textContent = "";
     }
 
     try {
 
-        const cache = await chargerCacheAromeNavigateur();
-        const resultat = calculerPrevisionsAromeNavigateur(
-            cache,
-            lat,
-            lon
-        );
+        const resultat = await obtenirPrevisionsAromePourAffichage(lat, lon);
 
-        console.log("Prévisions AROME calculées dans le navigateur", resultat);
+        console.log("Prévisions AROME au point sélectionné", resultat);
 
         if (!Array.isArray(resultat.previsions) ||
             resultat.previsions.length === 0) {
@@ -706,218 +845,8 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
             );
         }
         const previsions = resultat.previsions;
-
-        // ------------------------------------------
-        // CONSTRUCTION DES EN-TETES JOUR ET HEURE
-        // ------------------------------------------
-
-        let groupesJours = [];
-
-        previsions.forEach((p, index) => {
-
-            const date = new Date(p.date);
-
-            const jourCle = date.toLocaleDateString("fr-FR", {
-                timeZone: "Europe/Paris",
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric"
-            });
-
-            const heure = date.toLocaleTimeString("fr-FR", {
-                timeZone: "Europe/Paris",
-                hour: "2-digit"
-            }).replace(/\s*h\s*$/, "h");
-
-            let dernierGroupe = groupesJours[groupesJours.length - 1];
-
-            if (!dernierGroupe || dernierGroupe.cle !== jourCle) {
-
-                const nomJour = date.toLocaleDateString("fr-FR", {
-                    timeZone: "Europe/Paris",
-                    weekday: "long",
-                    day: "2-digit"
-                });
-
-                groupesJours.push({
-                    cle: jourCle,
-                    nom: nomJour.charAt(0).toUpperCase()
-                        + nomJour.slice(1),
-                    heures: []
-                });
-
-                dernierGroupe = groupesJours[groupesJours.length - 1];
-            }
-
-            dernierGroupe.heures.push({
-                index: index,
-                heure: heure
-            });
-
-        });
-
-        // Première ligne : les jours
-        let ligneJours = `
-            <tr>
-                <th rowspan="2" class="colonne-parametre"></th>
-        `;
-
-        groupesJours.forEach((groupe, index) => {
-
-            ligneJours += `
-                <th colspan="${groupe.heures.length}"
-                    class="jour-prevision${index > 0 ? " separateur-jour" : ""}">
-                    ${groupe.nom}
-                </th>
-            `;
-
-        });
-
-        ligneJours += `</tr>`;
-
-        // Deuxième ligne : les heures
-        let ligneHeures = `<tr>`;
-        groupesJours.forEach((groupe, groupeIndex) => {
-
-            groupe.heures.forEach((element, heureIndex) => {
-
-                ligneHeures += `
-                    <th class="heure-prevision${
-                        groupeIndex > 0 && heureIndex === 0
-                            ? " separateur-jour"
-                            : ""
-                    }">
-                        ${element.heure}
-                    </th>
-                `;
-
-            });
-
-        });
-
-        ligneHeures += `</tr>`;
-
-        entete.innerHTML = ligneJours + ligneHeures;
-        const separateursJours = new Set(
-            groupesJours.slice(1).map(groupe => groupe.heures[0].index)
-        );
-
-        // ------------------------------------------
-        // LIGNE VITESSE DU VENT
-        // ------------------------------------------
-
-        let ligneVent = `
-            <tr>
-                <td class="cellule-parametre">Vent (kt)</td>
-        `;
-
-        previsions.forEach((p, index) => {
-
-            const vitesseKt = Number(p.vitesse) * 1.94384;
-
-            const vitesseTexte = Number.isFinite(vitesseKt)
-                ? vitesseKt.toFixed(0)
-                : "--";
-
-            const couleur = Number.isFinite(vitesseKt)
-                ? couleurVent(vitesseKt)
-                : "#dce3eb";
-
-            ligneVent += `
-                <td class="cellule-vent${
-                    separateursJours.has(index) ? " separateur-jour" : ""
-                }"
-                    style="background-color: ${couleur}">
-                    ${vitesseTexte}
-                </td>
-            `;
-
-        });
-
-        ligneVent += `</tr>`;
-
-        // ------------------------------------------
-        // LIGNE RAFALES
-        // ------------------------------------------
-
-        let ligneRafales = `
-            <tr>
-                <td class="cellule-parametre">Rafales (kt)</td>
-        `;
-
-        previsions.forEach((p, index) => {
-            const rafaleMs = p.rafale == null
-                ? NaN
-                : Number(p.rafale);
-
-            const rafaleKt = Number.isFinite(rafaleMs)
-                ? rafaleMs * 1.94384
-                : NaN;
-
-            const rafaleTexte = Number.isFinite(rafaleKt)
-                ? rafaleKt.toFixed(0)
-                : "--";
-
-            const couleur = Number.isFinite(rafaleKt)
-                ? couleurVent(rafaleKt)
-                : "#dce3eb";
-
-            ligneRafales += `
-                <td class="cellule-vent cellule-rafale${
-                    separateursJours.has(index) ? " separateur-jour" : ""
-                }"
-                    style="background-color: ${couleur}">
-                    ${rafaleTexte}
-                </td>
-            `;
-        });
-
-        ligneRafales += `</tr>`;
-
-        // ------------------------------------------
-        // LIGNE DIRECTION DU VENT
-        // ------------------------------------------
-
-        let ligneDirection = `
-            <tr>
-                <td class="cellule-parametre">Direction</td>
-        `;
-
-        previsions.forEach((p, index) => {
-
-            const direction = Number(p.direction);
-
-            if (Number.isFinite(direction)) {
-
-                const directionCardinale = directionTexte(direction);
-
-                ligneDirection += `
-                    <td class="cellule-direction${
-                        separateursJours.has(index) ? " separateur-jour" : ""
-                    }">
-                        <span class="fleche-prevision"
-                            style="transform: rotate(${direction + 180}deg)">
-                            ↑
-                        </span>
-                        <div>${direction.toFixed(0)}°</div>
-                        <div>${directionCardinale}</div>
-                    </td>
-                `;
-
-            } else {
-                ligneDirection += `
-                    <td class="cellule-direction${
-                        separateursJours.has(index) ? " separateur-jour" : ""
-                    }">--</td>
-                `;
-            }
-
-        });
-
-        ligneDirection += `</tr>`;
-
-        // Affichage du tableau
-        tableau.innerHTML = ligneVent +ligneRafales + ligneDirection;
+        // La frise est l'unique tableau : calcul et source AROME inchangés.
+        window.afficherFriseMeteoArome?.(previsions, lat, lon);
 
         // ------------------------------------------
         // INFORMATIONS DU MODELE
@@ -932,11 +861,15 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
         let origine = "Téléchargement de nouveaux GRIB";
 
         if (resultat.cache === true) {
-            origine = resultat.origine_cache === "GitHub Pages"
-                ? "Prévisions depuis le cache GitHub Pages"
-                : resultat.origine_cache === "Render test"
-                    ? "Prévisions depuis le cache Render test"
-                    : "Prévisions depuis le cache local";
+            origine = resultat.origine_cache === "Paquets AROME Render test"
+                ? "Prévisions AROME GRIB2 au point sélectionné"
+                : resultat.origine_cache === "WCS Render test (secours)"
+                    ? "Prévisions WCS de secours au point sélectionné"
+                    : resultat.origine_cache === "GitHub Pages"
+                        ? "Prévisions depuis le cache GitHub Pages"
+                        : resultat.origine_cache === "Render test"
+                            ? "Prévisions depuis le cache Render test"
+                            : "Prévisions depuis le cache local";
         }
 
         let statutActualisation = "";
@@ -976,15 +909,8 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
 
         if (options.silencieux) return;
 
-        entete.innerHTML = `
-            <tr><th>Prévisions AROME</th></tr>
-        `;
-
-        tableau.innerHTML = `
-            <tr>
-                <td colspan="2">Erreur : ${erreur.message}</td>
-            </tr>
-        `;
+        if (frise) frise.textContent = "Erreur : " + erreur.message;
+        if (noteFrise) noteFrise.textContent = "";
     }
 }
 
@@ -1706,6 +1632,31 @@ async function actualiserDepuisInterface(action, bouton) {
                     : "Météo-France ne fournit pas de nouveau radar (dernier radar : " +
                       heureRadar + ")";
             }
+            return;
+        }
+
+        if (EST_SITE_RENDER_TEST) {
+            // Le bouton ne dévoile pas le secret AROME_REFRESH_TOKEN.
+            // Il relit le point courant et le statut du cycle automatique.
+            const reponseStatut = await fetch(
+                window.location.origin + "/api/arome/paquets/test/status",
+                { cache: "no-store" }
+            );
+            if (!reponseStatut.ok) {
+                throw new Error("Statut AROME Paquets indisponible");
+            }
+            const etatPaquets = await reponseStatut.json();
+            await chargerPrevisionsArome(
+                positionCourante.lat, positionCourante.lon
+            );
+            statut.textContent = etatPaquets.en_cours
+                ? "AROME GRIB2 : actualisation en cours (" +
+                    (etatPaquets.groupes_termines || 0) + "/9 paquets)."
+                : etatPaquets.cache_disponible
+                    ? "Prévisions actualisées depuis le cache GRIB2 Render. " +
+                      "Vérification du catalogue toutes les 30 min."
+                    : "Cache GRIB2 en préparation ; prévisions WCS de secours " +
+                      "si disponibles.";
             return;
         }
 

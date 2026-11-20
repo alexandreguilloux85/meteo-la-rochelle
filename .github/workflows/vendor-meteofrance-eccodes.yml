@@ -1,0 +1,65 @@
+name: Copier definitions ecCodes Meteo-France dans Test_fonction
+
+on:
+  push:
+    branches:
+      - Test_fonction
+    paths:
+      - .github/workflows/vendor-meteofrance-eccodes.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vendor-meteofrance-eccodes-Test_fonction
+  cancel-in-progress: false
+
+jobs:
+  copier-definitions:
+    if: github.ref == 'refs/heads/Test_fonction'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Récupérer Test_fonction
+        uses: actions/checkout@v4
+        with:
+          ref: Test_fonction
+          persist-credentials: true
+
+      - name: Télécharger une seule fois les définitions officielles GRIB2
+        run: |
+          set -euo pipefail
+          python3 scripts/install-meteofrance-eccodes.py --update-vendor
+          test -s vendor/meteofrance/eccodes-definitions.tar.gz
+          test -s vendor/meteofrance/manifest.json
+          test -d vendor/meteofrance/definitions/grib2
+
+      - name: Vérifier les définitions déjà extraites, sans ouvrir l'archive
+        run: |
+          set -euo pipefail
+          python3 scripts/install-meteofrance-eccodes.py
+          test -d vendor/meteofrance/definitions/grib2
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          manifeste = json.loads(Path("vendor/meteofrance/manifest.json").read_text())
+          defs = Path("vendor/meteofrance/definitions/grib2")
+          fichiers = list(defs.rglob("*"))
+          assert manifeste["fichiers_extraits"] > 0
+          assert any(path.is_file() for path in fichiers)
+          print("Installation ecCodes hors ligne validée :", len(fichiers), "entrées")
+          PY
+
+      - name: Enregistrer archive officielle + SHA256 dans Test_fonction
+        run: |
+          set -euo pipefail
+          git add -A vendor/meteofrance/
+          if git diff --cached --quiet; then
+            echo "Définitions déjà identiques à la copie versionnée."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Versionner les définitions GRIB2 officielles Météo-France"
+          git push origin HEAD:Test_fonction

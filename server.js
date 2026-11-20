@@ -769,6 +769,14 @@ function verifierJetonActualisation(req, res) {
     return true;
 }
 
+// Test isolé des paquets GRIB2 : routes actives uniquement sur Render test.
+// Les prévisions WCS et le cache GitHub Pages ne sont jamais modifiés ici.
+require("./arome-paquets-render-test").installerTestAromePaquets(app, {
+    verifierJetonActualisation,
+    calculerPrevisionsArome,
+    chargerCacheArome
+});
+
 // Chargement du cache depuis le disque Render
 async function chargerCacheArome() {
     if (AROME_CACHE_ZONE) return AROME_CACHE_ZONE;
