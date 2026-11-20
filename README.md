@@ -43,8 +43,8 @@ déploiement même si le workflow se termine correctement.
 Les boutons **Station de vent** et **Radar** appellent directement les API
 Render; le bouton Radar vérifie le dernier produit national et recharge ses
 tuiles. Le bouton **Prévisions AROME** relit les prévisions au point choisi
-et affiche le statut du calcul GRIB2 lorsqu'il est disponible. Sur le service
-de production sans GRIB2, il demande une vérification du cache WCS.
+et affiche le statut du calcul GRIB2 lorsqu'il est disponible. Le serveur
+vérifie le catalogue AROME selon son propre cycle automatique.
 
 Dans **Render → Environment**, configurer les variables suivantes :
 
@@ -66,9 +66,18 @@ observations et les tuiles radar ne nécessitent plus de workflow GitHub.
 
 ## Activer le GRIB2 en production
 
-La frise de GitHub Pages et celle de Render production lisent les prévisions
-au point sur `station-meteo-lr.onrender.com`. Le cache WCS sert de secours
-pendant le démarrage et quand le GRIB2 est indisponible.
+Chaque site Render calcule les prévisions au point sélectionné sur son
+propre service. GitHub Pages utilise `station-meteo-lr.onrender.com`. Si le
+GRIB2 est indisponible ou si le clic est hors de sa zone, l'interface demande
+le WCS au même service Render. Le cache WCS publié sur GitHub Pages permet
+encore d'afficher le vent dans sa zone si Render ne peut pas répondre.
+Une zone WCS calculée sur Render à la suite d'un clic peut servir localement.
+La sauvegarde WCS publiée reste limitée aux caches qui couvrent La Rochelle.
+
+Après un redémarrage, les deux services cherchent d'abord à restaurer la
+sauvegarde GRIB2 de GitHub Pages, puis vérifient le catalogue. Un contrôle
+réussi est renouvelé après 30 minutes et un modèle complet plus récent
+déclenche le téléchargement des neuf groupes.
 
 1. Après la fusion sur `main`, ouvrir **Render → station-meteo-lr → Settings**.
    Garder la branche `main` et le runtime Node. Configurer le **Build Command**
