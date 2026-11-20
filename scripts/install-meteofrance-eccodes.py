@@ -5,6 +5,7 @@ La source est la ressource « Définition des gribs sauf les modèles de vague
 en grib2 » du jeu de données public Météo-France sur data.gouv.fr.
 Aucun GRIB2 de prévision n'est téléchargé ici.
 """
+import argparse
 import hashlib
 import io
 import json
@@ -21,6 +22,8 @@ DATASET_ID = "67eb8c7c30daf1fd537258de"
 DATASET_API = f"https://www.data.gouv.fr/api/1/datasets/{DATASET_ID}/"
 RACINE = Path(__file__).resolve().parents[1]
 DESTINATION = RACINE / ".meteo-eccodes" / "definitions"
+VENDOR = RACINE / "vendor" / "meteofrance" / "eccodes-definitions.tar.gz"
+MANIFESTE = RACINE / "vendor" / "meteofrance" / "manifest.json"
 MAX_ARCHIVE = 4 * 1024 * 1024
 MAX_UNCOMPRESSED = 50 * 1024 * 1024
 MAX_FILES = 10000
@@ -117,36 +120,78 @@ def extraire(archive, repertoire):
     return candidates[0], nombre
 
 
-def installer():
+def actualiser_archive_versionnee():
+    """Téléchargement ponctuel, à faire via GitHub Actions (et jamais Render)."""
     metadonnees = json.loads(telecharger(DATASET_API, 1024 * 1024))
     ressource = choisir_ressource(metadonnees.get("resources", []))
     rid = ressource.get("id")
     if not rid:
         raise ValueError("Ressource sans ID")
-    # URL stable de data.gouv.fr, liée à l'identifiant officiel sélectionné.
     url = "https://www.data.gouv.fr/api/1/datasets/r/" + rid
     archive = telecharger(url, MAX_ARCHIVE)
+    # Vérifier l'archive officielle AVANT de la copier dans le dépôt.
+    with tempfile.TemporaryDirectory(prefix="verification-grib2-") as temporaire:
+        _, nombre = extraire(archive, Path(temporaire))
+    sha = hashlib.sha256(archive).hexdigest()
+    infos = {
+        "source": url,
+        "jeu_de_donnees": "https://www.data.gouv.fr/datasets/" + DATASET_ID,
+        "titre": ressource.get("title"),
+        "ressource_id": rid,
+        "date_publication": ressource.get("last_modified"),
+        "sha256": sha,
+        "fichiers_extraits": nombre,
+        "licence": "Licence Ouverte / Open Licence version 2.0",
+        "producteur": "Météo-France"
+    }
+    VENDOR.parent.mkdir(parents=True, exist_ok=True)
+    VENDOR.write_bytes(archive)
+    MANIFESTE.write_text(
+        json.dumps(infos, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    print("Archive officielle copiée dans le dépôt :", VENDOR, flush=True)
+    print("Ressource :", url, "SHA256 :", sha, "fichiers :", nombre, flush=True)
+
+
+def installer_localement():
+    """Build Render : lecture des fichiers Git uniquement, sans connexion externe."""
+    if not VENDOR.is_file() or not MANIFESTE.is_file():
+        raise FileNotFoundError(
+            "Définitions versionnées absentes. Exécuter le workflow "
+            "'Copier definitions ecCodes Meteo-France' sur Test_fonction."
+        )
+    archive = VENDOR.read_bytes()
+    if not 1000 < len(archive) <= MAX_ARCHIVE:
+        raise ValueError("Archive versionnée trop petite ou trop volumineuse")
+    manifest = json.loads(MANIFESTE.read_text(encoding="utf-8"))
+    sha = hashlib.sha256(archive).hexdigest()
+    if manifest.get("sha256") != sha:
+        raise ValueError("SHA256 de l'archive versionnée incorrect")
+    if not all(x in nettoyer(manifest.get("titre", ""))
+               for x in ("grib", "sauf", "vague")):
+        raise ValueError("Manifest non conforme à l'archive GRIB2 hors vagues")
     with tempfile.TemporaryDirectory(prefix="meteo-definitions-") as temporaire:
         source, nombre = extraire(archive, Path(temporaire))
         DESTINATION.parent.mkdir(parents=True, exist_ok=True)
         if DESTINATION.exists():
             shutil.rmtree(DESTINATION)
         shutil.copytree(source, DESTINATION)
-    infos = {
-        "source": url,
-        "titre": ressource.get("title"),
-        "ressource_id": rid,
-        "date_publication": ressource.get("last_modified"),
-        "sha256": hashlib.sha256(archive).hexdigest(),
-        "fichiers_extraits": nombre
-    }
     (DESTINATION.parent / "source.json").write_text(
-        json.dumps(infos, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        json.dumps({**manifest, "fichiers_extraits": nombre},
+                   ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-    print("Définitions ecCodes Météo-France installées :", DESTINATION, flush=True)
-    print("Ressource officielle :", url, flush=True)
-    print("SHA256 :", infos["sha256"], "| fichiers :", nombre, flush=True)
+    print("Définitions ecCodes installées depuis le dépôt Git :", DESTINATION, flush=True)
+    print("AUCUN téléchargement externe. SHA256 vérifié :", sha, flush=True)
 
 
 if __name__ == "__main__":
-    installer()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--update-vendor", action="store_true",
+        help="Télécharger une fois les définitions Météo-France et les versionner"
+    )
+    args = parser.parse_args()
+    if args.update_vendor:
+        actualiser_archive_versionnee()
+    else:
+        installer_localement()
