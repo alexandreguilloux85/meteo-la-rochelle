@@ -928,7 +928,7 @@ function installerTestAromePaquets(app, {
             );
             console.log("AROME Paquets : champs météo facultatifs :", champsMeteo);
             const cache = {
-                meteo_version: 1,
+                meteo_version: 2,
                 champs_meteo: champsMeteo,
                 modele: produit.modele,
                 date: Date.now(),
@@ -1066,7 +1066,7 @@ function installerTestAromePaquets(app, {
                 // l'ancien cache de vent, puis l'enrichir sans attendre un
                 // changement de réseau. Les cycles suivants restent à 30 min.
                 const nouveauModele = !cacheComplet ||
-                    !cacheTest?.meteo_version ||
+                    Number(cacheTest?.meteo_version || 0) < 2 ||
                     Date.parse(produit.modele) > Date.parse(cacheTest.modele);
 
                 if (nouveauModele) {
