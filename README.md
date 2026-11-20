@@ -135,6 +135,32 @@ Dans **Render → station-meteo-lr-test → Settings → Build & Deploy** :
 Le script de build exécute `npm ci` puis installe `numpy` et `eccodes`
 dans `.arome-py/`, un dossier privé au service et ignoré par Git.
 
+**Tables officielles ecCodes Météo-France :** le même build exécute ensuite
+`scripts/install-meteofrance-eccodes.py`. Ce script interroge le jeu de
+données public [Définition des gribs de Météo-France](https://www.data.gouv.fr/datasets/definition-des-gribs-de-meteo-france),
+sélectionne explicitement l'archive « Définition des gribs sauf les modèles
+de vague en grib2 » et la télécharge depuis data.gouv.fr. Il refuse les
+archives non valides et n'exécute aucun script issu du téléchargement.
+La ressource sélectionnée, la date de publication et le SHA256 sont conservés
+dans `.meteo-eccodes/source.json` (fichier local au service, ignoré par Git).
+
+Les fichiers sont installés sous `.meteo-eccodes/definitions/` ; le
+décodeur Python ajoute ce dossier **en tête** du chemin des définitions
+ecCodes, suivi du chemin standard de la bibliothèque. Les tables Météo-France
+complètent donc les définitions standard sans les écraser. Le build vérifie
+l'activation réelle de `ECCODES_DEFINITION_PATH` ; si le téléchargement
+ou cette vérification échoue, le **nouveau déploiement** échoue plutôt que
+de présenter les tables comme installées. Le déploiement précédent reste
+en service. Aucune variable à ajouter manuellement sur Render.
+
+Le statut public `/api/arome/paquets/test/status` indique
+`definitions_meteofrance_installees: true` lorsque les fichiers sont bien
+présents sur le service déployé. Ce contrôle ne prouve pas à lui seul que
+le champ `NEBUL` est décodé : il faut également contrôler
+`champs_meteo.NEBUL_METEO` **après la construction d'un nouveau cache**.
+Le décodeur n'attribue **jamais** un champ `unknown` à `NEBUL` sans code
+ou nom GRIB2 explicitement reconnu.
+
 **Si le statut indique `ModuleNotFoundError: No module named 'numpy'` :**
 le service a pu démarrer sans avoir installé les bibliothèques Python.
 Dans Render test, vérifier que le **Build Command** est exactement
