@@ -480,6 +480,59 @@ function couleurVent(vitesse) {
 
 
 // --------------------------------------------------
+// PALETTE WINDY POUR LA FUTURE FRISE AROME
+// --------------------------------------------------
+
+// Couleurs relevées dans les deux extraits Windy fournis : vent et rafales.
+// Vitesse en nœuds. En dehors de [5, 38] kt, conserver la couleur limite.
+const PALETTE_VENT_WINDY = [
+    { kt: 5,  hex: "#F4F4F4" },
+    { kt: 7,  hex: "#73DDFA" },
+    { kt: 8,  hex: "#13CCFE" },
+    { kt: 9,  hex: "#00D3DE" },
+    { kt: 10, hex: "#00E96E" },
+    { kt: 11, hex: "#00EC36" },
+    { kt: 12, hex: "#00E90B" },
+    { kt: 15, hex: "#4DE200" },
+    { kt: 18, hex: "#C6C100" },
+    { kt: 20, hex: "#FFAB00" },
+    { kt: 22, hex: "#FF9205" },
+    { kt: 25, hex: "#FF7713" },
+    { kt: 30, hex: "#FF394E" },
+    { kt: 35, hex: "#FF0C89" },
+    { kt: 38, hex: "#FF0097" }
+];
+
+// Retourne une couleur CSS #RRGGBB. null signifie vitesse indisponible.
+// Ne change pas le tableau existant : il utilise toujours couleurVent().
+function couleurVentWindy(vitesseKt) {
+    if (!Number.isFinite(vitesseKt)) return null;
+
+    const palette = PALETTE_VENT_WINDY;
+    if (vitesseKt <= palette[0].kt) return palette[0].hex;
+    if (vitesseKt >= palette[palette.length - 1].kt) {
+        return palette[palette.length - 1].hex;
+    }
+
+    for (let i = 1; i < palette.length; i++) {
+        const bas = palette[i - 1];
+        const haut = palette[i];
+        if (vitesseKt > haut.kt) continue;
+
+        const fraction = (vitesseKt - bas.kt) / (haut.kt - bas.kt);
+        const composantes = [1, 3, 5].map(index => {
+            const debut = parseInt(bas.hex.slice(index, index + 2), 16);
+            const fin = parseInt(haut.hex.slice(index, index + 2), 16);
+            return Math.round(debut + fraction * (fin - debut))
+                .toString(16).padStart(2, "0");
+        });
+        return "#" + composantes.join("").toUpperCase();
+    }
+
+    return palette[palette.length - 1].hex;
+}
+
+// --------------------------------------------------
 // CACHE AROME ET INTERPOLATION LOCALE DANS LE NAVIGATEUR
 // --------------------------------------------------
 
