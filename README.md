@@ -147,13 +147,16 @@ de télécharger le GRIB2, pour éviter des appels API inutiles.
 
 Dans **Render → Environment**, définir :
 
-- `METEO_AROME_PAQUETS_TOKEN` : jeton Bearer de l'API Paquet AROME,
-  sans préfixe `Bearer`. Attention : il expire généralement au bout d'une
-  heure. Le renouveler avant chaque test tant que l'OAuth2 automatique
-  n'est pas configuré.
-- Ou, de préférence, `METEO_AROME_PAQUETS_APPLICATION_ID` : identifiant
-  Basic durable du portail, utilisé pour générer un nouveau jeton OAuth2
-  juste avant le téléchargement.
+- **`METEO_AROME_PAQUETS_API_KEY` (recommandé) :** clé API longue
+  durée générée dans « Paquet AROME → Générer Token → API Key ».
+  Copier uniquement la clé, sans `apikey:`, sans `Bearer` ni
+  guillemets. Le module Render test envoie l'en-tête HTTP `apikey`
+  à Météo-France pour le catalogue **et les téléchargements GRIB2**.
+  La clé est utilisée prioritairement si plusieurs secrets existent.
+- **Alternative** `METEO_AROME_PAQUETS_APPLICATION_ID` : identifiant
+  Basic pour générer un jeton OAuth2 renouvelable.
+- **Alternative** `METEO_AROME_PAQUETS_TOKEN` : jeton Bearer déjà
+  généré, valable généralement une heure.
 - `AROME_REFRESH_TOKEN` : **secret différent** servant à autoriser la
   commande manuelle sur Render. Réutiliser celui déjà configuré sur le
   service test pour la mise à jour WCS. Ne pas confondre avec le Bearer
@@ -277,6 +280,7 @@ un téléchargement WCS ni le modifier.
 **Sécurité et fonctionnement :** la mise à jour complète reste
 **manuelle sur Render test**, sans remplacer l'AROME WCS du site,
 sans publier vers GitHub Pages et sans modifier la branche `main`.
-Pour l'automatisation toutes les trois heures, l'identifiant durable
-`METEO_AROME_PAQUETS_APPLICATION_ID` sera nécessaire afin de
-renouveler les jetons Bearer expirant en environ une heure.
+Pour l'automatisation toutes les trois heures, utiliser
+`METEO_AROME_PAQUETS_API_KEY` (clé longue durée) **ou**
+`METEO_AROME_PAQUETS_APPLICATION_ID` (OAuth2 renouvelable).
+La clé API n'a pas besoin de renouvellement horaire.
