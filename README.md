@@ -2,8 +2,8 @@
 
 Site météo hébergé sur GitHub Pages. Render récupère directement les
 observations de la station et sert à la demande les tuiles radar couvrant la
-France entière. GitHub Actions télécharge les prévisions AROME et les publie
-sur GitHub Pages.
+France entière. Render calcule les prévisions AROME au point sélectionné.
+GitHub Actions sauvegarde les caches et publie le site sur GitHub Pages.
 
 ## Actualisation des données
 
@@ -11,7 +11,7 @@ sur GitHub Pages.
 | --- | --- | --- |
 | Observations de la station de La Rochelle | À l'ouverture, puis toutes les 6 minutes si la page est ouverte | API Météo-France appelée par Render |
 | Radar | Vérifié à l'ouverture, puis toutes les 10 minutes si la page est ouverte | Tuiles XYZ nationales générées à la demande par Render |
-| Prévisions AROME | 8 fois par jour, à `00:15`, `03:15`, `06:15`, `09:15`, `12:15`, `15:15`, `18:15` et `21:15` UTC | API WCS Météo-France |
+| Prévisions AROME | Catalogue vérifié toutes les 30 minutes quand le service GRIB2 est actif | Paquets AROME de Météo-France sur Render, cache WCS en secours |
 
 Les contrôles périodiques dans le navigateur ne fonctionnent que tant que la
 page reste ouverte. Les observations sont affichées dans l'ordre chronologique,
@@ -42,10 +42,9 @@ déploiement même si le workflow se termine correctement.
 
 Les boutons **Station de vent** et **Radar** appellent directement les API
 Render; le bouton Radar vérifie le dernier produit national et recharge ses
-tuiles, sans workflow GitHub. Le bouton **Prévisions AROME** demande à Render
-de déclencher le workflow GitHub Actions; le jeton reste côté serveur et ne
-doit jamais être ajouté au site statique. Les boutons sont publics : toute
-personne connaissant l'adresse peut les appeler.
+tuiles. Le bouton **Prévisions AROME** relit les prévisions au point choisi
+et affiche le statut du calcul GRIB2 lorsqu'il est disponible. Sur le service
+de production sans GRIB2, il demande une vérification du cache WCS.
 
 Dans **Render → Environment**, configurer les variables suivantes :
 
@@ -55,24 +54,45 @@ Dans **Render → Environment**, configurer les variables suivantes :
 | `METEO_RADAR_API_KEY` | Téléchargement de la mosaïque radar |
 | `GITHUB_ACTIONS_TOKEN` | Jeton GitHub avec l'autorisation Actions: write, utilisé uniquement pour AROME |
 
-Le service Render doit déployer la branche `main`. Le déclenchement AROME refuse
-une nouvelle demande tant qu'une exécution est en attente ou en cours et impose
-un délai de dix minutes entre deux lancements manuels. Cette limite est vérifiée
-auprès de GitHub et reste donc active même après la mise en veille ou le
-redémarrage de Render.
-
 Après un redémarrage de Render, le premier affichage du radar peut prendre plus
 de temps, car le produit doit être téléchargé et lu. Les tuiles consultées sont
-ensuite mises en cache côté serveur. Une fois le workflow AROME terminé, le
-déploiement GitHub Pages se lance. L'endpoint de déclenchement AROME est public :
-les limites réduisent les déclenchements accidentels, mais ne remplacent pas
-une authentification.
+ensuite mises en cache côté serveur.
 
 ## Vérification manuelle
 
 Dans l'onglet **Actions**, lancer au besoin **Publish AROME cache**. Les
 observations et les tuiles radar ne nécessitent plus de workflow GitHub.
 
+
+## Activer le GRIB2 en production
+
+La frise de GitHub Pages et celle de Render production lisent les prévisions
+au point sur `station-meteo-lr.onrender.com`. Le cache WCS sert de secours
+pendant le démarrage et quand le GRIB2 est indisponible.
+
+1. Après la fusion sur `main`, ouvrir **Render → station-meteo-lr → Settings**.
+   Garder la branche `main` et le runtime Node. Configurer le **Build Command**
+   `bash scripts/build-render-test.sh` et le **Start Command** `npm start`.
+2. Dans **Environment**, ajouter `METEO_AROME_PAQUETS_API_KEY` et
+   `AROME_PAQUETS_TEST_ENABLED=1`. Laisser l'actualisation automatique active
+   (`AROME_PAQUETS_AUTO_REFRESH` absent ou différent de `0`), puis déployer.
+   Les reconstructions manuelles sont protégées par `AROME_REFRESH_TOKEN` et
+   utilisent les neuf groupes en production.
+3. Vérifier le [statut GRIB2 de production](https://station-meteo-lr.onrender.com/api/arome/paquets/test/status).
+   Attendre `cache_disponible: true`, `meteo_version: 2` ou une version
+   supérieure, et `51` pour chacun des trois `champs_meteo`. Vérifier la
+   frise de GitHub Pages sur un point dans la zone GRIB2, comme La Rochelle.
+4. Pour confier la sauvegarde à la production, configurer sur le service
+   `GITHUB_PAQUETS_PUBLISH_TOKEN` ou réutiliser `GITHUB_DATA_TOKEN` avec
+   **Contents: Read and write**. Dans **GitHub → Settings → Secrets and
+   variables → Actions → Variables**, définir `AROME_PAQUETS_PUBLISH_SOURCE`
+   à `production`. Dans **Actions**, lancer **Save AROME Paquets cache for
+   GitHub Pages** sur `main` pour valider et publier le cache actif.
+
+Tant que `AROME_PAQUETS_PUBLISH_SOURCE` est absente ou vaut `test`, Render
+test fournit la sauvegarde. Avec `production`, seuls les signaux de
+production peuvent lancer sa publication automatique. Le service de test
+garde la branche `Test_fonction` et continue ses propres calculs.
 
 ## Essai AROME par paquets GRIB2 (branche Test_fonction)
 
@@ -112,16 +132,12 @@ sans afficher le secret.
 - étendre ensuite au groupe complet des 51 échéances, mesurer les tailles du
   JSON réduit et choisir le mode de publication/cache approprié.
 
-Le site conserve pour l'instant le système AROME actuel : **aucune migration
-automatique de la production** n'est effectuée.
-
-
 ## Tester les paquets AROME directement sur Render test
 
-**Branche :** `Test_fonction`, service `station-meteo-lr-test` uniquement.
-Le pilote est désactivé sur le service de production (et n'est pas utilisé
-par GitHub Pages). Il ne modifie ni le cache WCS ni le fichier publié sur
-`arome-data`. Aucune mise à jour automatique n'est activée pour ce pilote.
+**Branche :** `Test_fonction`, service `station-meteo-lr-test`.
+Le service utilise son propre cache en mémoire. La sauvegarde GRIB2 utilise
+la branche `arome-paquets-data`. Les mises à jour automatiques du catalogue
+sont actives par défaut.
 
 ### Préparer Render test
 
@@ -371,8 +387,9 @@ Après validation d'un cycle complet de **neuf groupes (H+1 à H+51)**,
 Render test peut déclencher l'événement GitHub
 `arome-paquets-cache-ready`. Le workflow GitHub Actions
 [`Save AROME Paquets cache for GitHub Pages`](https://github.com/alexandreguilloux85/meteo-la-rochelle/blob/main/.github/workflows/publish-arome-paquets-cache.yml)
-télécharge le gzip depuis Render test, vérifie le SHA256 annoncé, le modèle
-et les **51 échéances U/V/FF_RAF**, puis remplace le contenu de la branche
+télécharge le gzip depuis le service sélectionné par `AROME_PAQUETS_PUBLISH_SOURCE`,
+vérifie le SHA256 annoncé, le modèle et les **51 échéances U/V/FF_RAF**, puis
+remplace le contenu de la branche
 **`arome-paquets-data` par un unique commit orphelin**. Le workflow
 [`Publish website`](https://github.com/alexandreguilloux85/meteo-la-rochelle/blob/main/.github/workflows/publish-website.yml) ajoute
 `arome-paquets-cache.json.gz` à GitHub Pages en plus du cache WCS
@@ -419,16 +436,12 @@ GitHub Actions, dont la conservation dépend de GitHub.
 
 **Déploiement :** les deux workflows sont sur la branche `main` car
 les événements `repository_dispatch` GitHub sont pris en compte sur
-la branche par défaut. Seuls ces workflows ont changé sur `main` ;
-le code applicatif de production, les observations, le radar et le
-calcul au point cliqué de `Test_fonction` restent inchangés.
+la branche par défaut.
 
 
-## Frise météo AROME — prévisualisation sans modification du cache (Render test)
+## Frise météo AROME
 
-La frise expérimentale est désormais **l'unique tableau des prévisions AROME**
-sur la branche `Test_fonction`. L'ancien tableau et son rendu ont été supprimés
-de l'interface, sans modification des données. Les fichiers
+La frise est le tableau des prévisions horaires AROME. Les fichiers
 `public/frise-meteo.js` et `public/frise-meteo.css` en assurent
 l'affichage indépendant : ils utilisent les **prévisions au point déjà
 chargées** par `public/app.js`, sans nouvelle requête météo ni téléchargement
@@ -497,8 +510,7 @@ champ** signifie que les données SP1 ont été décodées pour les 51 heures.
 Les encodages sont facultatifs, et si la taille totale dépasse les limites
 existantes (45 Mo JSON ou 16 Mo gzip), le traitement garde le **cache de
 vent seul** plutôt que de casser l'enregistrement sur GitHub Pages.
-Le workflow GitHub Actions, la publication Pages et le site de production
-ne sont pas modifiés. Les GRIB2 ne sont toujours pas envoyés au navigateur.
+Le navigateur reçoit seulement les prévisions calculées au point demandé.
 
 Pour afficher correctement les icônes, il faut donc disposer d'un cache
 publié avec ses champs météo : faire seulement F5 avec un **ancien** cache

@@ -4,19 +4,28 @@ on:
   repository_dispatch:
     types:
       - arome-paquets-cache-ready
+      - arome-paquets-production-cache-ready
   workflow_dispatch:
 
 permissions:
   contents: write
 
-concurrency:
-  group: arome-paquets-data-branch
-  cancel-in-progress: false
-
 jobs:
   save-cache:
+    if: >-
+      github.ref == 'refs/heads/main' && (
+        ((vars.AROME_PAQUETS_PUBLISH_SOURCE == '' || vars.AROME_PAQUETS_PUBLISH_SOURCE == 'test') &&
+          (github.event_name == 'workflow_dispatch' || github.event.action == 'arome-paquets-cache-ready')) ||
+        (vars.AROME_PAQUETS_PUBLISH_SOURCE == 'production' &&
+          (github.event_name == 'workflow_dispatch' || github.event.action == 'arome-paquets-production-cache-ready'))
+      )
+    concurrency:
+      group: arome-paquets-data-branch
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      CACHE_SOURCE: ${{ vars.AROME_PAQUETS_PUBLISH_SOURCE || 'test' }}
     steps:
       - name: Checkout main (for authenticated push)
         uses: actions/checkout@v4
@@ -24,19 +33,25 @@ jobs:
           ref: main
           persist-credentials: true
 
-      - name: Fetch and validate the latest Render test GRIB2 cache
+      - name: Fetch and validate the latest GRIB2 cache from the configured Render service
         env:
           EXPECTED_SHA256: ${{ github.event.client_payload.sha256 }}
           EXPECTED_MODEL: ${{ github.event.client_payload.modele }}
         run: |
           set -euo pipefail
+          case "$CACHE_SOURCE" in
+            test) render_origin='https://station-meteo-lr-test.onrender.com' ;;
+            production) render_origin='https://station-meteo-lr.onrender.com' ;;
+            *) echo "Source AROME Paquets invalide : $CACHE_SOURCE" >&2; exit 1 ;;
+          esac
+
           # Conserver le corps HTTP tel que reçu : certains intermédiaires
           # peuvent le décompresser en JSON malgré son nom .gz.
-          curl --fail --silent --show-error --location \
+          curl --fail --silent --show-error \
             --retry 3 --retry-all-errors --max-time 180 \
             -H "Accept: application/octet-stream" \
             --dump-header /tmp/arome-paquets-cache.headers \
-            "https://station-meteo-lr-test.onrender.com/api/arome/paquets/test/cache" \
+            "${render_origin}/api/arome/paquets/test/cache" \
             --output /tmp/arome-paquets-cache.download
 
           python3 - <<'PY'
@@ -54,7 +69,7 @@ jobs:
           if not (1_000 < size <= 45 * 1024 * 1024):
               raise ValueError(
                   f"Réponse Render de taille inattendue ({size} octets). "
-                  "Vérifier le cache disponible, la réponse HTTP et le déploiement Render test."
+                  "Vérifier le cache disponible, la réponse HTTP et le déploiement du service Render configuré."
               )
 
           expected_sha = os.getenv("EXPECTED_SHA256", "")
@@ -105,6 +120,49 @@ jobs:
           print("Paquets AROME vérifiés :", cache["modele"], "51 échéances / 3 variables")
           print("Gzip sauvegardé :", round(destination.stat().st_size / 1048576, 2), "Mo", flush=True)
           PY
+
+      - name: Require complete point forecasts for the production backup
+        if: vars.AROME_PAQUETS_PUBLISH_SOURCE == 'production'
+        run: |
+          node <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const { execFileSync } = require('node:child_process');
+          const { gunzipSync } = require('node:zlib');
+          const { ajouterMeteoAuxPrevisions } = require('./arome-meteo-point-test');
+
+          function lireCache(gzip) {
+            return JSON.parse(gunzipSync(gzip, { maxOutputLength: 45 * 1024 * 1024 }));
+          }
+
+          const cache = lireCache(readFileSync('/tmp/arome-paquets-cache.json.gz'));
+          const champs = ['T2M_METEO', 'NEBUL_METEO', 'PRECIP_METEO'];
+          if (!Number.isInteger(cache.meteo_version) || cache.meteo_version < 2 ||
+              !champs.every(champ => cache.champs_meteo?.[champ] === 51)) {
+            throw new Error('Cache de production incomplet : 51 grilles par champ météo sont requises.');
+          }
+          const previsions = cache.previsions.map(({ seconde }) => ({ echeance: `H+${seconde / 3600}` }));
+          ajouterMeteoAuxPrevisions(cache, { previsions }, 46.178, -1.193167);
+          const incomplete = previsions.find(prevision =>
+            ![prevision.temperature, prevision.nebulosite, prevision.precipitation].every(Number.isFinite)
+          );
+          if (incomplete) {
+            throw new Error(`Prévision de production incomplète à La Rochelle : ${incomplete.echeance}.`);
+          }
+
+          const modele = Date.parse(cache.modele);
+          if (!Number.isFinite(modele)) throw new Error('Date du modèle de production invalide.');
+          const branche = 'refs/heads/arome-paquets-data';
+          if (execFileSync('git', ['ls-remote', '--heads', 'origin', branche], { encoding: 'utf8' }).trim()) {
+            execFileSync('git', ['fetch', '--no-tags', 'origin', branche]);
+            const ancien = lireCache(execFileSync('git', ['show', 'FETCH_HEAD:arome-paquets-cache.json.gz'], {
+              maxBuffer: 16 * 1024 * 1024
+            }));
+            if (Date.parse(ancien.modele) > modele) {
+              throw new Error('La sauvegarde existante contient déjà un modèle plus récent.');
+            }
+          }
+          console.log('Production AROME : 51 échéances météo vérifiées à La Rochelle.');
+          NODE
 
       - name: Replace dedicated data branch with one single commit
         run: |
