@@ -844,6 +844,8 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
             );
         }
         const previsions = resultat.previsions;
+        // Affichage autonome : ne modifie ni la source ni le cache du tableau.
+        window.afficherFriseMeteoArome?.(previsions, lat, lon);
 
         // ------------------------------------------
         // CONSTRUCTION DES EN-TETES JOUR ET HEURE
