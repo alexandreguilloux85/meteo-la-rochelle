@@ -141,26 +141,29 @@ grib2 » a été téléchargée une seule fois par le workflow
 [Copier definitions ecCodes Meteo-France dans Test_fonction](https://github.com/alexandreguilloux85/meteo-la-rochelle/actions/workflows/vendor-meteofrance-eccodes.yml)
 et ajoutée directement à la branche `Test_fonction`.
 
-Les deux fichiers versionnés sont :
-- `vendor/meteofrance/eccodes-definitions.tar.gz` (archive officielle,
-  516 951 octets, 106 fichiers de définition).
-- `vendor/meteofrance/manifest.json` (URL de la ressource, date,
-  SHA-256 et attribution Météo-France).
+Les définitions officielles sont maintenant **directement versionnées
+sous forme de 106 fichiers déjà extraits**, aux côtés de l'archive originale :
+- `vendor/meteofrance/definitions/` : fichiers de définition ecCodes GRIB1
+  et GRIB2 prêts à être utilisés directement ;
+- `vendor/meteofrance/eccodes-definitions.tar.gz` : archive officielle,
+  conservée à titre de référence (516 951 octets) ;
+- `vendor/meteofrance/manifest.json` : URL officielle, date de publication,
+  SHA-256 de l'archive et **SHA-256 collectif des 106 fichiers**, attribution.
 
-**Render n'a plus besoin de contacter data.gouv.fr à chaque build.**
-`scripts/install-meteofrance-eccodes.py` lit ces fichiers **locaux**, vérifie
-leur SHA-256 et l'arborescence GRIB2, puis extrait les définitions dans
-`.meteo-eccodes/definitions/`. Le script n'effectue aucune requête réseau
-dans ce mode. Les définitions Météo-France sont ajoutées **avant** le chemin
-standard ecCodes, sans remplacer celui-ci. La validation du build vérifie
-l'activation du chemin `ECCODES_DEFINITION_PATH`.
+**Render n'a plus besoin de contacter data.gouv.fr, ni d'ouvrir ou décompresser
+l'archive lors de chaque build.** Le script
+`scripts/install-meteofrance-eccodes.py` vérifie uniquement le SHA-256
+des fichiers déjà extraits. Le décodeur utilise directement
+`vendor/meteofrance/definitions/`, placé **avant** le chemin standard ecCodes
+dans `ECCODES_DEFINITION_PATH`. Les définitions standard restent en secours
+et aucune copie dans un répertoire temporaire n'est nécessaire.
 
 Pour mettre à jour volontairement la copie de l'archive, relancer le workflow
 GitHub Actions de copie, qui effectue `--update-vendor` puis commit l'archive
 et le manifeste. Le build Render reste complètement indépendant de la
 disponibilité de data.gouv.fr. Source : [jeu de données officiel Météo-France](https://www.data.gouv.fr/datasets/definition-des-gribs-de-meteo-france),
 **Licence Ouverte / Open Licence 2.0** (Météo-France, mise à jour du
-30 janvier 2026). Si le fichier local manque ou est corrompu, le nouveau
+30 janvier 2026). Si les fichiers extraits sont manquants ou corrompus, le nouveau
 build échoue explicitement, sans activer des définitions non vérifiées.
 Aucune variable d'environnement supplémentaire n'est nécessaire sur Render.
 
