@@ -1,0 +1,89 @@
+/* Frise AROME expérimentale, totalement indépendante du tableau existant. */
+.frise-meteo-scroll {
+    max-width: 100%;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid #e1e8f0;
+    border-radius: 8px;
+    margin: 10px 0 5px;
+}
+.table-frise {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    white-space: nowrap;
+    font-size: 12px;
+}
+.table-frise th,
+.table-frise td {
+    min-width: 41px;
+    height: 34px;
+    padding: 6px 4px;
+    border-bottom: 1px solid #e8edf3;
+    text-align: center;
+    vertical-align: middle;
+}
+.table-frise thead th {
+    background: #e9f0f6;
+    color: #243f58;
+    font-weight: 600;
+}
+.table-frise .frise-libelle {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    min-width: 105px;
+    max-width: 105px;
+    text-align: left;
+    padding-left: 10px;
+    background: #f5f8fb;
+    color: #405368;
+    box-shadow: 1px 0 0 rgba(20, 40, 63, .12);
+}
+.table-frise thead .frise-libelle {
+    z-index: 3;
+    background: #e9f0f6;
+}
+.table-frise .frise-separateur {
+    border-left: 1px solid rgba(20, 40, 63, .22);
+}
+.table-frise .frise-cellule-icone {
+    height: 42px;
+    line-height: 0;
+}
+.table-frise .frise-icone {
+    display: inline-block;
+    vertical-align: middle;
+    overflow: visible;
+}
+.table-frise .frise-icone-vide {
+    line-height: 32px;
+    font-size: 20px;
+    color: #9aa9b6;
+}
+.table-frise .frise-cellule-vent {
+    font-weight: 700;
+    color: #162b3e;
+    font-variant-numeric: tabular-nums;
+}
+.table-frise .frise-fleche {
+    display: block;
+    font-size: 20px;
+    line-height: 19px;
+    transform-origin: center center;
+    color: #172e48;
+}
+.table-frise .frise-degres {
+    display: block;
+    font-size: 10px;
+    margin-top: 3px;
+}
+.frise-meteo-note {
+    font-size: 12px;
+    color: #536579;
+    margin: 0 0 14px;
+}
