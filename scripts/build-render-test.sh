@@ -6,9 +6,9 @@ set -euo pipefail
 npm ci
 python3 -m pip install --no-cache-dir --target .arome-py -r requirements-arome.txt
 
-# Installer les tables GRIB2 Météo-France depuis leur jeu de données officiel
-# (hors modèle de vagues). Une erreur de récupération stoppe ce déploiement
-# plutôt que de publier une version qui prétend avoir les définitions.
+# Installer les tables GRIB2 Météo-France depuis leur copie versionnée
+# dans vendor/meteofrance : AUCUNE requête à data.gouv.fr au build Render.
+# Le SHA256 et la structure de l'archive sont vérifiés avant installation.
 python3 scripts/install-meteofrance-eccodes.py
 
 # Valider les imports et la configuration effective ecCodes avant le lancement.
