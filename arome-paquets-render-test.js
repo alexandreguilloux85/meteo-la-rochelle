@@ -13,7 +13,7 @@ const ROOT = "https://public-api.meteofrance.fr/previnum/DPPaquetAROME/v1";
 const SP1 = ROOT + "/models/AROME/grids/0.025/packages/SP1";
 const ZONE = { latMin: 43.2, latMax: 48.3, lonMin: -5.0, lonMax: -0.3 };
 const MAX_GRIB_OCTETS = 120 * 1024 * 1024;
-const MAX_JSON_OCTETS = 45 * 1024 * 1024;
+const MAX_JSON_OCTETS = 90 * 1024 * 1024;
 const MIN_INTERVALLE_TEST = 4 * 60 * 1000;
 const INTERVALLE_CONTROLE_CATALOGUE = 30 * 60 * 1000;
 const RETRY_AUTO = 20 * 60 * 1000;
@@ -23,7 +23,7 @@ const CACHE_PAGES_URL =
     "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-paquets-cache.json.gz";
 const GITHUB_DISPATCH_URL =
     "https://api.github.com/repos/alexandreguilloux85/meteo-la-rochelle/dispatches";
-const MAX_CACHE_GZIP_OCTETS = 16 * 1024 * 1024;
+const MAX_CACHE_GZIP_OCTETS = 32 * 1024 * 1024;
 let OAUTH_CACHE = null;
 // La nomenclature officielle regroupe H+0..H+51 en neuf paquets.
 // H+0 est volontairement ignoré pour conserver les 51 colonnes du site.
@@ -381,8 +381,10 @@ function validerCacheAromePaquets(cache, calculerPrevisionsArome) {
             throw new Error("Sauvegarde AROME Paquets : échéance invalide ou doublon");
         }
         heures.add(heure);
-        for (const parametre of ["U", "V", "RAFALE"]) {
+        for (const parametre of ["U", "V", "RAFALE", "T2M", "NEBUL", "PRECIP"]) {
             const champ = prevision[parametre];
+            // Anciennes sauvegardes sans météo : restauration compatible.
+            if (!champ && ["T2M", "NEBUL", "PRECIP"].includes(parametre)) continue;
             const grille = champ?.grille;
             if (!Number.isInteger(grille?.Ni) || !Number.isInteger(grille?.Nj) ||
                 !Array.isArray(champ.valeurs) ||
@@ -912,6 +914,7 @@ function installerTestAromePaquets(app, {
                 previsions.push(parHeure.get(h));
             }
             const cache = {
+                version_cache: 2,
                 modele: produit.modele,
                 date: Date.now(),
                 source: "AROME 0.025 SP1 GRIB2 ecCodes - Render test",
@@ -930,7 +933,7 @@ function installerTestAromePaquets(app, {
             if (tailleJson > MAX_JSON_OCTETS) {
                 throw new Error(
                     "Cache JSON " + arrondiMo(tailleJson) +
-                    " Mo supérieur à 45 Mo : publication test refusée"
+                    " Mo supérieur à 90 Mo : publication test refusée"
                 );
             }
             const gzip = gzipSync(Buffer.from(texte), { level: 6 });
@@ -1025,7 +1028,10 @@ function installerTestAromePaquets(app, {
                 dernierControleCatalogue = Date.now();
                 modeleCataloguePlusRecent = produit.modele;
                 erreurControleCatalogue = null;
-                const cacheComplet = cacheTest?.previsions?.length === 51;
+                const cacheComplet = cacheTest?.previsions?.length === 51 &&
+                    cacheTest.version_cache >= 2;
+                // Une seule reconstruction pour enrichir un ancien cache
+                // restauré sans T2M/NEBUL/PRECIP, même si le modèle est identique.
                 const nouveauModele = !cacheComplet ||
                     Date.parse(produit.modele) > Date.parse(cacheTest.modele);
 
