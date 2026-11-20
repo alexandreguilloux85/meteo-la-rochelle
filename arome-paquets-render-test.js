@@ -445,7 +445,7 @@ function installerTestAromePaquets(app, {
             meteo_version: cacheTest?.meteo_version || 0,
             champs_meteo: cacheTest?.champs_meteo || null,
             definitions_meteofrance_installees: fsSystem.existsSync(
-                path.join(__dirname, ".meteo-eccodes", "definitions", "grib2")
+                path.join(__dirname, "vendor", "meteofrance", "definitions", "grib2")
             ),
             restauration_pages: restaurationPages,
             erreur_restauration_pages: erreurRestauration,
