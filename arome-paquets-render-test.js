@@ -14,6 +14,9 @@ const ZONE = { latMin: 43.2, latMax: 48.3, lonMin: -5.0, lonMax: -0.3 };
 const MAX_GRIB_OCTETS = 120 * 1024 * 1024;
 const MAX_JSON_OCTETS = 45 * 1024 * 1024;
 const MIN_INTERVALLE_TEST = 4 * 60 * 1000;
+const INTERVALLE_AUTO = 3 * 60 * 60 * 1000;
+const RETRY_AUTO = 20 * 60 * 1000;
+const CONTROLE_AUTO = 2 * 60 * 1000;
 let OAUTH_CACHE = null;
 // La nomenclature officielle regroupe H+0..H+51 en neuf paquets.
 // H+0 est volontairement ignoré pour conserver les 51 colonnes du site.
@@ -366,6 +369,10 @@ function installerTestAromePaquets(app, {
     let cacheCompresse = null;
     let enCours = false;
     let dernierDemarrage = 0;
+    let derniereReussite = 0;
+    let prochainEssai = 0;
+    const actualisationAutoActive =
+        process.env.AROME_PAQUETS_AUTO_REFRESH !== "0";
     let etat = {
         statut: "non_demarre",
         etape: null,
@@ -379,16 +386,24 @@ function installerTestAromePaquets(app, {
             ...etat,
             en_cours: enCours,
             cache_disponible: Boolean(cacheTest),
-            modele_cache_disponible: cacheTest?.modele || null
+            modele_cache_disponible: cacheTest?.modele || null,
+            actualisation_automatique: actualisationAutoActive,
+            intervalle_actualisation_heures: 3,
+            derniere_actualisation_reussie: derniereReussite
+                ? new Date(derniereReussite).toISOString() : null,
+            prochaine_tentative: prochainEssai
+                ? new Date(prochainEssai).toISOString() : null
         });
     });
 
     app.get("/api/arome/paquets/test/previsions", (req, res) => {
         res.set("Cache-Control", "no-store");
         if (!cacheTest) {
+            verifierActualisationAutomatique();
             return res.status(503).json({
                 succes: false,
-                erreur: "Aucun cache de paquets AROME validé sur Render test"
+                erreur: "Aucun cache de paquets AROME validé sur Render test",
+                actualisation_en_cours: enCours
             });
         }
         const lat = Number(req.query.lat ?? 46.178);
@@ -402,7 +417,14 @@ function installerTestAromePaquets(app, {
         }
         try {
             const resultat = calculerPrevisionsArome(cacheTest, lat, lon);
-            return res.json({ ...resultat, origine_cache: "Paquets AROME Render test" });
+            return res.json({
+                ...resultat,
+                cache: true,
+                origine_cache: "Paquets AROME Render test",
+                actualisation_en_cours: enCours,
+                actualisation_statut: etat.statut,
+                modele_cache: cacheTest.modele
+            });
         } catch (e) {
             return res.status(422).json({ succes: false, erreur: e.message });
         }
@@ -626,6 +648,8 @@ function installerTestAromePaquets(app, {
             // Publication atomique des deux objets uniquement après validation.
             cacheTest = cache;
             cacheCompresse = gzip;
+            derniereReussite = Date.now();
+            prochainEssai = derniereReussite + INTERVALLE_AUTO;
             etat = {
                 statut: "termine",
                 etape: "termine",
@@ -650,6 +674,7 @@ function installerTestAromePaquets(app, {
             };
         } catch (e) {
             console.error("AROME Paquets Render test :", e.message);
+            prochainEssai = Date.now() + RETRY_AUTO;
             etat = {
                 ...etat,
                 statut: "echec",
@@ -663,6 +688,40 @@ function installerTestAromePaquets(app, {
             }
             enCours = false;
         }
+    }
+
+    function lancerActualisationPaquets(groupesDemandes, origine) {
+        if (enCours) return false;
+        enCours = true;
+        dernierDemarrage = Date.now();
+        etat = {
+            statut: "en_cours",
+            etape: "verification_python",
+            modele: null,
+            erreur: null,
+            origine_actualisation: origine,
+            groupes_total: groupesDemandes.length,
+            groupes_termines: 0,
+            groupe_actuel: null,
+            echeances_recuperees: 0
+        };
+        void executer(groupesDemandes);
+        return true;
+    }
+
+    function verifierActualisationAutomatique() {
+        if (!actualisationAutoActive || enCours ||
+            Date.now() < prochainEssai ||
+            Date.now() - dernierDemarrage < MIN_INTERVALLE_TEST) {
+            return false;
+        }
+        // Une actualisation toutes les 3 h tant que Render est éveillé.
+        // Si l'instance s'endort, le prochain démarrage relance le contrôle.
+        if (!cacheTest || !derniereReussite ||
+            Date.now() - derniereReussite >= INTERVALLE_AUTO) {
+            return lancerActualisationPaquets(GROUPES, "automatique");
+        }
+        return false;
     }
 
     app.post("/api/arome/paquets/test/refresh", (req, res) => {
@@ -685,21 +744,20 @@ function installerTestAromePaquets(app, {
                 erreur: "Attendre quatre minutes entre deux tests Paquets AROME"
             });
         }
-        enCours = true;
-        dernierDemarrage = Date.now();
-        etat = {
-            statut: "en_cours",
-            etape: "verification_python",
-            modele: null,
-            erreur: null,
-            groupes_total: nombreGroupes,
-            groupes_termines: 0,
-            groupe_actuel: null,
-            echeances_recuperees: 0
-        };
-        void executer(GROUPES.slice(0, nombreGroupes));
+        lancerActualisationPaquets(GROUPES.slice(0, nombreGroupes), "manuelle");
         return res.status(202).json({ succes: true, ...etat });
     });
+
+    if (actualisationAutoActive) {
+        // Les timers ne fonctionnent pas pendant la mise en veille d'un
+        // service Render gratuit : vérifier aussi au démarrage et sur requête.
+        setImmediate(verifierActualisationAutomatique);
+        const horloge = setInterval(
+            verifierActualisationAutomatique, CONTROLE_AUTO
+        );
+        horloge.unref?.();
+    }
+
 }
 
 module.exports = { installerTestAromePaquets };
