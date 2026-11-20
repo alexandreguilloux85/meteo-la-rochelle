@@ -47,7 +47,7 @@ async function authentificationPaquets() {
     // et non 'Authorization: Bearer', dans ce mode.
     const cleApi = process.env.METEO_AROME_PAQUETS_API_KEY?.trim();
     if (cleApi) {
-        if (/\s/.test(cleApi) || /^(Bearer|Basic|Authorization:)\b/i.test(cleApi)) {
+        if (/\s/.test(cleApi) || /^(?:Bearer\s+|Basic\s+|Authorization:)/i.test(cleApi)) {
             throw new Error(
                 "METEO_AROME_PAQUETS_API_KEY invalide : copier uniquement la clé API, " +
                 "sans préfixe Bearer/Basic ni espaces"
