@@ -33,17 +33,18 @@ jobs:
           python3 scripts/install-meteofrance-eccodes.py --update-vendor
           test -s vendor/meteofrance/eccodes-definitions.tar.gz
           test -s vendor/meteofrance/manifest.json
+          test -d vendor/meteofrance/definitions/grib2
 
-      - name: Vérifier une installation locale sans aucun téléchargement
+      - name: Vérifier les définitions déjà extraites, sans ouvrir l'archive
         run: |
           set -euo pipefail
           python3 scripts/install-meteofrance-eccodes.py
-          test -d .meteo-eccodes/definitions/grib2
+          test -d vendor/meteofrance/definitions/grib2
           python3 - <<'PY'
           import json
           from pathlib import Path
           manifeste = json.loads(Path("vendor/meteofrance/manifest.json").read_text())
-          defs = Path(".meteo-eccodes/definitions/grib2")
+          defs = Path("vendor/meteofrance/definitions/grib2")
           fichiers = list(defs.rglob("*"))
           assert manifeste["fichiers_extraits"] > 0
           assert any(path.is_file() for path in fichiers)
@@ -53,7 +54,7 @@ jobs:
       - name: Enregistrer archive officielle + SHA256 dans Test_fonction
         run: |
           set -euo pipefail
-          git add vendor/meteofrance/eccodes-definitions.tar.gz vendor/meteofrance/manifest.json
+          git add -A vendor/meteofrance/
           if git diff --cached --quiet; then
             echo "Définitions déjà identiques à la copie versionnée."
             exit 0
