@@ -144,10 +144,11 @@
         });
         html += '</tr></thead><tbody>';
 
-        const ligne = (label, valeurs, classe) => {
-            html += '<tr><th scope="row" class="frise-libelle">' + label + '</th>';
+        const ligne = (label, valeurs, { classe = "", compacte = false } = {}) => {
+            html += (compacte ? '<tr class="frise-ligne-compacte">' : '<tr>') +
+                '<th scope="row" class="frise-libelle">' + label + '</th>';
             valeurs.forEach((v, i) => {
-                html += col(v.contenu, i, v.style || "", classe || "");
+                html += col(v.contenu, i, v.style || "", classe);
             });
             html += '</tr>';
         };
@@ -156,20 +157,21 @@
 
         ligne("Ciel", donnees.map(d => ({
             contenu: iconeMeteo(d.ciel, estJour(d.date, lat, lon))
-        })), "frise-cellule-icone");
+        })), { classe: "frise-cellule-icone" });
         ligne("Temp. (°C)", donnees.map(d => ({
             contenu: affichage(d.temperature)
-        })));
-        ligne("Pluie (mm/h)", donnees.map(d => ({
-            contenu: affichage(d.precipitation, 1)
-        })));
+        })), { compacte: true });
+        ligne("Pluie (mm/h)", donnees.map(d => {
+            const pluie = affichage(d.precipitation, 1);
+            return { contenu: pluie === "0.0" ? "" : pluie };
+        }), { compacte: true });
 
         for (const [titre, champ] of [["Vent (kt)", "vent"], ["Rafales (kt)", "rafale"]]) {
             const valeurs = donnees.map(d => d[champ]);
             ligne(titre, donnees.map((d, i) => ({
                 contenu: affichage(d[champ]),
                 style: couleurCellule(valeurs, i)
-            })), "frise-cellule-vent");
+            })), { classe: "frise-cellule-vent", compacte: true });
         }
         ligne("Direction", donnees.map(d => ({
             contenu: d.direction === null ? "—" :
