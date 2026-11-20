@@ -6,7 +6,8 @@ const fs = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
-const { gzipSync } = require("node:zlib");
+const { gzipSync, gunzipSync } = require("node:zlib");
+const crypto = require("node:crypto");
 
 const ROOT = "https://public-api.meteofrance.fr/previnum/DPPaquetAROME/v1";
 const SP1 = ROOT + "/models/AROME/grids/0.025/packages/SP1";
@@ -17,6 +18,11 @@ const MIN_INTERVALLE_TEST = 4 * 60 * 1000;
 const INTERVALLE_AUTO = 3 * 60 * 60 * 1000;
 const RETRY_AUTO = 20 * 60 * 1000;
 const CONTROLE_AUTO = 2 * 60 * 1000;
+const CACHE_PAGES_URL =
+    "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-paquets-cache.json.gz";
+const GITHUB_DISPATCH_URL =
+    "https://api.github.com/repos/alexandreguilloux85/meteo-la-rochelle/dispatches";
+const MAX_CACHE_GZIP_OCTETS = 16 * 1024 * 1024;
 let OAUTH_CACHE = null;
 // La nomenclature officielle regroupe H+0..H+51 en neuf paquets.
 // H+0 est volontairement ignoré pour conserver les 51 colonnes du site.
@@ -356,6 +362,40 @@ function decoderAvecPython(fichier, dossier, modele, groupe) {
     });
 }
 
+function validerCacheAromePaquets(cache, calculerPrevisionsArome) {
+    if (!cache || !Array.isArray(cache.previsions) ||
+        cache.previsions.length !== 51 || typeof cache.modele !== "string") {
+        throw new Error("Sauvegarde AROME Paquets incomplète (51 échéances requises)");
+    }
+    const z = cache.zone || {};
+    if (z.latMin !== ZONE.latMin || z.latMax !== ZONE.latMax ||
+        z.lonMin !== ZONE.lonMin || z.lonMax !== ZONE.lonMax) {
+        throw new Error("Sauvegarde AROME Paquets : zone incompatible");
+    }
+    const heures = new Set();
+    for (const prevision of cache.previsions) {
+        const heure = prevision?.seconde / 3600;
+        if (!Number.isInteger(heure) || heure < 1 || heure > 51 ||
+            heures.has(heure)) {
+            throw new Error("Sauvegarde AROME Paquets : échéance invalide ou doublon");
+        }
+        heures.add(heure);
+        for (const parametre of ["U", "V", "RAFALE"]) {
+            const champ = prevision[parametre];
+            const grille = champ?.grille;
+            if (!Number.isInteger(grille?.Ni) || !Number.isInteger(grille?.Nj) ||
+                !Array.isArray(champ.valeurs) ||
+                champ.valeurs.length !== grille.Ni * grille.Nj) {
+                throw new Error("Sauvegarde AROME Paquets : " + parametre +
+                    " incomplet à H+" + heure);
+            }
+        }
+    }
+    if (calculerPrevisionsArome(cache, 46.178, -1.193167).previsions.length !== 51) {
+        throw new Error("Sauvegarde AROME Paquets : interpolation incomplète");
+    }
+}
+
 function installerTestAromePaquets(app, {
     verifierJetonActualisation, calculerPrevisionsArome, chargerCacheArome
 }) {
@@ -371,6 +411,11 @@ function installerTestAromePaquets(app, {
     let dernierDemarrage = 0;
     let derniereReussite = 0;
     let prochainEssai = 0;
+    let restaurationTerminee = false;
+    let restaurationPages = "non_demarre";
+    let erreurRestauration = null;
+    let publicationGitHub = "non_demarre";
+    let erreurPublication = null;
     const actualisationAutoActive =
         process.env.AROME_PAQUETS_AUTO_REFRESH !== "0";
     let etat = {
@@ -387,6 +432,10 @@ function installerTestAromePaquets(app, {
             en_cours: enCours,
             cache_disponible: Boolean(cacheTest),
             modele_cache_disponible: cacheTest?.modele || null,
+            restauration_pages: restaurationPages,
+            erreur_restauration_pages: erreurRestauration,
+            publication_github: publicationGitHub,
+            erreur_publication_github: erreurPublication,
             actualisation_automatique: actualisationAutoActive,
             intervalle_actualisation_heures: 3,
             derniere_actualisation_reussie: derniereReussite
@@ -516,6 +565,117 @@ function installerTestAromePaquets(app, {
             return res.status(422).json({ succes: false, erreur: e.message });
         }
     });
+
+    async function restaurerCachePages() {
+        restaurationPages = "en_cours";
+        try {
+            const url = new URL(CACHE_PAGES_URL);
+            url.searchParams.set("t", String(Date.now()));
+            const reponse = await fetch(url, {
+                redirect: "error",
+                cache: "no-store",
+                headers: { Accept: "application/octet-stream" },
+                signal: AbortSignal.timeout(45000)
+            });
+            if (!reponse.ok) {
+                throw new Error("GitHub Pages HTTP " + reponse.status);
+            }
+            const longueur = Number(reponse.headers.get("content-length"));
+            if (longueur > MAX_CACHE_GZIP_OCTETS) {
+                throw new Error("Sauvegarde Pages trop volumineuse");
+            }
+            const compresse = Buffer.from(await reponse.arrayBuffer());
+            if (compresse.length < 1000 || compresse.length > MAX_CACHE_GZIP_OCTETS ||
+                compresse[0] !== 0x1f || compresse[1] !== 0x8b) {
+                throw new Error("Sauvegarde Pages absente ou non gzip");
+            }
+            const texte = gunzipSync(compresse, {
+                maxOutputLength: MAX_JSON_OCTETS
+            }).toString("utf8");
+            const restaure = JSON.parse(texte);
+            validerCacheAromePaquets(restaure, calculerPrevisionsArome);
+
+            // Aucun cache actif n'est écrasé par une restauration plus ancienne.
+            if (!cacheTest) {
+                cacheTest = restaure;
+                cacheCompresse = compresse;
+                const dateCache = Number(restaure.date);
+                derniereReussite = Number.isFinite(dateCache) &&
+                    dateCache > 0 && dateCache <= Date.now()
+                    ? dateCache : 0;
+                prochainEssai = derniereReussite
+                    ? derniereReussite + INTERVALLE_AUTO : 0;
+                etat = {
+                    statut: "restaure",
+                    etape: "restauration_pages",
+                    modele: restaure.modele,
+                    erreur: null,
+                    origine_actualisation: "GitHub Pages",
+                    groupes_total: 9,
+                    groupes_termines: 9,
+                    echeances_uv: 51,
+                    echeances_rafale: 51,
+                    taille_cache_gzip_mo: arrondiMo(compresse.length),
+                    dernier_test: new Date().toISOString()
+                };
+            }
+            restaurationPages = "reussie";
+            erreurRestauration = null;
+            console.log(
+                "AROME Paquets : sauvegarde GitHub Pages restaurée",
+                restaure.modele, arrondiMo(compresse.length), "Mo"
+            );
+        } catch (e) {
+            restaurationPages = "indisponible";
+            erreurRestauration = e.message;
+            console.warn("AROME Paquets : pas de restauration Pages :", e.message);
+        } finally {
+            restaurationTerminee = true;
+            verifierActualisationAutomatique();
+        }
+    }
+
+    async function signalerSauvegardeGitHub(cache, compresse) {
+        const jeton = (process.env.GITHUB_PAQUETS_PUBLISH_TOKEN ||
+            process.env.GITHUB_DATA_TOKEN || "").trim();
+        if (!jeton) {
+            publicationGitHub = "non_configuree";
+            erreurPublication = "Configurer GITHUB_PAQUETS_PUBLISH_TOKEN sur Render test";
+            return;
+        }
+        publicationGitHub = "envoi";
+        erreurPublication = null;
+        try {
+            const sha256 = crypto.createHash("sha256")
+                .update(compresse).digest("hex");
+            const reponse = await fetch(GITHUB_DISPATCH_URL, {
+                method: "POST",
+                redirect: "error",
+                headers: {
+                    Authorization: "Bearer " + jeton,
+                    Accept: "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                    "Content-Type": "application/json",
+                    "User-Agent": "meteo-la-rochelle-arome-paquets"
+                },
+                body: JSON.stringify({
+                    event_type: "arome-paquets-cache-ready",
+                    client_payload: { modele: cache.modele, sha256 }
+                }),
+                signal: AbortSignal.timeout(30000)
+            });
+            if (!reponse.ok) {
+                throw new Error("GitHub dispatch HTTP " + reponse.status);
+            }
+            // Le dispatch accepté ne signifie pas que Pages a déjà été déployé.
+            publicationGitHub = "demande_envoyee";
+            console.log("AROME Paquets : sauvegarde demandée à GitHub Actions");
+        } catch (e) {
+            publicationGitHub = "echec";
+            erreurPublication = e.message;
+            console.warn("AROME Paquets : sauvegarde GitHub non envoyée :", e.message);
+        }
+    }
 
     async function executer(groupesDemandes) {
         let dossier;
@@ -672,6 +832,11 @@ function installerTestAromePaquets(app, {
                 duree_secondes: Math.round((Date.now() - debut) / 1000),
                 dernier_test: new Date().toISOString()
             };
+            // Ne jamais ralentir les prévisions au point pendant la sauvegarde.
+            // Seul un cache complet H+51 est publiable vers GitHub Pages.
+            if (heureMax === 51) {
+                void signalerSauvegardeGitHub(cache, gzip);
+            }
         } catch (e) {
             console.error("AROME Paquets Render test :", e.message);
             prochainEssai = Date.now() + RETRY_AUTO;
@@ -710,7 +875,8 @@ function installerTestAromePaquets(app, {
     }
 
     function verifierActualisationAutomatique() {
-        if (!actualisationAutoActive || enCours ||
+        if (!restaurationTerminee ||
+            !actualisationAutoActive || enCours ||
             Date.now() < prochainEssai ||
             Date.now() - dernierDemarrage < MIN_INTERVALLE_TEST) {
             return false;
@@ -733,6 +899,11 @@ function installerTestAromePaquets(app, {
                 succes: false, erreur: "groupes doit valoir 1, 3 ou 9"
             });
         }
+        if (!restaurationTerminee) {
+            return res.status(409).json({
+                succes: false, erreur: "Restauration du cache Pages en cours"
+            });
+        }
         if (enCours) {
             return res.status(409).json({
                 succes: false, erreur: "Test AROME déjà en cours", ...etat
@@ -748,10 +919,13 @@ function installerTestAromePaquets(app, {
         return res.status(202).json({ succes: true, ...etat });
     });
 
+    // Au démarrage, restaurer le cache existant AVANT de lancer l'éventuel
+    // téléchargement des neuf paquets, sans bloquer la mise en route HTTP.
+    setImmediate(() => { void restaurerCachePages(); });
+
     if (actualisationAutoActive) {
-        // Les timers ne fonctionnent pas pendant la mise en veille d'un
-        // service Render gratuit : vérifier aussi au démarrage et sur requête.
-        setImmediate(verifierActualisationAutomatique);
+        // Les timers sont suspendus quand Render gratuit est en veille.
+        // La restauration et le contrôle reprennent au prochain réveil.
         const horloge = setInterval(
             verifierActualisationAutomatique, CONTROLE_AUTO
         );
