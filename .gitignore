@@ -3,3 +3,4 @@ node_modules/
 .arome-py/
 arome-paquets-test/
 __pycache__/
+.meteo-eccodes/
