@@ -256,13 +256,6 @@ def classification(gid):
         short in ("tcc", "nebul") or "total cloud cover" in name
     ):
         return "NEBUL_METEO"
-    # Vérifié dans les logs du test SP1 réel du 19/11 : un seul champ
-    # inconnu ecCodes par échéance, au niveau surface. Les 14 autres
-    # paramètres SP1 sont reconnus : ce champ correspond à NEBUL.
-    if short == "unknown" and name == "unknown" and (
-        typ == "surface" and level == 0
-    ):
-        return "NEBUL_METEO"
     if (discipline, categorie, numero) == (0, 1, 8) or (
         short in ("tp", "precip") or "total precipitation" in name
     ):
@@ -328,8 +321,8 @@ def encoder_meteo(gid, code, local, grille):
         elif unites in ("%", "percent", "percentage"):
             pass
         elif unites in ("unknown", "~", "", "undefined", "none"):
-            # Champ local « unknown » dans les vrais paquets SP1 : déterminer
-            # l'échelle numérique lorsque l'unité ecCodes est inconnue.
+            # Si le champ a déjà été identifié comme NEBUL par son code
+            # GRIB2, estimer l'échelle uniquement si son unité est inconnue.
             finies = valeurs[np.isfinite(valeurs) & (np.abs(valeurs) < 1e10)]
             if finies.size == 0:
                 raise ValueError("NEBUL sans données valides")
