@@ -667,6 +667,7 @@ const AROME_ECHEANCES_ATTENDUES = 51;
 const AROME_ECHEANCES_MINIMUM = 1;
 const AROME_ECHEANCES_MINIMUM_PUBLICATION = 24;
 const AROME_ECHEANCES_INITIALES_OBLIGATOIRES = 6;
+const POINT_AROME_LA_ROCHELLE = { lat: 46.178, lon: -1.193167 };
 
 // Les deux branches partagent ce même serveur. Seul le service Render
 // de production est autorisé à modifier la branche de données GitHub.
@@ -677,6 +678,12 @@ const AROME_PUBLICATION_GITHUB_AUTORISEE =
 function normaliserModeleArome(modele) {
     if (typeof modele !== "string") return modele;
     return modele.replace(/T(\d{2})\.(\d{2})\.(\d{2})Z$/, "T$1:$2:$3Z");
+}
+
+function pointDansZoneArome(zone, lat, lon) {
+    return Boolean(zone &&
+        lat >= zone.latMin && lat <= zone.latMax &&
+        lon >= zone.lonMin && lon <= zone.lonMax);
 }
 
 function evaluerCacheArome(cache) {
@@ -864,17 +871,14 @@ async function chargerCacheArome() {
 
 // Sauvegarde du cache sur le disque Render
 async function sauvegarderCacheArome(cache) {
-    const fichierTemporaire = AROME_CACHE_FILE + ".tmp";
-
-    await fs.writeFile(
-        fichierTemporaire,
-        JSON.stringify(cache)
-    );
-
-    await fs.rename(
-        fichierTemporaire,
-        AROME_CACHE_FILE
-    );
+    const fichierTemporaire = `${AROME_CACHE_FILE}.${crypto.randomUUID()}.tmp`;
+    try {
+        await fs.writeFile(fichierTemporaire, JSON.stringify(cache));
+        await fs.rename(fichierTemporaire, AROME_CACHE_FILE);
+    } catch (erreur) {
+        await fs.rm(fichierTemporaire, { force: true }).catch(() => {});
+        throw erreur;
+    }
 
     AROME_CACHE_ZONE = cache;
     AROME_CACHE_SOURCE = "Render";
@@ -1036,6 +1040,11 @@ async function publierCacheAromeSurGithub(cache) {
         console.log("AROME test : cache validé, publication GitHub désactivée.");
         return false;
     }
+    const { lat, lon } = POINT_AROME_LA_ROCHELLE;
+    if (!pointDansZoneArome(cache.zone, lat, lon)) {
+        console.log("AROME WCS : zone hors La Rochelle conservée sur Render.");
+        return false;
+    }
     const signature = signatureCacheArome(cache);
     if (derniereSignatureAromePubliee === signature) return true;
 
@@ -1180,7 +1189,8 @@ function demarrerActualisationArome(lat, lon) {
             const publicationActive = await publierCacheAromeSurGithub(cacheActualise);
             const bilan = evaluerCacheArome(cacheActualise);
             AROME_REFRESH_STATE = {
-                status: publicationActive ? "complete" : "test",
+                status: publicationActive ? "complete" :
+                    (AROME_PUBLICATION_GITHUB_AUTORISEE ? "local" : "test"),
                 modele: resultat.modele,
                 erreur: null,
                 echeances: bilan.nombre_echeances,
@@ -1298,8 +1308,8 @@ app.get("/api/arome/previsions", async (req, res) => {
     res.set("Cache-Control", "no-store");
 
     try {
-        const lat = Number(req.query.lat ?? 46.178);
-        const lon = Number(req.query.lon ?? -1.193167);
+        const lat = Number(req.query.lat ?? POINT_AROME_LA_ROCHELLE.lat);
+        const lon = Number(req.query.lon ?? POINT_AROME_LA_ROCHELLE.lon);
         const forceIncompleteRefresh = req.query.refresh === "1";
 
         if (
@@ -1319,11 +1329,7 @@ app.get("/api/arome/previsions", async (req, res) => {
 
         let cache = await chargerCacheArome();
 
-        const pointDansZone = cache &&
-            lat >= cache.zone.latMin &&
-            lat <= cache.zone.latMax &&
-            lon >= cache.zone.lonMin &&
-            lon <= cache.zone.lonMax;
+        const pointDansZone = pointDansZoneArome(cache?.zone, lat, lon);
 
         if (
             !forceIncompleteRefresh &&
