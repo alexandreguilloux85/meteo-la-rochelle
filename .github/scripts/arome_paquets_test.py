@@ -256,6 +256,13 @@ def classification(gid):
         short in ("tcc", "nebul") or "total cloud cover" in name
     ):
         return "NEBUL_METEO"
+    # Vérifié dans les logs du test SP1 réel du 19/11 : un seul champ
+    # inconnu ecCodes par échéance, au niveau surface. Les 14 autres
+    # paramètres SP1 sont reconnus : ce champ correspond à NEBUL.
+    if short == "unknown" and name == "unknown" and (
+        typ == "surface" and level == 0
+    ):
+        return "NEBUL_METEO"
     if (discipline, categorie, numero) == (0, 1, 8) or (
         short in ("tp", "precip") or "total precipitation" in name
     ):
@@ -314,9 +321,25 @@ def encoder_meteo(gid, code, local, grille):
             raise ValueError("Unité T2M inconnue : " + unites)
         valide = np.isfinite(valeurs) & (valeurs >= -100) & (valeurs <= 70)
     elif code == "NEBUL_METEO":
-        if unites in ("1", "fraction", "0-1"):
+        if unites in ("1", "fraction", "0-1", "(0 - 1)"):
             valeurs *= 100
-        elif unites not in ("%", "percent", "percentage"):
+        elif unites in ("%", "percent", "percentage"):
+            pass
+        elif unites in ("unknown", "~", "", "undefined"):
+            # Champ NEBUL local « unknown » : l'unité peut aussi être
+            # inconnue d'ecCodes. Examiner sa plage sans inventer de pluie.
+            finies = valeurs[np.isfinite(valeurs) & (np.abs(valeurs) < 1e10)]
+            if finies.size == 0:
+                raise ValueError("NEBUL sans données valides")
+            vmax = float(np.max(finies))
+            if vmax <= 1.01:
+                valeurs *= 100
+                print("NEBUL local : fraction 0..1 convertie en %")
+            elif vmax <= 100.01:
+                print("NEBUL local : valeurs 0..100 conservées en %")
+            else:
+                raise ValueError("Plage NEBUL inconnue : " + str(vmax))
+        else:
             raise ValueError("Unité NEBUL inconnue : " + unites)
         valide = np.isfinite(valeurs) & (valeurs >= 0) & (valeurs <= 100.01)
     elif code == "PRECIP_METEO":
