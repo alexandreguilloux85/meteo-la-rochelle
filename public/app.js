@@ -1817,7 +1817,7 @@ async function actualiserDepuisInterface(action, bouton) {
                     (etatPaquets.groupes_termines || 0) + "/9 paquets)."
                 : etatPaquets.cache_disponible
                     ? "Prévisions actualisées depuis le cache GRIB2 Render. " +
-                      "Actualisation automatique toutes les 3 h."
+                      "Vérification du catalogue toutes les 30 min."
                     : "Cache GRIB2 en préparation ; prévisions WCS de secours " +
                       "si disponibles.";
             return;
