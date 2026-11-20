@@ -1625,13 +1625,22 @@ async function actualiserDepuisInterface(action, bouton) {
         }
 
         const actualisationEnCours = etatPaquets?.en_cours
-            ? " Actualisation GRIB2 en cours (" +
+            ? "AROME GRIB2 : actualisation en cours (" +
                 (etatPaquets.groupes_termines || 0) + "/" +
                 (etatPaquets.groupes_total || 9) + " paquets)."
             : "";
-        statut.textContent = (source === "GRIB2"
-            ? "Prévisions relues depuis le cache GRIB2."
-            : "Prévisions WCS de secours affichées.") + actualisationEnCours;
+        if (source === "WCS") {
+            statut.textContent = "Prévisions WCS de secours affichées." +
+                (actualisationEnCours ? " " + actualisationEnCours : "");
+            return;
+        }
+
+        const intervalle = etatPaquets?.intervalle_controle_catalogue_minutes;
+        const verificationCatalogue = etatPaquets?.actualisation_automatique &&
+            Number.isFinite(intervalle) && intervalle > 0
+            ? ` Vérification du catalogue toutes les ${intervalle} min.` : "";
+        statut.textContent = actualisationEnCours ||
+            "Prévisions actualisées depuis le cache GRIB2 Render." + verificationCatalogue;
     } catch (erreur) {
         console.error("Actualisation demandée impossible :", erreur);
         statut.textContent = erreur.message ||
