@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import time
+import zlib
 from urllib.error import HTTPError
 from urllib.parse import urlparse, parse_qs, urlencode
 from urllib.request import Request, urlopen
@@ -231,21 +232,37 @@ def prop(gid, name, default=None):
 
 
 def classification(gid):
-    """Identifier les noms Météo-France et les alias ecCodes des vents à 10 m.
+    """Identifier les vents existants et les trois champs SP1 météo optionnels.
 
     FF_RAF(10m) peut être 'gust' plutôt que '10fg'. Les codes GRIB2
     0.2.22/23/24 décrivent respectivement vitesse / U / V des rafales.
     """
     level = prop(gid, "level")
     typ = str(prop(gid, "typeOfLevel", "")).lower()
-    if level != 10 or typ not in ("heightaboveground", "hauteur"):
-        return None
-
     short = str(prop(gid, "shortName", "")).lower()
     name = str(prop(gid, "name", "")).lower()
     discipline = prop(gid, "discipline")
     categorie = prop(gid, "parameterCategory")
     numero = prop(gid, "parameterNumber")
+
+    # GRIB2 OMM : 0.0.0 température, 0.6.1 nébulosité totale,
+    # 0.1.8 précipitations totales. Se limiter à T(2m) pour la température.
+    if typ in ("heightaboveground", "hauteur") and level == 2 and (
+        (discipline, categorie, numero) == (0, 0, 0) or
+        short in ("2t", "t2m")
+    ):
+        return "T2M_METEO"
+    if (discipline, categorie, numero) == (0, 6, 1) or (
+        short in ("tcc", "nebul") or "total cloud cover" in name
+    ):
+        return "NEBUL_METEO"
+    if (discipline, categorie, numero) == (0, 1, 8) or (
+        short in ("tp", "precip") or "total precipitation" in name
+    ):
+        return "PRECIP_METEO"
+
+    if level != 10 or typ not in ("heightaboveground", "hauteur"):
+        return None
 
     # Les codes WMO sont indépendants de la version des tables de noms ecCodes.
     if discipline == 0 and categorie == 2:
@@ -282,6 +299,53 @@ def classification(gid):
     if short in ("10v", "v10", "v") or prop(gid, "paramId") == 166 or re.search(r"\bv.component\b", name):
         return "V"
     return None
+
+
+# Champs météo intégralement facultatifs : format compact, sans changer
+# la structure ni l'interpolation des grilles U, V et RAFALE existantes.
+# Les octets sont des int16 little-endian avec facteur 10, -32768 = absent.
+def encoder_meteo(gid, code, local, grille):
+    unites = str(prop(gid, "units", "")).strip().lower()
+    valeurs = np.array(local, dtype=np.float64, copy=True)
+    if code == "T2M_METEO":
+        if unites in ("k", "kelvin", "degrees k") or "kelvin" in unites:
+            valeurs -= 273.15
+        elif unites not in ("c", "°c", "degree celsius", "degc"):
+            raise ValueError("Unité T2M inconnue : " + unites)
+        valide = np.isfinite(valeurs) & (valeurs >= -100) & (valeurs <= 70)
+    elif code == "NEBUL_METEO":
+        if unites in ("1", "fraction", "0-1"):
+            valeurs *= 100
+        elif unites not in ("%", "percent", "percentage"):
+            raise ValueError("Unité NEBUL inconnue : " + unites)
+        valide = np.isfinite(valeurs) & (valeurs >= 0) & (valeurs <= 100.01)
+    elif code == "PRECIP_METEO":
+        if unites in ("m", "metre", "meter"):
+            valeurs *= 1000.0
+        elif unites not in ("kg m**-2", "kg m-2", "kg/m2", "mm", "kg m^-2"):
+            raise ValueError("Unité PRECIP inconnue : " + unites)
+        valide = np.isfinite(valeurs) & (valeurs >= -0.05) & (valeurs <= 2000)
+    else:
+        raise ValueError("Paramètre météo non supporté : " + code)
+    # Masquer les missing values AROME au lieu de les convertir en météo.
+    entier = np.full(valeurs.shape, -32768, dtype="<i2")
+    if np.any(valide):
+        entier[valide] = np.rint(np.maximum(valeurs[valide], 0)
+            * 10).astype("<i2") if code == "PRECIP_METEO" else (
+            np.rint(valeurs[valide] * 10).astype("<i2")
+        )
+    compresse = zlib.compress(entier.tobytes(order="C"), level=6)
+    champ = {
+        "grille": grille, "encodage": "zlib-base64-int16-v1",
+        "donnees": base64.b64encode(compresse).decode("ascii")
+    }
+    if code == "PRECIP_METEO":
+        debut = prop(gid, "startStep", None)
+        try:
+            champ["debut_cumul"] = int(debut) if debut is not None else None
+        except (TypeError, ValueError):
+            champ["debut_cumul"] = None
+    return champ
 
 
 def decoupe(gid):
@@ -334,14 +398,28 @@ def convertir(grib, run):
                 if code is None or not HEURE_DEBUT <= hour <= HEURE_FIN:
                     continue
                 bounds, grid, dims = decoupe(gid)
-                if reference_grid and grid != reference_grid:
-                    raise ValueError("Grille différente des autres champs")
-                reference_grid = grid
+                optionnel = code in ("T2M_METEO", "NEBUL_METEO", "PRECIP_METEO")
+                if not optionnel:
+                    if reference_grid and grid != reference_grid:
+                        raise ValueError("Grille différente des autres champs")
+                    reference_grid = grid
                 data = np.asarray(codes_get_values(gid), dtype=np.float64)
                 if data.size != dims[0] * dims[1]:
                     raise ValueError("Dimensions du champ GRIB2 incohérentes")
                 j0, j1, i0, i1 = bounds
                 local = data.reshape(*dims)[j0:j1, i0:i1]
+                if optionnel:
+                    try:
+                        champ = encoder_meteo(gid, code, local, grid)
+                        step = forecast.setdefault(hour, {"seconde": hour*3600})
+                        # Une échéance peut inclure plusieurs messages du même
+                        # paramètre : conserver le premier champ valide.
+                        if code not in step:
+                            step[code] = champ
+                    except (ValueError, OverflowError) as erreur:
+                        print("Champ météo facultatif ignoré :",
+                              code, "H+" + str(hour), str(erreur))
+                    continue
                 if not np.isfinite(local).all() or np.any(np.abs(local) > 1e20):
                     raise ValueError("Valeurs absentes dans la zone : " + code)
                 step = forecast.setdefault(hour, {"seconde": hour*3600})
@@ -354,6 +432,10 @@ def convertir(grib, run):
     for desc in sorted(descriptions):
         print("Champ :", desc)
     print("Grille réduite :", reference_grid, "| échéances H+", HEURE_DEBUT, "à H+", HEURE_FIN)
+    print("Champs météo compressés par paramètre :", {
+        code: sum(code in p for p in forecast.values())
+        for code in ("T2M_METEO", "NEBUL_METEO", "PRECIP_METEO")
+    })
     rafales_directes = 0
     rafales_reconstruites = 0
     for hour in range(HEURE_DEBUT, HEURE_FIN + 1):
