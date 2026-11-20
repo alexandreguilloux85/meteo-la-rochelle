@@ -469,11 +469,14 @@ Les **anciens caches** publiés sur GitHub Pages restent restaurables ; la
 frise utilise alors `—` pour les valeurs météo absentes et continue
 d'afficher le vent. Au premier contrôle du catalogue suivant le nouveau
 déploiement, Render reconstruira une fois le cache enrichi, **même si le
-modèle complet disponible n'a pas changé**. Les contrôles suivants restent
+modèle complet disponible n'a pas changé**. La mise à niveau de
+`meteo_version: 1` vers `2` déclenche aussi cette reconstruction.
+Les contrôles suivants restent
 à 30 minutes avec téléchargement uniquement lorsqu'un nouveau modèle
 complet est disponible.
 
-Le cache enrichi contient `meteo_version: 1` et le nombre de champs
+Le cache enrichi contient désormais `meteo_version: 2` (version intégrant
+les définitions ecCodes officielles Météo-France) et le nombre de champs
 par échéance dans `champs_meteo`. Le statut
 `/api/arome/paquets/test/status` expose ces valeurs : **51 pour chaque
 champ** signifie que les données SP1 ont été décodées pour les 51 heures.
