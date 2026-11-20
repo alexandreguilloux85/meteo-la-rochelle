@@ -462,6 +462,12 @@ function couleurVent(vitesse) {
 // lit son cache. GitHub Pages lit toujours le JSON publié en production.
 const EST_SITE_RENDER_TEST =
     window.location.hostname === "station-meteo-lr-test.onrender.com";
+// Sur Render test, les paquets GRIB2 sont interpolés côté serveur :
+// aucune grille AROME complète n'est envoyée au navigateur ni à GitHub Pages.
+const URL_PREVISIONS_PAQUETS_POINT =
+    window.location.origin + "/api/arome/paquets/test/previsions";
+const URL_PREVISIONS_WCS_POINT =
+    window.location.origin + "/api/arome/previsions";
 const URL_CACHE_AROME = EST_SITE_RENDER_TEST
     ? window.location.origin + "/api/arome/cache/public"
     : "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json";
@@ -659,6 +665,65 @@ function calculerPrevisionsAromeNavigateur(cache, latitude, longitude) {
 }
 
 // --------------------------------------------------
+// PREVISIONS AU POINT CLIQUE : UNIQUEMENT SUR RENDER TEST
+// --------------------------------------------------
+
+async function obtenirPrevisionsAromeAuPoint(url, lat, lon) {
+    const adresse = new URL(url);
+    adresse.searchParams.set("lat", String(lat));
+    adresse.searchParams.set("lon", String(lon));
+
+    const reponse = await fetch(adresse, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(25000)
+    });
+    if (!reponse.ok) {
+        let detail;
+        try {
+            detail = (await reponse.json()).erreur;
+        } catch (_erreur) {
+            detail = null;
+        }
+        throw new Error(detail || "HTTP " + reponse.status);
+    }
+    const resultat = await reponse.json();
+    if (!resultat.succes || !Array.isArray(resultat.previsions) ||
+        resultat.previsions.length === 0) {
+        throw new Error(resultat.erreur || "Réponse AROME au point invalide");
+    }
+    return resultat;
+}
+
+async function obtenirPrevisionsAromePourAffichage(lat, lon) {
+    if (!EST_SITE_RENDER_TEST) {
+        // Comportement GitHub Pages inchangé jusqu'à validation de l'essai.
+        const cache = await chargerCacheAromeNavigateur();
+        return calculerPrevisionsAromeNavigateur(cache, lat, lon);
+    }
+
+    try {
+        return await obtenirPrevisionsAromeAuPoint(
+            URL_PREVISIONS_PAQUETS_POINT, lat, lon
+        );
+    } catch (erreurPaquets) {
+        console.warn(
+            "AROME Paquets au point indisponible ; WCS de secours :",
+            erreurPaquets.message
+        );
+        // Même en secours, ne pas envoyer une grille au navigateur :
+        // Render calcule les prévisions pour la latitude/longitude cliquées.
+        const resultat = await obtenirPrevisionsAromeAuPoint(
+            URL_PREVISIONS_WCS_POINT, lat, lon
+        );
+        return {
+            ...resultat,
+            cache: true,
+            origine_cache: "WCS Render test (secours)"
+        };
+    }
+}
+
+// --------------------------------------------------
 // CHARGEMENT DES PREVISIONS AROME
 // --------------------------------------------------
 
@@ -682,14 +747,9 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
 
     try {
 
-        const cache = await chargerCacheAromeNavigateur();
-        const resultat = calculerPrevisionsAromeNavigateur(
-            cache,
-            lat,
-            lon
-        );
+        const resultat = await obtenirPrevisionsAromePourAffichage(lat, lon);
 
-        console.log("Prévisions AROME calculées dans le navigateur", resultat);
+        console.log("Prévisions AROME au point sélectionné", resultat);
 
         if (!Array.isArray(resultat.previsions) ||
             resultat.previsions.length === 0) {
@@ -932,11 +992,15 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
         let origine = "Téléchargement de nouveaux GRIB";
 
         if (resultat.cache === true) {
-            origine = resultat.origine_cache === "GitHub Pages"
-                ? "Prévisions depuis le cache GitHub Pages"
-                : resultat.origine_cache === "Render test"
-                    ? "Prévisions depuis le cache Render test"
-                    : "Prévisions depuis le cache local";
+            origine = resultat.origine_cache === "Paquets AROME Render test"
+                ? "Prévisions AROME GRIB2 au point sélectionné"
+                : resultat.origine_cache === "WCS Render test (secours)"
+                    ? "Prévisions WCS de secours au point sélectionné"
+                    : resultat.origine_cache === "GitHub Pages"
+                        ? "Prévisions depuis le cache GitHub Pages"
+                        : resultat.origine_cache === "Render test"
+                            ? "Prévisions depuis le cache Render test"
+                            : "Prévisions depuis le cache local";
         }
 
         let statutActualisation = "";
