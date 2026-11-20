@@ -14,7 +14,29 @@ from urllib.parse import urlparse, parse_qs, urlencode
 from urllib.request import Request, urlopen
 
 import numpy as np
-from eccodes import codes_get, codes_get_values, codes_grib_new_from_file, codes_release
+from eccodes import (
+    codes_get, codes_get_values, codes_grib_new_from_file, codes_release,
+    codes_definition_path, codes_set_definitions_path
+)
+
+# Définir en priorité les tables officielles Météo-France (installées au
+# build Render test), tout en conservant les tables standard ecCodes.
+# Le test GitHub Actions reste compatible sans le dossier optionnel.
+DEFINITIONS_METEO_FRANCE = (
+    Path(__file__).resolve().parents[2] / ".meteo-eccodes" / "definitions"
+)
+if (DEFINITIONS_METEO_FRANCE / "grib2").is_dir():
+    definitions_standard = codes_definition_path()
+    chemins = [str(DEFINITIONS_METEO_FRANCE)]
+    chemins.extend(
+        chemin for chemin in str(definitions_standard).split(os.pathsep)
+        if chemin and chemin != str(DEFINITIONS_METEO_FRANCE)
+    )
+    codes_set_definitions_path(os.pathsep.join(chemins))
+    os.environ["ECCODES_DEFINITION_PATH"] = os.pathsep.join(chemins)
+    print("Définitions ecCodes Météo-France actives :", chemins[0], flush=True)
+else:
+    print("Définitions Météo-France absentes : ecCodes standard", flush=True)
 
 ROOT = "https://public-api.meteofrance.fr/previnum/DPPaquetAROME/v1"
 URL = ROOT + "/models/AROME/grids/0.025/packages/SP1"
