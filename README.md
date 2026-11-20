@@ -319,11 +319,11 @@ Le navigateur ne charge **jamais** le cache GRIB2 complet.
 Après validation d'un cycle complet de **neuf groupes (H+1 à H+51)**,
 Render test peut déclencher l'événement GitHub
 `arome-paquets-cache-ready`. Le workflow GitHub Actions
-[`Save AROME Paquets cache for GitHub Pages`](.github/workflows/publish-arome-paquets-cache.yml)
+[`Save AROME Paquets cache for GitHub Pages`](https://github.com/alexandreguilloux85/meteo-la-rochelle/blob/main/.github/workflows/publish-arome-paquets-cache.yml)
 télécharge le gzip depuis Render test, vérifie le SHA256 annoncé, le modèle
 et les **51 échéances U/V/FF_RAF**, puis remplace le contenu de la branche
 **`arome-paquets-data` par un unique commit orphelin**. Le workflow
-[`Publish website`](.github/workflows/publish-website.yml) ajoute
+[`Publish website`](https://github.com/alexandreguilloux85/meteo-la-rochelle/blob/main/.github/workflows/publish-website.yml) ajoute
 `arome-paquets-cache.json.gz` à GitHub Pages en plus du cache WCS
 `arome-cache.json`. Aucune partie du site public n'utilise directement
 le fichier GRIB2.
