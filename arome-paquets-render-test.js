@@ -47,7 +47,7 @@ async function authentificationPaquets() {
     // et non 'Authorization: Bearer', dans ce mode.
     const cleApi = process.env.METEO_AROME_PAQUETS_API_KEY?.trim();
     if (cleApi) {
-        if (/\\s/.test(cleApi) || /^(Bearer|Basic|Authorization:)\\b/i.test(cleApi)) {
+        if (/\s/.test(cleApi) || /^(Bearer|Basic|Authorization:)\b/i.test(cleApi)) {
             throw new Error(
                 "METEO_AROME_PAQUETS_API_KEY invalide : copier uniquement la clé API, " +
                 "sans préfixe Bearer/Basic ni espaces"
@@ -69,7 +69,7 @@ async function authentificationPaquets() {
             method: "POST",
             redirect: "error",
             headers: {
-                Authorization: "Basic " + identifiant.replace(/^Basic\\s+/i, ""),
+                Authorization: "Basic " + identifiant.replace(/^Basic\s+/i, ""),
                 "Content-Type": "application/x-www-form-urlencoded",
                 Accept: "application/json"
             },
@@ -100,9 +100,9 @@ async function authentificationPaquets() {
             "METEO_AROME_PAQUETS_APPLICATION_ID ou METEO_AROME_PAQUETS_TOKEN sur Render test"
         );
     }
-    const jeton = secret.replace(/^Authorization:\\s*/i, "")
-        .replace(/^Bearer\\s+/i, "").replace(/^['"]|['"]$/g, "").trim();
-    if (!jeton || /\\s/.test(jeton)) {
+    const jeton = secret.replace(/^Authorization:\s*/i, "")
+        .replace(/^Bearer\s+/i, "").replace(/^['"]|['"]$/g, "").trim();
+    if (!jeton || /\s/.test(jeton)) {
         throw new Error("METEO_AROME_PAQUETS_TOKEN mal copié");
     }
     return {
