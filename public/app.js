@@ -809,8 +809,8 @@ async function obtenirPrevisionsAromePourAffichage(lat, lon) {
 async function chargerPrevisionsArome(lat, lon, options = {}) {
 
     const statut = document.getElementById("previsionsMiseAJour");
-    const tableau = document.getElementById("tableauPrevisions");
-    const entete = document.getElementById("entetePrevisions");
+    const frise = document.getElementById("frise-meteo");
+    const noteFrise = document.getElementById("frise-meteo-note");
 
     const numeroRequete = ++numeroRequetePrevisions;
     const tentativesActualisation = options.tentativesActualisation || 0;
@@ -818,9 +818,10 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
     if (!options.silencieux) {
         statut.textContent = "Récupération des prévisions AROME...";
 
-        tableau.innerHTML = `
-            <tr><td colspan="2">Chargement des prévisions...</td></tr>
-        `;
+        if (frise) {
+            frise.textContent = "Chargement de la frise...";
+        }
+        if (noteFrise) noteFrise.textContent = "";
     }
 
     try {
@@ -844,220 +845,8 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
             );
         }
         const previsions = resultat.previsions;
-        // Affichage autonome : ne modifie ni la source ni le cache du tableau.
+        // La frise est l'unique tableau : calcul et source AROME inchangés.
         window.afficherFriseMeteoArome?.(previsions, lat, lon);
-
-        // ------------------------------------------
-        // CONSTRUCTION DES EN-TETES JOUR ET HEURE
-        // ------------------------------------------
-
-        let groupesJours = [];
-
-        previsions.forEach((p, index) => {
-
-            const date = new Date(p.date);
-
-            const jourCle = date.toLocaleDateString("fr-FR", {
-                timeZone: "Europe/Paris",
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric"
-            });
-
-            const heure = date.toLocaleTimeString("fr-FR", {
-                timeZone: "Europe/Paris",
-                hour: "2-digit"
-            }).replace(/\s*h\s*$/, "h");
-
-            let dernierGroupe = groupesJours[groupesJours.length - 1];
-
-            if (!dernierGroupe || dernierGroupe.cle !== jourCle) {
-
-                const nomJour = date.toLocaleDateString("fr-FR", {
-                    timeZone: "Europe/Paris",
-                    weekday: "long",
-                    day: "2-digit"
-                });
-
-                groupesJours.push({
-                    cle: jourCle,
-                    nom: nomJour.charAt(0).toUpperCase()
-                        + nomJour.slice(1),
-                    heures: []
-                });
-
-                dernierGroupe = groupesJours[groupesJours.length - 1];
-            }
-
-            dernierGroupe.heures.push({
-                index: index,
-                heure: heure
-            });
-
-        });
-
-        // Première ligne : les jours
-        let ligneJours = `
-            <tr>
-                <th rowspan="2" class="colonne-parametre"></th>
-        `;
-
-        groupesJours.forEach((groupe, index) => {
-
-            ligneJours += `
-                <th colspan="${groupe.heures.length}"
-                    class="jour-prevision${index > 0 ? " separateur-jour" : ""}">
-                    ${groupe.nom}
-                </th>
-            `;
-
-        });
-
-        ligneJours += `</tr>`;
-
-        // Deuxième ligne : les heures
-        let ligneHeures = `<tr>`;
-        groupesJours.forEach((groupe, groupeIndex) => {
-
-            groupe.heures.forEach((element, heureIndex) => {
-
-                ligneHeures += `
-                    <th class="heure-prevision${
-                        groupeIndex > 0 && heureIndex === 0
-                            ? " separateur-jour"
-                            : ""
-                    }">
-                        ${element.heure}
-                    </th>
-                `;
-
-            });
-
-        });
-
-        ligneHeures += `</tr>`;
-
-        entete.innerHTML = ligneJours + ligneHeures;
-        const separateursJours = new Set(
-            groupesJours.slice(1).map(groupe => groupe.heures[0].index)
-        );
-
-        // ------------------------------------------
-        // LIGNE VITESSE DU VENT
-        // ------------------------------------------
-
-        let ligneVent = `
-            <tr>
-                <td class="cellule-parametre">Vent (kt)</td>
-        `;
-
-        previsions.forEach((p, index) => {
-
-            const vitesseKt = Number(p.vitesse) * 1.94384;
-
-            const vitesseTexte = Number.isFinite(vitesseKt)
-                ? vitesseKt.toFixed(0)
-                : "--";
-
-            const couleur = Number.isFinite(vitesseKt)
-                ? couleurVent(vitesseKt)
-                : "#dce3eb";
-
-            ligneVent += `
-                <td class="cellule-vent${
-                    separateursJours.has(index) ? " separateur-jour" : ""
-                }"
-                    style="background-color: ${couleur}">
-                    ${vitesseTexte}
-                </td>
-            `;
-
-        });
-
-        ligneVent += `</tr>`;
-
-        // ------------------------------------------
-        // LIGNE RAFALES
-        // ------------------------------------------
-
-        let ligneRafales = `
-            <tr>
-                <td class="cellule-parametre">Rafales (kt)</td>
-        `;
-
-        previsions.forEach((p, index) => {
-            const rafaleMs = p.rafale == null
-                ? NaN
-                : Number(p.rafale);
-
-            const rafaleKt = Number.isFinite(rafaleMs)
-                ? rafaleMs * 1.94384
-                : NaN;
-
-            const rafaleTexte = Number.isFinite(rafaleKt)
-                ? rafaleKt.toFixed(0)
-                : "--";
-
-            const couleur = Number.isFinite(rafaleKt)
-                ? couleurVent(rafaleKt)
-                : "#dce3eb";
-
-            ligneRafales += `
-                <td class="cellule-vent cellule-rafale${
-                    separateursJours.has(index) ? " separateur-jour" : ""
-                }"
-                    style="background-color: ${couleur}">
-                    ${rafaleTexte}
-                </td>
-            `;
-        });
-
-        ligneRafales += `</tr>`;
-
-        // ------------------------------------------
-        // LIGNE DIRECTION DU VENT
-        // ------------------------------------------
-
-        let ligneDirection = `
-            <tr>
-                <td class="cellule-parametre">Direction</td>
-        `;
-
-        previsions.forEach((p, index) => {
-
-            const direction = Number(p.direction);
-
-            if (Number.isFinite(direction)) {
-
-                const directionCardinale = directionTexte(direction);
-
-                ligneDirection += `
-                    <td class="cellule-direction${
-                        separateursJours.has(index) ? " separateur-jour" : ""
-                    }">
-                        <span class="fleche-prevision"
-                            style="transform: rotate(${direction + 180}deg)">
-                            ↑
-                        </span>
-                        <div>${direction.toFixed(0)}°</div>
-                        <div>${directionCardinale}</div>
-                    </td>
-                `;
-
-            } else {
-                ligneDirection += `
-                    <td class="cellule-direction${
-                        separateursJours.has(index) ? " separateur-jour" : ""
-                    }">--</td>
-                `;
-            }
-
-        });
-
-        ligneDirection += `</tr>`;
-
-        // Affichage du tableau
-        tableau.innerHTML = ligneVent +ligneRafales + ligneDirection;
 
         // ------------------------------------------
         // INFORMATIONS DU MODELE
@@ -1120,15 +909,8 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
 
         if (options.silencieux) return;
 
-        entete.innerHTML = `
-            <tr><th>Prévisions AROME</th></tr>
-        `;
-
-        tableau.innerHTML = `
-            <tr>
-                <td colspan="2">Erreur : ${erreur.message}</td>
-            </tr>
-        `;
+        if (frise) frise.textContent = "Erreur : " + erreur.message;
+        if (noteFrise) noteFrise.textContent = "";
     }
 }
 
