@@ -8,6 +8,7 @@ const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { gzipSync, gunzipSync } = require("node:zlib");
 const crypto = require("node:crypto");
+const { ajouterMeteoAuxPrevisions } = require("./arome-meteo-point-test");
 
 const ROOT = "https://public-api.meteofrance.fr/previnum/DPPaquetAROME/v1";
 const SP1 = ROOT + "/models/AROME/grids/0.025/packages/SP1";
@@ -440,6 +441,8 @@ function installerTestAromePaquets(app, {
             en_cours: enCours,
             cache_disponible: Boolean(cacheTest),
             modele_cache_disponible: cacheTest?.modele || null,
+            meteo_version: cacheTest?.meteo_version || 0,
+            champs_meteo: cacheTest?.champs_meteo || null,
             restauration_pages: restaurationPages,
             erreur_restauration_pages: erreurRestauration,
             publication_github: publicationGitHub,
@@ -575,6 +578,9 @@ function installerTestAromePaquets(app, {
         }
         try {
             const resultat = calculerPrevisionsArome(cacheTest, lat, lon);
+            // Champs météorologiques facultatifs, décompressés uniquement au
+            // point GPS demandé ; U/V, vitesse, direction et rafales inchangés.
+            ajouterMeteoAuxPrevisions(cacheTest, resultat, lat, lon);
             return res.json({
                 ...resultat,
                 cache: true,
@@ -911,7 +917,15 @@ function installerTestAromePaquets(app, {
                 }
                 previsions.push(parHeure.get(h));
             }
+            const champsMeteo = Object.fromEntries(
+                ["T2M_METEO", "NEBUL_METEO", "PRECIP_METEO"].map(nom => [
+                    nom, previsions.filter(p => Boolean(p[nom])).length
+                ])
+            );
+            console.log("AROME Paquets : champs météo facultatifs :", champsMeteo);
             const cache = {
+                meteo_version: 1,
+                champs_meteo: champsMeteo,
                 modele: produit.modele,
                 date: Date.now(),
                 source: "AROME 0.025 SP1 GRIB2 ecCodes - Render test",
@@ -925,15 +939,33 @@ function installerTestAromePaquets(app, {
                 throw new Error("Interpolation incomplète à La Rochelle");
             }
             etat = { ...etat, etape: "compression_cache" };
-            const texte = JSON.stringify(cache);
-            const tailleJson = Buffer.byteLength(texte);
-            if (tailleJson > MAX_JSON_OCTETS) {
-                throw new Error(
-                    "Cache JSON " + arrondiMo(tailleJson) +
-                    " Mo supérieur à 45 Mo : publication test refusée"
-                );
+            let texte = JSON.stringify(cache);
+            let tailleJson = Buffer.byteLength(texte);
+            let gzip = tailleJson <= MAX_JSON_OCTETS
+                ? gzipSync(Buffer.from(texte), { level: 6 }) : null;
+            if (tailleJson > MAX_JSON_OCTETS ||
+                (gzip && gzip.length > MAX_CACHE_GZIP_OCTETS)) {
+                // Si les champs météo font dépasser les limites de Pages,
+                // conserver le cache de vent traditionnel, sans interruption.
+                console.warn("AROME Paquets : météo compacte trop volumineuse ; " +
+                    "retour au cache vent uniquement");
+                for (const p of cache.previsions) {
+                    delete p.T2M_METEO;
+                    delete p.NEBUL_METEO;
+                    delete p.PRECIP_METEO;
+                }
+                cache.champs_meteo = {
+                    T2M_METEO: 0, NEBUL_METEO: 0, PRECIP_METEO: 0
+                };
+                texte = JSON.stringify(cache);
+                tailleJson = Buffer.byteLength(texte);
+                gzip = tailleJson <= MAX_JSON_OCTETS
+                    ? gzipSync(Buffer.from(texte), { level: 6 }) : null;
             }
-            const gzip = gzipSync(Buffer.from(texte), { level: 6 });
+            if (!gzip || gzip.length > MAX_CACHE_GZIP_OCTETS) {
+                throw new Error("Cache GRIB2 supérieur aux limites " +
+                    "Pages (45 Mo JSON ou 16 Mo gzip)");
+            }
             // Publication atomique des deux objets uniquement après validation.
             cacheTest = cache;
             cacheCompresse = gzip;
@@ -1026,7 +1058,11 @@ function installerTestAromePaquets(app, {
                 modeleCataloguePlusRecent = produit.modele;
                 erreurControleCatalogue = null;
                 const cacheComplet = cacheTest?.previsions?.length === 51;
+                // Première reconstruction après la mise à jour : restaurer
+                // l'ancien cache de vent, puis l'enrichir sans attendre un
+                // changement de réseau. Les cycles suivants restent à 30 min.
                 const nouveauModele = !cacheComplet ||
+                    !cacheTest?.meteo_version ||
                     Date.parse(produit.modele) > Date.parse(cacheTest.modele);
 
                 if (nouveauModele) {
