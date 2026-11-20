@@ -23,6 +23,7 @@ DATASET_API = f"https://www.data.gouv.fr/api/1/datasets/{DATASET_ID}/"
 RACINE = Path(__file__).resolve().parents[1]
 DESTINATION = RACINE / ".meteo-eccodes" / "definitions"
 VENDOR = RACINE / "vendor" / "meteofrance" / "eccodes-definitions.tar.gz"
+DEFINITIONS_VERSIONNEES = RACINE / "vendor" / "meteofrance" / "definitions"
 MANIFESTE = RACINE / "vendor" / "meteofrance" / "manifest.json"
 MAX_ARCHIVE = 4 * 1024 * 1024
 MAX_UNCOMPRESSED = 50 * 1024 * 1024
@@ -120,8 +121,24 @@ def extraire(archive, repertoire):
     return candidates[0], nombre
 
 
+def empreinte_definitions(racine):
+    """SHA256 reproductible des noms et contenus des fichiers officiels extraits."""
+    fichiers = sorted(p for p in racine.rglob("*") if p.is_file())
+    if not fichiers or len(fichiers) > MAX_FILES:
+        raise ValueError("Nombre de fichiers de définition invalide")
+    sha = hashlib.sha256()
+    for fichier in fichiers:
+        relative = fichier.relative_to(racine).as_posix().encode("utf-8")
+        contenu = fichier.read_bytes()
+        sha.update(len(relative).to_bytes(4, "big"))
+        sha.update(relative)
+        sha.update(len(contenu).to_bytes(8, "big"))
+        sha.update(contenu)
+    return sha.hexdigest(), len(fichiers)
+
+
 def actualiser_archive_versionnee():
-    """Téléchargement ponctuel, à faire via GitHub Actions (et jamais Render)."""
+    """Téléchargement ponctuel via GitHub Actions : archive + 106 fichiers extraits."""
     metadonnees = json.loads(telecharger(DATASET_API, 1024 * 1024))
     ressource = choisir_ressource(metadonnees.get("resources", []))
     rid = ressource.get("id")
@@ -129,9 +146,13 @@ def actualiser_archive_versionnee():
         raise ValueError("Ressource sans ID")
     url = "https://www.data.gouv.fr/api/1/datasets/r/" + rid
     archive = telecharger(url, MAX_ARCHIVE)
-    # Vérifier l'archive officielle AVANT de la copier dans le dépôt.
     with tempfile.TemporaryDirectory(prefix="verification-grib2-") as temporaire:
-        _, nombre = extraire(archive, Path(temporaire))
+        source, nombre = extraire(archive, Path(temporaire))
+        fichiers_sha, nombre_extraits = empreinte_definitions(source)
+        VENDOR.parent.mkdir(parents=True, exist_ok=True)
+        if DEFINITIONS_VERSIONNEES.exists():
+            shutil.rmtree(DEFINITIONS_VERSIONNEES)
+        shutil.copytree(source, DEFINITIONS_VERSIONNEES)
     sha = hashlib.sha256(archive).hexdigest()
     infos = {
         "source": url,
@@ -140,55 +161,45 @@ def actualiser_archive_versionnee():
         "ressource_id": rid,
         "date_publication": ressource.get("last_modified"),
         "sha256": sha,
-        "fichiers_extraits": nombre,
+        "sha256_definitions": fichiers_sha,
+        "fichiers_extraits": nombre_extraits,
         "licence": "Licence Ouverte / Open Licence version 2.0",
         "producteur": "Météo-France"
     }
-    VENDOR.parent.mkdir(parents=True, exist_ok=True)
     VENDOR.write_bytes(archive)
     MANIFESTE.write_text(
         json.dumps(infos, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-    print("Archive officielle copiée dans le dépôt :", VENDOR, flush=True)
-    print("Ressource :", url, "SHA256 :", sha, "fichiers :", nombre, flush=True)
+    print("Fichiers ecCodes officiels copiés dans le dépôt :", DEFINITIONS_VERSIONNEES, flush=True)
+    print("Archive conservée :", VENDOR, "SHA256 :", sha, flush=True)
+    print("Dossiers vérifiés :", nombre_extraits, "fichiers / archive :", nombre, flush=True)
 
 
 def installer_localement():
-    """Build Render : lecture des fichiers Git uniquement, sans connexion externe."""
-    if not VENDOR.is_file() or not MANIFESTE.is_file():
+    """Build Render : valider les fichiers Git, sans ouvrir le tar.gz ni le réseau."""
+    if not MANIFESTE.is_file() or not (DEFINITIONS_VERSIONNEES / "grib2").is_dir():
         raise FileNotFoundError(
-            "Définitions versionnées absentes. Exécuter le workflow "
+            "Définitions ecCodes versionnées absentes. Exécuter le workflow "
             "'Copier definitions ecCodes Meteo-France' sur Test_fonction."
         )
-    archive = VENDOR.read_bytes()
-    if not 1000 < len(archive) <= MAX_ARCHIVE:
-        raise ValueError("Archive versionnée trop petite ou trop volumineuse")
     manifest = json.loads(MANIFESTE.read_text(encoding="utf-8"))
-    sha = hashlib.sha256(archive).hexdigest()
-    if manifest.get("sha256") != sha:
-        raise ValueError("SHA256 de l'archive versionnée incorrect")
     if not all(x in nettoyer(manifest.get("titre", ""))
                for x in ("grib", "sauf", "vague")):
-        raise ValueError("Manifest non conforme à l'archive GRIB2 hors vagues")
-    with tempfile.TemporaryDirectory(prefix="meteo-definitions-") as temporaire:
-        source, nombre = extraire(archive, Path(temporaire))
-        DESTINATION.parent.mkdir(parents=True, exist_ok=True)
-        if DESTINATION.exists():
-            shutil.rmtree(DESTINATION)
-        shutil.copytree(source, DESTINATION)
-    (DESTINATION.parent / "source.json").write_text(
-        json.dumps({**manifest, "fichiers_extraits": nombre},
-                   ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
-    print("Définitions ecCodes installées depuis le dépôt Git :", DESTINATION, flush=True)
-    print("AUCUN téléchargement externe. SHA256 vérifié :", sha, flush=True)
+        raise ValueError("Manifest non conforme aux définitions hors vagues")
+    fichiers_sha, nombre = empreinte_definitions(DEFINITIONS_VERSIONNEES)
+    if manifest.get("sha256_definitions") != fichiers_sha:
+        raise ValueError("Les fichiers ecCodes extraits ont changé : SHA256 incorrect")
+    if manifest.get("fichiers_extraits") != nombre:
+        raise ValueError("Nombre de fichiers ecCodes incorrect")
+    print("Définitions ecCodes Météo-France disponibles directement dans Git :", DEFINITIONS_VERSIONNEES, flush=True)
+    print("AUCUN téléchargement ni décompression ; SHA256 des fichiers vérifié :", fichiers_sha, flush=True)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--update-vendor", action="store_true",
-        help="Télécharger une fois les définitions Météo-France et les versionner"
+        help="Télécharger une fois les définitions officielles et versionner les fichiers extraits"
     )
     args = parser.parse_args()
     if args.update_vendor:
