@@ -9,6 +9,7 @@ let graphiqueTemperature = null;
 
 let carteRadar = null;
 let coucheRadar = null;
+let contourZoneGrib = null;
 let cercle5Nm = null;
 let cercle15Nm = null;
 let etiquette5Nm = null;
@@ -324,6 +325,30 @@ function initialiserCarteRadar() {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19
     }).addTo(carteRadar);
+
+    // Limites de la zone du cache AROME GRIB2 (sur Render test seulement).
+    // Un pane dédié maintient le tracé au-dessus des tuiles radar.
+    // Le rectangle ne doit pas intercepter les clics destinés aux prévisions.
+    if (window.location.hostname === "station-meteo-lr-test.onrender.com") {
+        carteRadar.createPane("contourZoneGribPane");
+        const paneGrib = carteRadar.getPane("contourZoneGribPane");
+        paneGrib.style.zIndex = 425;
+        paneGrib.style.pointerEvents = "none";
+
+        contourZoneGrib = L.rectangle(
+            [[43.2, -5.0], [48.3, -0.3]],
+            {
+                pane: "contourZoneGribPane",
+                color: "#000000",
+                weight: 2,
+                opacity: 1,
+                dashArray: "4, 7",
+                lineCap: "round",
+                fill: false,
+                interactive: false
+            }
+        ).addTo(carteRadar);
+    }
 
         reconstruireRadarGraphique(
             centreLat,
