@@ -420,15 +420,46 @@ la restauration GitHub Pages ne sont **pas modifiés**.
 
 ### Données nécessaires et compatibilité
 
-La frise sait exploiter, *si elles existent dans la réponse au point* :
-`temperature` (°C), `nebulosite` (%) et `precipitation` (mm sur l'heure).
-**Le cache GRIB2 actuel ne fournit pas ces trois champs au navigateur.**
-En conséquence, la frise affiche actuellement `—` pour le ciel, la
-température et la pluie ; il ne faut **jamais** interpréter cette absence
-comme du soleil ou du temps sec. L'ajout ultérieur de véritables prévisions
-météo nécessitera une évolution séparée, après validation de sa compatibilité
-avec le pipeline GRIB2 et la restauration Pages. Cette première étape ne
-modifie pas ce pipeline.
+Le décodage de **la prochaine récupération complète de neuf GRIB2**
+sur Render test conserve maintenant, en complément des données de vent, les
+grilles `T2M_METEO` (température à 2 m), `NEBUL_METEO` (nébulosité totale)
+et `PRECIP_METEO` (précipitations cumulées) lorsqu'elles sont présentes.
+Ces champs météo sont encodés avec des entiers signés sur 16 bits, à la
+précision de 0,1 unité, puis compressés par `zlib` et encodés en Base64.
+Les `missing values` AROME sont conservées comme valeurs absentes.
+Le cache wind `U`, `V`, `RAFALE` et son interpolation existante ne changent pas.
+
+L'API `/api/arome/paquets/test/previsions?lat=…&lon=…` fournit désormais
+`temperature` (°C), `nebulosite` (%) et `precipitation` (mm pendant
+l'heure écoulée) **uniquement pour le point GPS demandé**, en plus de
+toutes les variables de vent antérieures. La pluie est obtenue soit
+directement si le GRIB cumule sur H−1 à H, soit par différence des cumuls
+0→H et 0→H−1. Si la période d'accumulation ou une valeur est inconnue,
+la précipitation reste `null`, pas zéro.
+
+### Actualisation et protection du fonctionnement existant
+
+Les **anciens caches** publiés sur GitHub Pages restent restaurables ; la
+frise utilise alors `—` pour les valeurs météo absentes et continue
+d'afficher le vent. Au premier contrôle du catalogue suivant le nouveau
+déploiement, Render reconstruira une fois le cache enrichi, **même si le
+modèle complet disponible n'a pas changé**. Les contrôles suivants restent
+à 30 minutes avec téléchargement uniquement lorsqu'un nouveau modèle
+complet est disponible.
+
+Le cache enrichi contient `meteo_version: 1` et le nombre de champs
+par échéance dans `champs_meteo`. Le statut
+`/api/arome/paquets/test/status` expose ces valeurs : **51 pour chaque
+champ** signifie que les données SP1 ont été décodées pour les 51 heures.
+Les encodages sont facultatifs, et si la taille totale dépasse les limites
+existantes (45 Mo JSON ou 16 Mo gzip), le traitement garde le **cache de
+vent seul** plutôt que de casser l'enregistrement sur GitHub Pages.
+Le workflow GitHub Actions, la publication Pages et le site de production
+ne sont pas modifiés. Les GRIB2 ne sont toujours pas envoyés au navigateur.
+
+Pour afficher correctement les icônes, il faut donc disposer d'un cache
+publié avec ses champs météo : faire seulement F5 avec un **ancien** cache
+ne suffit pas.
 
 Le vent et les rafales restent immédiatement exploitables : mêmes vitesses
 en nœuds que précédemment, avec la palette `couleurVentWindy()` interpolée,
