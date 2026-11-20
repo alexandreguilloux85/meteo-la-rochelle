@@ -1773,6 +1773,31 @@ async function actualiserDepuisInterface(action, bouton) {
             return;
         }
 
+        if (EST_SITE_RENDER_TEST) {
+            // Le bouton ne dévoile pas le secret AROME_REFRESH_TOKEN.
+            // Il relit le point courant et le statut du cycle automatique.
+            const reponseStatut = await fetch(
+                window.location.origin + "/api/arome/paquets/test/status",
+                { cache: "no-store" }
+            );
+            if (!reponseStatut.ok) {
+                throw new Error("Statut AROME Paquets indisponible");
+            }
+            const etatPaquets = await reponseStatut.json();
+            await chargerPrevisionsArome(
+                positionCourante.lat, positionCourante.lon
+            );
+            statut.textContent = etatPaquets.en_cours
+                ? "AROME GRIB2 : actualisation en cours (" +
+                    (etatPaquets.groupes_termines || 0) + "/9 paquets)."
+                : etatPaquets.cache_disponible
+                    ? "Prévisions actualisées depuis le cache GRIB2 Render. " +
+                      "Actualisation automatique toutes les 3 h."
+                    : "Cache GRIB2 en préparation ; prévisions WCS de secours " +
+                      "si disponibles.";
+            return;
+        }
+
         const reponse = await fetch(
             `${URL_SERVEUR_RENDER}/api/refresh-arome`,
             {
