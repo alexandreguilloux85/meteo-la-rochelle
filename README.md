@@ -307,3 +307,67 @@ de production, ni publier les paquets GRIB2 sur GitHub Pages. Le bouton
 AROME sur Render test relit les prévisions au point et affiche le statut
 du traitement : il ne déclenche pas de téléchargement sans autorisation.
 La clé API Météo-France reste uniquement sur le serveur.
+
+## Sauvegarde persistante du cache AROME GRIB2 via GitHub Pages (Render test)
+
+La consultation au **point GPS cliqué** ne change pas. Render interpole en
+mémoire la grille AROME 0,025° et n'envoie que les 51 prévisions demandées.
+Le navigateur ne charge **jamais** le cache GRIB2 complet.
+
+### Sauvegarde
+
+Après validation d'un cycle complet de **neuf groupes (H+1 à H+51)**,
+Render test peut déclencher l'événement GitHub
+`arome-paquets-cache-ready`. Le workflow GitHub Actions
+[`Save AROME Paquets cache for GitHub Pages`](.github/workflows/publish-arome-paquets-cache.yml)
+télécharge le gzip depuis Render test, vérifie le SHA256 annoncé, le modèle
+et les **51 échéances U/V/FF_RAF**, puis remplace le contenu de la branche
+**`arome-paquets-data` par un unique commit orphelin**. Le workflow
+[`Publish website`](.github/workflows/publish-website.yml) ajoute
+`arome-paquets-cache.json.gz` à GitHub Pages en plus du cache WCS
+`arome-cache.json`. Aucune partie du site public n'utilise directement
+le fichier GRIB2.
+
+Le fichier est disponible après publication à :
+`https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-paquets-cache.json.gz`
+
+### Autorisation GitHub sur Render test
+
+Ajouter **`GITHUB_PAQUETS_PUBLISH_TOKEN`** dans
+**Render test → Environment** : token GitHub finement limité au dépôt
+`alexandreguilloux85/meteo-la-rochelle` avec la permission
+**Contents: Read and write** (pour `repository_dispatch`).
+Si `GITHUB_DATA_TOKEN` est déjà présent sur Render test avec les mêmes
+permissions, il est utilisé comme solution de repli. Ne pas mettre
+de token GitHub dans le JavaScript navigateur ni dans GitHub Pages.
+
+Le statut public `/api/arome/paquets/test/status` expose
+`publication_github` : `non_configuree`, `envoi`,
+`demande_envoyee` ou `echec`.
+`demande_envoyee` signifie seulement que GitHub a accepté le signal :
+il faut aussi vérifier la réussite des deux workflows.
+
+### Restauration
+
+À chaque redémarrage, Render test essaie de charger **en premier** le
+fichier gzip depuis GitHub Pages, de contrôler la zone, les 51 échéances
+et l'interpolation, puis le remet en mémoire. Le champ
+`restauration_pages` passe à `reussie`, le cache devient immédiatement
+disponible pour le calcul au point cliqué. Si le modèle est ancien,
+le traitement des neuf paquets redémarre en arrière-plan, **sans retirer
+le dernier cache restauré**. Si Pages est inaccessible ou le gzip
+invalide, Render utilise l'actualisation automatique actuelle et le WCS
+reste disponible en secours.
+
+Aucune suppression manuelle n'est nécessaire pour les fichiers **actifs** :
+un nouveau déploiement de Pages remplace le précédent, et la branche
+`arome-paquets-data` contient un seul commit et un seul fichier gzip
+à chaque mise à jour. La réécriture de la branche ne purge pas
+instantanément les objets Git inaccessibles ou les anciens artefacts
+GitHub Actions, dont la conservation dépend de GitHub.
+
+**Déploiement :** les deux workflows sont sur la branche `main` car
+les événements `repository_dispatch` GitHub sont pris en compte sur
+la branche par défaut. Seuls ces workflows ont changé sur `main` ;
+le code applicatif de production, les observations, le radar et le
+calcul au point cliqué de `Test_fonction` restent inchangés.
