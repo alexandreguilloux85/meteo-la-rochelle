@@ -11,6 +11,7 @@ on:
   repository_dispatch:
     types:
       - arome-cache-updated
+      - arome-paquets-cache-updated
 
 permissions:
   contents: read
@@ -78,6 +79,30 @@ jobs:
 
             console.log("Échéances AROME :", cache.previsions.length);
           '
+
+      - name: Include last validated AROME GRIB2 cache (optional)
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+
+          # Le fichier GRIB2 ne remplace jamais le cache WCS historique :
+          # la page et les API de production continuent de fonctionner comme avant.
+          if git fetch --no-tags origin arome-paquets-data; then
+            git archive FETCH_HEAD arome-paquets-cache.json.gz | tar -x -C "$tmp"
+            test -s "$tmp/arome-paquets-cache.json.gz"
+            cp "$tmp/arome-paquets-cache.json.gz" site/arome-paquets-cache.json.gz
+            echo "Sauvegarde AROME Paquets incluse : $(du -h site/arome-paquets-cache.json.gz)"
+          else
+            echo "Pas encore de branche arome-paquets-data : publication du site sans la sauvegarde."
+            # Sauvegarde conservée si déjà publiée, même si la branche est inaccessible.
+            curl --fail --silent --show-error --max-time 30 \
+              "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-paquets-cache.json.gz" \
+              --output "$tmp/arome-paquets-cache.json.gz" || true
+            if [ -s "$tmp/arome-paquets-cache.json.gz" ]; then
+              cp "$tmp/arome-paquets-cache.json.gz" site/arome-paquets-cache.json.gz
+            fi
+          fi
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
