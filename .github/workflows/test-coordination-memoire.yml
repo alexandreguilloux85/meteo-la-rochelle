@@ -1,0 +1,28 @@
+name: Test coordination memoire radar et AROME
+
+on:
+  push:
+    branches:
+      - fix/memoire-arome-verrou
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests-node:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verifier la syntaxe JavaScript
+        run: |
+          node --check server.js
+          node --check arome-paquets-render-test.js
+          node --check traitement-lourd.js
+          node --check arome-cache-stream.js
+      - name: Tester le verrou et la compression gzip
+        run: node --test test/memoire-arome.test.js
