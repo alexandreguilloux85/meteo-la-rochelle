@@ -8,6 +8,7 @@ const crypto = require("node:crypto");
 const proj4 = require("proj4");
 const { PNG } = require("pngjs");
 const { essayerDemarrer, traitementEnCours } = require("./traitement-lourd");
+const { masquerRadarSelonQualite } = require("./radar-qualite");
 
 const app = express();
 
@@ -223,11 +224,7 @@ async function obtenirProduitRadar({ forcerVerification = false } = {}) {
                 // Fusionner le masque qualité dans la grille de pluie.
                 // 65535 est déjà une valeur non affichable : le rendu PNG
                 // reste inchangé et évite de conserver ~12 Mio de qualité.
-                for (let i = 0; i < pluie.length; i++) {
-                    if (qualite[i] === 0 || qualite[i] === 255) {
-                        pluie[i] = 65535;
-                    }
-                }
+                masquerRadarSelonQualite(pluie, qualite);
 
                 const nouveauProduit = {
                     date: produit.validity_time,
