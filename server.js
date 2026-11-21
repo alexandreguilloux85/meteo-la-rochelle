@@ -46,7 +46,7 @@ const RADAR_TILE_SIZE = 256;
 const RADAR_ZOOM_MIN = 4;
 const RADAR_ZOOM_MAX = 9;
 const RADAR_CATALOGUE_TTL_MS = 4 * 60 * 1000;
-const RADAR_TILE_CACHE_MAX = 192;
+const RADAR_TILE_CACHE_MAX = 96;
 const RADAR_WEB_MERCATOR_LIMIT = 20037508.342789244;
 
 proj4.defs(
@@ -220,10 +220,18 @@ async function obtenirProduitRadar({ forcerVerification = false } = {}) {
                     throw new Error("Grille du produit radar invalide.");
                 }
 
+                // Fusionner le masque qualité dans la grille de pluie.
+                // 65535 est déjà une valeur non affichable : le rendu PNG
+                // reste inchangé et évite de conserver ~12 Mio de qualité.
+                for (let i = 0; i < pluie.length; i++) {
+                    if (qualite[i] === 0 || qualite[i] === 255) {
+                        pluie[i] = 65535;
+                    }
+                }
+
                 const nouveauProduit = {
                     date: produit.validity_time,
                     pluie,
-                    qualite,
                     hauteur,
                     largeur,
                     xScale,
@@ -304,8 +312,8 @@ function couleurRadar(pluie) {
 // --------------------------------------------------
 
 // Les indices géographiques d'une tuile ne changent pas à chaque produit radar.
-// ~16 Mo au maximum : 64 correspondances de 256 x 256 indices (Int32).
-const RADAR_COORDONNEES_CACHE_MAX = 64;
+// ~8 Mio au maximum : 32 correspondances de 256 x 256 indices (Int32).
+const RADAR_COORDONNEES_CACHE_MAX = 32;
 const radarCoordonneesCache = new Map();
 
 function indicesTuileRadar(produit, zoom, tuileX, tuileY) {
@@ -401,11 +409,8 @@ function genererTuileRadar(produit, zoom, tuileX, tuileY) {
         const indexSource = indices[pixel];
         if (indexSource < 0) continue;
         const valeurBrute = produit.pluie[indexSource];
-        const qualite = produit.qualite[indexSource];
-        if (
-            valeurBrute === 65535 || valeurBrute === 65534 ||
-            qualite === 255 || qualite <= 0
-        ) {
+        // Les pixels de mauvaise qualité ont été masqués dans pluie.
+        if (valeurBrute === 65535 || valeurBrute === 65534) {
             continue;
         }
         const couleur = couleurRadar(valeurBrute * 0.01);
@@ -2201,6 +2206,10 @@ app.get("/api/meteo/status", (req, res) => {
     res.set("Cache-Control", "no-store");
     return res.json({
         traitement_lourd: traitementEnCours(),
+        memoire_node_mio: {
+            rss: Math.round(process.memoryUsage().rss / 1048576),
+            heap: Math.round(process.memoryUsage().heapUsed / 1048576)
+        },
         keepalive: dernierControleKeepalive
             ? new Date(dernierControleKeepalive).toISOString() : null,
         radar: {
