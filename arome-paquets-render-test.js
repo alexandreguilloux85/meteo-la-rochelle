@@ -1,7 +1,7 @@
 "use strict";
 
-// Essai isolé AROME SP1 / GRIB2 sur Render test.
-// Aucun accès au cache WCS de production ni publication automatique.
+// Cache AROME SP1 / GRIB2 sur les services Render.
+// La sauvegarde GRIB2 est indépendante de la publication du cache WCS.
 const fs = require("node:fs/promises");
 const fsSystem = require("node:fs");
 const os = require("node:os");
@@ -10,6 +10,8 @@ const { spawn } = require("node:child_process");
 const { gzipSync, gunzipSync } = require("node:zlib");
 const crypto = require("node:crypto");
 const { ajouterMeteoAuxPrevisions } = require("./arome-meteo-point-test");
+const { essayerDemarrer, traitementEnCours } = require("./traitement-lourd");
+const { compresserCacheArome } = require("./arome-cache-stream");
 
 const ROOT = "https://public-api.meteofrance.fr/previnum/DPPaquetAROME/v1";
 const SP1 = ROOT + "/models/AROME/grids/0.025/packages/SP1";
@@ -109,7 +111,7 @@ async function authentificationPaquets() {
     if (!secret) {
         throw new Error(
             "Configurer METEO_AROME_PAQUETS_API_KEY (recommandé), " +
-            "METEO_AROME_PAQUETS_APPLICATION_ID ou METEO_AROME_PAQUETS_TOKEN sur Render test"
+            "METEO_AROME_PAQUETS_APPLICATION_ID ou METEO_AROME_PAQUETS_TOKEN sur Render"
         );
     }
     const jeton = secret.replace(/^Authorization:\s*/i, "")
@@ -252,7 +254,7 @@ async function telechargerGrib(url, jeton, fichier) {
 
 function verifierDependancesPython() {
     // Vérifier avant tout téléchargement que le Python du runtime retrouve
-    // les mêmes modules que ceux installés par le script de build Render test.
+    // les mêmes modules que ceux installés par le script de build Render.
     return new Promise((resolve, reject) => {
         const pythonPath = path.join(__dirname, ".arome-py");
         const execution = spawn(
@@ -285,12 +287,12 @@ function verifierDependancesPython() {
             else resolve();
         }
         execution.on("error", e => finir(true, new Error(
-            "Impossible de lancer Python sur Render test : " + e.message
+            "Impossible de lancer Python sur Render : " + e.message
         )));
         execution.on("close", code => {
             if (code === 0) return finir(false);
             finir(true, new Error(
-                "Dépendances Python AROME indisponibles sur Render test. " +
+                "Dépendances Python AROME indisponibles sur Render. " +
                 "Vérifier Build Command = bash scripts/build-render-test.sh " +
                 "puis redéployer (Clear build cache si nécessaire). " +
                 (erreur || "Import NumPy/ecCodes impossible").slice(-500)
@@ -358,7 +360,7 @@ function decoderAvecPython(fichier, dossier, modele, groupe) {
                     " · vérifier l'installation Python/ecCodes"
                 ));
             } else {
-                console.log("AROME Paquets Render test :", sortie.slice(-1800));
+                console.log("AROME Paquets ecCodes :", sortie.slice(-1800));
                 finir(false, sortie);
             }
         });
@@ -402,11 +404,14 @@ function validerCacheAromePaquets(cache, calculerPrevisionsArome) {
 function installerTestAromePaquets(app, {
     verifierJetonActualisation, calculerPrevisionsArome, chargerCacheArome
 }) {
-    // Jamais sur le service de production : ni téléchargement, ni publication.
-    if (process.env.RENDER_EXTERNAL_HOSTNAME !== "station-meteo-lr-test.onrender.com" &&
-        process.env.AROME_PAQUETS_TEST_ENABLED !== "1") {
-        return;
+    const nomHote = process.env.RENDER_EXTERNAL_HOSTNAME;
+    const serviceTest = nomHote === "station-meteo-lr-test.onrender.com";
+    const serviceProduction = nomHote === "station-meteo-lr.onrender.com";
+    if (!serviceTest && process.env.AROME_PAQUETS_TEST_ENABLED !== "1") {
+        return { actif: false, estCacheDisponible: () => false };
     }
+    const origineCache = serviceProduction
+        ? "Paquets AROME Render production" : "Paquets AROME Render test";
 
     let cacheTest = null;
     let cacheCompresse = null;
@@ -441,6 +446,7 @@ function installerTestAromePaquets(app, {
             ...etat,
             en_cours: enCours,
             cache_disponible: Boolean(cacheTest),
+            traitement_lourd: traitementEnCours(),
             modele_cache_disponible: cacheTest?.modele || null,
             meteo_version: cacheTest?.meteo_version || 0,
             champs_meteo: cacheTest?.champs_meteo || null,
@@ -567,7 +573,7 @@ function installerTestAromePaquets(app, {
             verifierActualisationAutomatique();
             return res.status(503).json({
                 succes: false,
-                erreur: "Aucun cache de paquets AROME validé sur Render test",
+                erreur: "Aucun cache de paquets AROME validé sur ce service Render",
                 actualisation_en_cours: enCours
             });
         }
@@ -588,7 +594,7 @@ function installerTestAromePaquets(app, {
             return res.json({
                 ...resultat,
                 cache: true,
-                origine_cache: "Paquets AROME Render test",
+                origine_cache: origineCache,
                 actualisation_en_cours: enCours,
                 actualisation_statut: etat.statut,
                 modele_cache: cacheTest.modele
@@ -598,7 +604,7 @@ function installerTestAromePaquets(app, {
         }
     });
 
-    // Cache complet téléchargeable par le navigateur, compressé à la source.
+    // Cache complet téléchargé par le workflow de sauvegarde, compressé à la source.
     // Cache-Control court pour limiter les réponses lourdes répétées.
     app.get("/api/arome/paquets/test/cache", (_req, res) => {
         if (!cacheCompresse) {
@@ -686,6 +692,16 @@ function installerTestAromePaquets(app, {
     });
 
     async function restaurerCachePages() {
+        // Ne pas décompresser ~12 Mo gzip / ~40 Mo JSON pendant un radar
+        // national ou un décodage AROME en cours sur la même instance.
+        const libererRestauration = essayerDemarrer("restauration-grib2");
+        if (!libererRestauration) {
+            const rappel = setTimeout(() => {
+                void restaurerCachePages();
+            }, 2000);
+            rappel.unref?.();
+            return;
+        }
         restaurationPages = "en_cours";
         try {
             const url = new URL(CACHE_PAGES_URL);
@@ -768,16 +784,19 @@ function installerTestAromePaquets(app, {
             console.warn("AROME Paquets : pas de restauration Pages :", e.message);
         } finally {
             restaurationTerminee = true;
+            libererRestauration();
             verifierActualisationAutomatique();
         }
     }
 
     async function signalerSauvegardeGitHub(cache, compresse) {
+        if (!serviceTest && !serviceProduction) return;
+
         const jeton = (process.env.GITHUB_PAQUETS_PUBLISH_TOKEN ||
             process.env.GITHUB_DATA_TOKEN || "").trim();
         if (!jeton) {
             publicationGitHub = "non_configuree";
-            erreurPublication = "Configurer GITHUB_PAQUETS_PUBLISH_TOKEN sur Render test";
+            erreurPublication = "Configurer GITHUB_PAQUETS_PUBLISH_TOKEN sur Render";
             return;
         }
         publicationGitHub = "envoi";
@@ -796,7 +815,8 @@ function installerTestAromePaquets(app, {
                     "User-Agent": "meteo-la-rochelle-arome-paquets"
                 },
                 body: JSON.stringify({
-                    event_type: "arome-paquets-cache-ready",
+                    event_type: serviceProduction
+                        ? "arome-paquets-production-cache-ready" : "arome-paquets-cache-ready",
                     client_payload: { modele: cache.modele, sha256 }
                 }),
                 signal: AbortSignal.timeout(30000)
@@ -814,14 +834,14 @@ function installerTestAromePaquets(app, {
         }
     }
 
-    async function executer(groupesDemandes, produitSelectionne = null) {
+    async function executer(groupesDemandes, produitSelectionne = null, libererGrib) {
         let dossier;
         try {
             etat = { ...etat, etape: "verification_python" };
             await verifierDependancesPython();
             etat = { ...etat, etape: "authentification" };
             const authentification = await authentificationPaquets();
-            console.log("AROME Paquets Render test : mode auth", authentification.mode);
+            console.log(origineCache + " : mode auth", authentification.mode);
             etat = { ...etat, authentification: authentification.mode };
             // Le contrôle automatique a déjà choisi un réseau complet :
             // éviter de relire le catalogue et de changer de modèle en route.
@@ -908,7 +928,7 @@ function installerTestAromePaquets(app, {
                     taille_grib_mo: arrondiMo(nombreOctetsGrib)
                 };
                 console.log(
-                    "AROME Paquets Render test :", groupe.code,
+                    origineCache + " :", groupe.code,
                     "validé,", parHeure.size, "échéances"
                 );
             }
@@ -932,7 +952,8 @@ function installerTestAromePaquets(app, {
                 champs_meteo: champsMeteo,
                 modele: produit.modele,
                 date: Date.now(),
-                source: "AROME 0.025 SP1 GRIB2 ecCodes - Render test",
+                source: "AROME 0.025 SP1 GRIB2 ecCodes - " +
+                    (serviceProduction ? "Render production" : "Render test"),
                 zone: { ...ZONE, centreLat: (ZONE.latMin + ZONE.latMax) / 2,
                     centreLon: (ZONE.lonMin + ZONE.lonMax) / 2 },
                 previsions,
@@ -943,14 +964,14 @@ function installerTestAromePaquets(app, {
                 throw new Error("Interpolation incomplète à La Rochelle");
             }
             etat = { ...etat, etape: "compression_cache" };
-            let texte = JSON.stringify(cache);
-            let tailleJson = Buffer.byteLength(texte);
-            let gzip = tailleJson <= MAX_JSON_OCTETS
-                ? gzipSync(Buffer.from(texte), { level: 6 }) : null;
-            if (tailleJson > MAX_JSON_OCTETS ||
-                (gzip && gzip.length > MAX_CACHE_GZIP_OCTETS)) {
-                // Si les champs météo font dépasser les limites de Pages,
-                // conserver le cache de vent traditionnel, sans interruption.
+            let resultatCompression;
+            try {
+                resultatCompression = await compresserCacheArome(
+                    cache, MAX_JSON_OCTETS, MAX_CACHE_GZIP_OCTETS
+                );
+            } catch (erreur) {
+                if (erreur.code !== "CACHE_TROP_GRAND") throw erreur;
+                // Si la météo dépasse la limite, préserver le vent en secours.
                 console.warn("AROME Paquets : météo compacte trop volumineuse ; " +
                     "retour au cache vent uniquement");
                 for (const p of cache.previsions) {
@@ -961,15 +982,11 @@ function installerTestAromePaquets(app, {
                 cache.champs_meteo = {
                     T2M_METEO: 0, NEBUL_METEO: 0, PRECIP_METEO: 0
                 };
-                texte = JSON.stringify(cache);
-                tailleJson = Buffer.byteLength(texte);
-                gzip = tailleJson <= MAX_JSON_OCTETS
-                    ? gzipSync(Buffer.from(texte), { level: 6 }) : null;
+                resultatCompression = await compresserCacheArome(
+                    cache, MAX_JSON_OCTETS, MAX_CACHE_GZIP_OCTETS
+                );
             }
-            if (!gzip || gzip.length > MAX_CACHE_GZIP_OCTETS) {
-                throw new Error("Cache GRIB2 supérieur aux limites " +
-                    "Pages (45 Mo JSON ou 16 Mo gzip)");
-            }
+            const { gzip, tailleJson } = resultatCompression;
             // Publication atomique des deux objets uniquement après validation.
             cacheTest = cache;
             cacheCompresse = gzip;
@@ -1003,7 +1020,7 @@ function installerTestAromePaquets(app, {
                 void signalerSauvegardeGitHub(cache, gzip);
             }
         } catch (e) {
-            console.error("AROME Paquets Render test :", e.message);
+            console.error(origineCache + " :", e.message);
             prochainEssai = Date.now() + RETRY_AUTO;
             etat = {
                 ...etat,
@@ -1017,11 +1034,21 @@ function installerTestAromePaquets(app, {
                     .catch(e => console.warn("Nettoyage test AROME :", e.message));
             }
             enCours = false;
+            libererGrib?.();
         }
     }
 
     function lancerActualisationPaquets(groupesDemandes, origine, produitSelectionne = null) {
         if (enCours) return false;
+        const libererGrib = essayerDemarrer("arome-grib2");
+        if (!libererGrib) {
+            // Un radar ou un WCS est actif : réessayer plus vite que le
+            // contrôle catalogue périodique, sans lancer de second décodeur.
+            prochainEssai = Date.now() + 60 * 1000;
+            console.log("AROME Paquets : décodage différé, " +
+                (traitementEnCours()?.nom || "traitement lourd en cours"));
+            return false;
+        }
         enCours = true;
         dernierDemarrage = Date.now();
         etat = {
@@ -1035,7 +1062,7 @@ function installerTestAromePaquets(app, {
             groupe_actuel: null,
             echeances_recuperees: 0
         };
-        void executer(groupesDemandes, produitSelectionne);
+        void executer(groupesDemandes, produitSelectionne, libererGrib);
         return true;
     }
 
@@ -1105,6 +1132,11 @@ function installerTestAromePaquets(app, {
                 succes: false, erreur: "groupes doit valoir 1, 3 ou 9"
             });
         }
+        if (serviceProduction && nombreGroupes !== GROUPES.length) {
+            return res.status(400).json({
+                succes: false, erreur: "La production requiert les 9 groupes AROME"
+            });
+        }
         if (!restaurationTerminee) {
             return res.status(409).json({
                 succes: false, erreur: "Restauration du cache Pages en cours"
@@ -1121,7 +1153,16 @@ function installerTestAromePaquets(app, {
                 erreur: "Attendre quatre minutes entre deux tests Paquets AROME"
             });
         }
-        lancerActualisationPaquets(GROUPES.slice(0, nombreGroupes), "manuelle");
+        const lance = lancerActualisationPaquets(
+            GROUPES.slice(0, nombreGroupes), "manuelle"
+        );
+        if (!lance) {
+            return res.status(409).json({
+                succes: false,
+                erreur: "Téléchargement GRIB2 différé : traitement lourd actif",
+                traitement_lourd: traitementEnCours()
+            });
+        }
         return res.status(202).json({ succes: true, ...etat });
     });
 
@@ -1138,6 +1179,7 @@ function installerTestAromePaquets(app, {
         horloge.unref?.();
     }
 
+    return { actif: true, estCacheDisponible: () => Boolean(cacheTest) };
 }
 
 module.exports = { installerTestAromePaquets };
