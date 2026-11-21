@@ -7,6 +7,8 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const proj4 = require("proj4");
 const { PNG } = require("pngjs");
+const { essayerDemarrer, traitementEnCours } = require("./traitement-lourd");
+const { masquerRadarSelonQualite } = require("./radar-qualite");
 
 const app = express();
 
@@ -45,7 +47,7 @@ const RADAR_TILE_SIZE = 256;
 const RADAR_ZOOM_MIN = 4;
 const RADAR_ZOOM_MAX = 9;
 const RADAR_CATALOGUE_TTL_MS = 4 * 60 * 1000;
-const RADAR_TILE_CACHE_MAX = 192;
+const RADAR_TILE_CACHE_MAX = 96;
 const RADAR_WEB_MERCATOR_LIMIT = 20037508.342789244;
 
 proj4.defs(
@@ -114,7 +116,15 @@ async function obtenirProduitRadar({ forcerVerification = false } = {}) {
     }
 
     if (!radarProduitEnChargement) {
+        const libererRadar = essayerDemarrer("radar-national");
+        if (!libererRadar) {
+            // Ne pas perdre le radar à l'écran pendant un décodage AROME.
+            if (radarProduitCache) return radarProduitCache;
+            throw new Error("Chargement radar différé : " +
+                (traitementEnCours()?.nom || "autre traitement en cours"));
+        }
         radarProduitEnChargement = (async () => {
+          try {
             const catalogueResponse = await fetch(RADAR_CATALOGUE, {
                 headers: {
                     apikey: RADAR_API_KEY,
@@ -211,10 +221,14 @@ async function obtenirProduitRadar({ forcerVerification = false } = {}) {
                     throw new Error("Grille du produit radar invalide.");
                 }
 
+                // Fusionner le masque qualité dans la grille de pluie.
+                // 65535 est déjà une valeur non affichable : le rendu PNG
+                // reste inchangé et évite de conserver ~12 Mio de qualité.
+                masquerRadarSelonQualite(pluie, qualite);
+
                 const nouveauProduit = {
                     date: produit.validity_time,
                     pluie,
-                    qualite,
                     hauteur,
                     largeur,
                     xScale,
@@ -244,6 +258,9 @@ async function obtenirProduitRadar({ forcerVerification = false } = {}) {
                     }
                 }
             }
+          } finally {
+            libererRadar();
+          }
         })();
     }
 
@@ -292,8 +309,8 @@ function couleurRadar(pluie) {
 // --------------------------------------------------
 
 // Les indices géographiques d'une tuile ne changent pas à chaque produit radar.
-// ~16 Mo au maximum : 64 correspondances de 256 x 256 indices (Int32).
-const RADAR_COORDONNEES_CACHE_MAX = 64;
+// ~8 Mio au maximum : 32 correspondances de 256 x 256 indices (Int32).
+const RADAR_COORDONNEES_CACHE_MAX = 32;
 const radarCoordonneesCache = new Map();
 
 function indicesTuileRadar(produit, zoom, tuileX, tuileY) {
@@ -389,11 +406,8 @@ function genererTuileRadar(produit, zoom, tuileX, tuileY) {
         const indexSource = indices[pixel];
         if (indexSource < 0) continue;
         const valeurBrute = produit.pluie[indexSource];
-        const qualite = produit.qualite[indexSource];
-        if (
-            valeurBrute === 65535 || valeurBrute === 65534 ||
-            qualite === 255 || qualite <= 0
-        ) {
+        // Les pixels de mauvaise qualité ont été masqués dans pluie.
+        if (valeurBrute === 65535 || valeurBrute === 65534) {
             continue;
         }
         const couleur = couleurRadar(valeurBrute * 0.01);
@@ -532,10 +546,17 @@ app.post("/api/refresh-arome", (req, res) => {
         });
     }
     derniereDemandeManuelleArome = maintenant;
+    if (pilotePaquets?.actif) {
+        return res.status(200).json({
+            succes: true,
+            message: "AROME GRIB2 actif : le WCS reste en secours ; " +
+                "la vérification automatique des paquets reste prioritaire."
+        });
+    }
     demarrerActualisationArome(46.178, -1.193167);
     return res.status(202).json({
         succes: true,
-        message: "Vérification AROME lancée sur Render."
+        message: "Vérification AROME WCS lancée sur Render."
     });
 });
 
@@ -778,7 +799,7 @@ function verifierJetonActualisation(req, res) {
 
 // Paquets GRIB2 actifs sur Render test et sur les services activés explicitement.
 // Le cache GRIB2 utilise une sauvegarde distincte du WCS.
-require("./arome-paquets-render-test").installerTestAromePaquets(app, {
+const pilotePaquets = require("./arome-paquets-render-test").installerTestAromePaquets(app, {
     verifierJetonActualisation,
     calculerPrevisionsArome,
     chargerCacheArome
@@ -1123,7 +1144,18 @@ async function publierCacheAromeSurGithub(cache) {
 }
 
 function demarrerActualisationArome(lat, lon) {
-    if (AROME_REFRESH_PROMISE) return;
+    // Quand le pilote GRIB2 est actif, ne pas recalculer périodiquement
+    // le même modèle via WCS. Le cache WCS reste lisible en secours.
+    if (pilotePaquets?.actif) {
+        AROME_REFRESH_STATE = {
+            status: "standby",
+            modele: AROME_CACHE_ZONE?.modele || null,
+            erreur: null,
+            detail: "WCS en secours ; actualisation GRIB2 prioritaire"
+        };
+        return false;
+    }
+    if (AROME_REFRESH_PROMISE) return false;
 
     AROME_REFRESH_STATE = {
         status: "running",
@@ -1208,9 +1240,11 @@ function demarrerActualisationArome(lat, lon) {
             AROME_REFRESH_PROMISE = null;
         }
     })();
+    return true;
 }
 
 function verifierAromeEnArrierePlan(lat, lon) {
+    if (pilotePaquets?.actif || traitementEnCours()) return false;
     const maintenant = Date.now();
     const intervalleVerification = 15 * 60 * 1000;
 
@@ -1306,6 +1340,7 @@ async function obtenirCatalogueArome() {
 
 app.get("/api/arome/previsions", async (req, res) => {
     res.set("Cache-Control", "no-store");
+    let libererWcs = null;
 
     try {
         const lat = Number(req.query.lat ?? POINT_AROME_LA_ROCHELLE.lat);
@@ -1371,6 +1406,32 @@ app.get("/api/arome/previsions", async (req, res) => {
                             : null
                 });
             }
+        }
+
+        // Si GRIB2 dispose de prévisions, le WCS reste une lecture de secours,
+        // pas un second téléchargement déclenché par refresh=1.
+        if (pilotePaquets?.estCacheDisponible() && cache && pointDansZone) {
+            return res.json({
+                ...calculerPrevisionsArome(cache, lat, lon),
+                cache: true, origine_cache: AROME_CACHE_SOURCE || "Render",
+                wcs_secours: true
+            });
+        }
+        libererWcs = essayerDemarrer("arome-wcs");
+        if (!libererWcs) {
+            // Interdire les téléchargements lourds simultanés ; le cache
+            // ancien reste lisible même pour une requête de rafraîchissement.
+            if (cache && pointDansZone) {
+                return res.json({
+                    ...calculerPrevisionsArome(cache, lat, lon),
+                    cache: true, actualisation_differee: true,
+                    origine_cache: AROME_CACHE_SOURCE || "Render"
+                });
+            }
+            return res.status(503).json({
+                succes: false, erreur: "Calcul WCS différé : " +
+                    (traitementEnCours()?.nom || "traitement lourd déjà actif")
+            });
         }
 
         if (!AROME_API_KEY) {
@@ -2045,15 +2106,16 @@ app.get("/api/arome/previsions", async (req, res) => {
             succes: false,
             erreur: error.message
         });
+    } finally {
+        libererWcs?.();
     }
 });
 
 app.post("/api/arome/cache/refresh", async (req, res) => {
     if (!verifierJetonActualisation(req, res)) return;
 
-    demarrerActualisationArome(46.178, -1.193167);
-
-    return res.status(202).json(AROME_REFRESH_STATE);
+    const lance = demarrerActualisationArome(46.178, -1.193167);
+    return res.status(lance ? 202 : 200).json(AROME_REFRESH_STATE);
 });
 
 app.get("/api/arome/cache/status", (req, res) => {
@@ -2140,6 +2202,11 @@ app.get("/api/arome/cache/export", async (req, res) => {
 app.get("/api/meteo/status", (req, res) => {
     res.set("Cache-Control", "no-store");
     return res.json({
+        traitement_lourd: traitementEnCours(),
+        memoire_node_mio: {
+            rss: Math.round(process.memoryUsage().rss / 1048576),
+            heap: Math.round(process.memoryUsage().heapUsed / 1048576)
+        },
         keepalive: dernierControleKeepalive
             ? new Date(dernierControleKeepalive).toISOString() : null,
         radar: {

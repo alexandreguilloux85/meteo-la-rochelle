@@ -10,6 +10,8 @@ const { spawn } = require("node:child_process");
 const { gzipSync, gunzipSync } = require("node:zlib");
 const crypto = require("node:crypto");
 const { ajouterMeteoAuxPrevisions } = require("./arome-meteo-point-test");
+const { essayerDemarrer, traitementEnCours } = require("./traitement-lourd");
+const { compresserCacheArome } = require("./arome-cache-stream");
 
 const ROOT = "https://public-api.meteofrance.fr/previnum/DPPaquetAROME/v1";
 const SP1 = ROOT + "/models/AROME/grids/0.025/packages/SP1";
@@ -406,7 +408,7 @@ function installerTestAromePaquets(app, {
     const serviceTest = nomHote === "station-meteo-lr-test.onrender.com";
     const serviceProduction = nomHote === "station-meteo-lr.onrender.com";
     if (!serviceTest && process.env.AROME_PAQUETS_TEST_ENABLED !== "1") {
-        return;
+        return { actif: false, estCacheDisponible: () => false };
     }
     const origineCache = serviceProduction
         ? "Paquets AROME Render production" : "Paquets AROME Render test";
@@ -444,6 +446,7 @@ function installerTestAromePaquets(app, {
             ...etat,
             en_cours: enCours,
             cache_disponible: Boolean(cacheTest),
+            traitement_lourd: traitementEnCours(),
             modele_cache_disponible: cacheTest?.modele || null,
             meteo_version: cacheTest?.meteo_version || 0,
             champs_meteo: cacheTest?.champs_meteo || null,
@@ -689,6 +692,16 @@ function installerTestAromePaquets(app, {
     });
 
     async function restaurerCachePages() {
+        // Ne pas décompresser ~12 Mo gzip / ~40 Mo JSON pendant un radar
+        // national ou un décodage AROME en cours sur la même instance.
+        const libererRestauration = essayerDemarrer("restauration-grib2");
+        if (!libererRestauration) {
+            const rappel = setTimeout(() => {
+                void restaurerCachePages();
+            }, 2000);
+            rappel.unref?.();
+            return;
+        }
         restaurationPages = "en_cours";
         try {
             const url = new URL(CACHE_PAGES_URL);
@@ -771,6 +784,7 @@ function installerTestAromePaquets(app, {
             console.warn("AROME Paquets : pas de restauration Pages :", e.message);
         } finally {
             restaurationTerminee = true;
+            libererRestauration();
             verifierActualisationAutomatique();
         }
     }
@@ -820,7 +834,7 @@ function installerTestAromePaquets(app, {
         }
     }
 
-    async function executer(groupesDemandes, produitSelectionne = null) {
+    async function executer(groupesDemandes, produitSelectionne = null, libererGrib) {
         let dossier;
         try {
             etat = { ...etat, etape: "verification_python" };
@@ -950,14 +964,14 @@ function installerTestAromePaquets(app, {
                 throw new Error("Interpolation incomplète à La Rochelle");
             }
             etat = { ...etat, etape: "compression_cache" };
-            let texte = JSON.stringify(cache);
-            let tailleJson = Buffer.byteLength(texte);
-            let gzip = tailleJson <= MAX_JSON_OCTETS
-                ? gzipSync(Buffer.from(texte), { level: 6 }) : null;
-            if (tailleJson > MAX_JSON_OCTETS ||
-                (gzip && gzip.length > MAX_CACHE_GZIP_OCTETS)) {
-                // Si les champs météo font dépasser les limites de Pages,
-                // conserver le cache de vent traditionnel, sans interruption.
+            let resultatCompression;
+            try {
+                resultatCompression = await compresserCacheArome(
+                    cache, MAX_JSON_OCTETS, MAX_CACHE_GZIP_OCTETS
+                );
+            } catch (erreur) {
+                if (erreur.code !== "CACHE_TROP_GRAND") throw erreur;
+                // Si la météo dépasse la limite, préserver le vent en secours.
                 console.warn("AROME Paquets : météo compacte trop volumineuse ; " +
                     "retour au cache vent uniquement");
                 for (const p of cache.previsions) {
@@ -968,15 +982,11 @@ function installerTestAromePaquets(app, {
                 cache.champs_meteo = {
                     T2M_METEO: 0, NEBUL_METEO: 0, PRECIP_METEO: 0
                 };
-                texte = JSON.stringify(cache);
-                tailleJson = Buffer.byteLength(texte);
-                gzip = tailleJson <= MAX_JSON_OCTETS
-                    ? gzipSync(Buffer.from(texte), { level: 6 }) : null;
+                resultatCompression = await compresserCacheArome(
+                    cache, MAX_JSON_OCTETS, MAX_CACHE_GZIP_OCTETS
+                );
             }
-            if (!gzip || gzip.length > MAX_CACHE_GZIP_OCTETS) {
-                throw new Error("Cache GRIB2 supérieur aux limites " +
-                    "Pages (45 Mo JSON ou 16 Mo gzip)");
-            }
+            const { gzip, tailleJson } = resultatCompression;
             // Publication atomique des deux objets uniquement après validation.
             cacheTest = cache;
             cacheCompresse = gzip;
@@ -1024,11 +1034,21 @@ function installerTestAromePaquets(app, {
                     .catch(e => console.warn("Nettoyage test AROME :", e.message));
             }
             enCours = false;
+            libererGrib?.();
         }
     }
 
     function lancerActualisationPaquets(groupesDemandes, origine, produitSelectionne = null) {
         if (enCours) return false;
+        const libererGrib = essayerDemarrer("arome-grib2");
+        if (!libererGrib) {
+            // Un radar ou un WCS est actif : réessayer plus vite que le
+            // contrôle catalogue périodique, sans lancer de second décodeur.
+            prochainEssai = Date.now() + 60 * 1000;
+            console.log("AROME Paquets : décodage différé, " +
+                (traitementEnCours()?.nom || "traitement lourd en cours"));
+            return false;
+        }
         enCours = true;
         dernierDemarrage = Date.now();
         etat = {
@@ -1042,7 +1062,7 @@ function installerTestAromePaquets(app, {
             groupe_actuel: null,
             echeances_recuperees: 0
         };
-        void executer(groupesDemandes, produitSelectionne);
+        void executer(groupesDemandes, produitSelectionne, libererGrib);
         return true;
     }
 
@@ -1133,7 +1153,16 @@ function installerTestAromePaquets(app, {
                 erreur: "Attendre quatre minutes entre deux tests Paquets AROME"
             });
         }
-        lancerActualisationPaquets(GROUPES.slice(0, nombreGroupes), "manuelle");
+        const lance = lancerActualisationPaquets(
+            GROUPES.slice(0, nombreGroupes), "manuelle"
+        );
+        if (!lance) {
+            return res.status(409).json({
+                succes: false,
+                erreur: "Téléchargement GRIB2 différé : traitement lourd actif",
+                traitement_lourd: traitementEnCours()
+            });
+        }
         return res.status(202).json({ succes: true, ...etat });
     });
 
@@ -1150,6 +1179,7 @@ function installerTestAromePaquets(app, {
         horloge.unref?.();
     }
 
+    return { actif: true, estCacheDisponible: () => Boolean(cacheTest) };
 }
 
 module.exports = { installerTestAromePaquets };

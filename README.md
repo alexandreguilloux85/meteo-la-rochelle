@@ -103,6 +103,43 @@ test fournit la sauvegarde. Avec `production`, seuls les signaux de
 production peuvent lancer sa publication automatique. Le service de test
 garde la branche `Test_fonction` et continue ses propres calculs.
 
+### Éviter les dépassements mémoire Render (512 Mio)
+
+Le WCS n'est **pas supprimé** : son ancien cache et la route
+`/api/arome/previsions` restent disponibles en secours, notamment si
+GRIB2 est indisponible ou si le point demandé est hors de sa zone.
+Toutefois, lorsque le pilote GRIB2 est activé
+(`AROME_PAQUETS_TEST_ENABLED=1` ou service Render test),
+les rafraîchissements **automatiques WCS** sont suspendus : ils ne doivent
+plus doubler les traitements GRIB2 au démarrage ou sur keepalive.
+
+Un verrou mémoire partagé `traitement-lourd.js` garantit qu'un seul
+traitement lourd s'exécute à la fois **par instance Render** :
+- renouvellement de la mosaïque radar nationale (ancien radar conservé
+  pendant le téléchargement GRIB2) ;
+- décodage des neuf paquets GRIB2 et compression du cache ;
+- téléchargement WCS de secours lorsqu'aucun cache ne répond au point ;
+- restauration initiale du gros cache gzip GRIB2.
+
+Si le verrou est occupé, les caches déjà présents restent consultables.
+Le radar retourne son produit en cache et le contrôle GRIB2 est reporté
+(au prochain passage, au plus tôt après une minute). Un appel manuel à
+`/api/arome/paquets/test/refresh` retourne HTTP 409 s'il ne peut pas
+démarrer. Le statut `/api/meteo/status` et le statut GRIB2 exposent
+`traitement_lourd`, avec le nom de l'opération active.
+
+La nouvelle compression du cache GRIB2 utilise un flux JSON heure par
+heure vers gzip, au lieu de construire un grand `JSON.stringify(cache)`
+puis une copie `Buffer.from`. Les mêmes limites de taille (45 Mo JSON,
+16 Mo gzip) et le repli vent seul sont conservés. Cela réduit les pics
+mémoire sans changer les 51 prévisions ni les icônes météo.
+
+Aucune variable Render supplémentaire n'est nécessaire. Le WCS ne doit
+pas être désactivé côté secrets : garder `METEO_AROME_API_KEY` pour un
+éventuel repli. Cette coordination limite les pics mais n'offre pas une
+garantie absolue de maintien sous 512 Mio : surveiller les mesures après
+déploiement.
+
 ## Essai AROME par paquets GRIB2 (branche Test_fonction)
 
 Le pilote sans publication utilise l'API **Paquet AROME**, grille `0.025°`,
