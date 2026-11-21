@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 const { gunzipSync } = require("node:zlib");
 const { essayerDemarrer, traitementEnCours } = require("../traitement-lourd");
 const { compresserCacheArome } = require("../arome-cache-stream");
+const { masquerRadarSelonQualite } = require("../radar-qualite");
 
 test("un seul traitement lourd à la fois, déverrouillage idempotent", () => {
     assert.equal(traitementEnCours(), null);
@@ -64,4 +65,19 @@ test("limite de taille gzip appliquée", async () => {
         compresserCacheArome(cache, 100000, 8),
         err => err.code === "CACHE_TROP_GRAND"
     );
+});
+
+test("masque radar : mêmes pixels valides, qualité invalide transparente", () => {
+    const pluie = new Uint16Array([0, 1, 255, 512, 1024, 65534, 65535]);
+    const qualite = new Uint8Array([1, 0, 200, 255, 2, 3, 4]);
+    const avant = new Uint16Array(pluie);
+    const valideAvant = avant.map((valeur, i) =>
+        (valeur === 65535 || valeur === 65534 ||
+        qualite[i] === 0 || qualite[i] === 255) ? 0 : valeur
+    );
+    masquerRadarSelonQualite(pluie, qualite);
+    const valideApres = pluie.map(v => (v === 65535 || v === 65534) ? 0 : v);
+    assert.deepEqual(valideApres, valideAvant);
+    assert.deepEqual(pluie, new Uint16Array([0, 65535, 255, 65535, 1024, 65534, 65535]));
+    assert.throws(() => masquerRadarSelonQualite(pluie, new Uint8Array(2)));
 });
