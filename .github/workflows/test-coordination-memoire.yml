@@ -24,5 +24,6 @@ jobs:
           node --check arome-paquets-render-test.js
           node --check traitement-lourd.js
           node --check arome-cache-stream.js
+          node --check radar-qualite.js
       - name: Tester le verrou et la compression gzip
         run: node --test test/memoire-arome.test.js
