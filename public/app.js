@@ -419,9 +419,9 @@ function initialiserCarteRadar() {
     setInterval(chargerRadar, 10 * 60 * 1000);
 }
 
-function chargerPrevisionsAuPoint({ lat, lon }) {
-    window.selectionnerPointAromePi?.(lat, lon);
-    chargerPrevisionsArome(lat, lon);
+function chargerPrevisionsAuPoint({ lat, lon }, optionsPi) {
+    window.selectionnerPointAromePi?.(lat, lon, optionsPi);
+    return chargerPrevisionsArome(lat, lon);
 }
 
 // --------------------------------------------------
@@ -1605,8 +1605,8 @@ async function actualiserDepuisInterface(action, bouton) {
             signal: AbortSignal.timeout?.(10000)
         }).then(reponse => reponse.ok ? reponse.json() : null)
             .catch(() => null);
-        const chargementPrevisions = chargerPrevisionsArome(
-            positionCourante.lat, positionCourante.lon
+        const chargementPrevisions = chargerPrevisionsAuPoint(
+            positionCourante, { relire: true }
         );
         const numeroRequete = numeroRequetePrevisions;
         const [source, etatPaquets] = await Promise.all([

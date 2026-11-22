@@ -814,6 +814,9 @@ async function chargerCacheArome() {
         return AROME_CACHE_CHARGEMENT;
     }
 
+    const liberer = essayerDemarrer("restauration-arome-wcs");
+    if (!liberer) return null;
+
     AROME_CACHE_CHARGEMENT = (async () => {
         try {
             const contenu = await fs.readFile(AROME_CACHE_FILE, "utf8");
@@ -844,7 +847,8 @@ async function chargerCacheArome() {
                     headers: {
                         accept: "application/json",
                         "cache-control": "no-cache"
-                    }
+                    },
+                    signal: AbortSignal.timeout(30000)
                 });
 
                 if (!reponse.ok) {
@@ -888,6 +892,7 @@ async function chargerCacheArome() {
         return await AROME_CACHE_CHARGEMENT;
     } finally {
         AROME_CACHE_CHARGEMENT = null;
+        liberer();
     }
 }
 
@@ -1765,49 +1770,35 @@ app.get("/api/arome/previsions", async (req, res) => {
             }
         }
 
-        let indexTache = 0;
         const erreurs = [];
 
-        async function travailleur() {
-            while (true) {
-                const index = indexTache++;
+        for (const tache of taches) {
+            try {
+                const resultat = await telechargerGrib(
+                    tache.coverageId,
+                    tache.seconde
+                );
 
-                if (index >= taches.length) return;
+                const cle = tache.seconde;
 
-                const tache = taches[index];
-
-                try {
-                    const resultat = await telechargerGrib(
-                        tache.coverageId,
-                        tache.seconde
-                    );
-
-                    const cle = tache.seconde;
-
-                    if (!donneesPrevisions.has(cle)) {
-                        donneesPrevisions.set(cle, {
-                            seconde: cle,
-                            U: null,
-                            V: null,
-                            RAFALE: null
-                        });
-                    }
-
-                    donneesPrevisions.get(cle)[tache.parametre] = resultat;
-
-                } catch (error) {
-                    erreurs.push({
-                        echeance: "H+" + tache.seconde / 3600,
-                        parametre: tache.parametre,
-                        erreur: error.message
+                if (!donneesPrevisions.has(cle)) {
+                    donneesPrevisions.set(cle, {
+                        seconde: cle,
+                        U: null,
+                        V: null,
+                        RAFALE: null
                     });
                 }
+
+                donneesPrevisions.get(cle)[tache.parametre] = resultat;
+            } catch (error) {
+                erreurs.push({
+                    echeance: "H+" + tache.seconde / 3600,
+                    parametre: tache.parametre,
+                    erreur: error.message
+                });
             }
         }
-
-        await Promise.all(
-            Array.from({ length: 2 }, () => travailleur())
-        );
 
         // --------------------------------------------------
         // VERIFICATION DES GRILLES U ET V

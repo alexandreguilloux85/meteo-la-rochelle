@@ -15,6 +15,8 @@ const DELAI_REESSAI_MS = 4 * 60 * 1000;
 const INTERVALLE_WCS_MS = 1500;
 const PAS_SECONDES = 15 * 60;
 const HORIZON_SECONDES = 6 * 3600;
+const MAX_GRIB_OCTETS = 512 * 1024;
+const MAX_POINTS_PAR_CHAMP = 1024;
 const MAX_JSON_OCTETS = 1024 * 1024;
 const MAX_CACHE_GZIP_OCTETS = 512 * 1024;
 const CACHE_PAGES_URL =
@@ -156,28 +158,48 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome, sauvegarde
         }
     }
 
-    async function lireWcs(operation, parametres, signal) {
-        const url = new URL(WCS + "/" + operation);
-        url.searchParams.set("service", "WCS");
-        url.searchParams.set("version", "2.0.1");
-        for (const [nom, valeur] of parametres) url.searchParams.append(nom, valeur);
+    async function attendreVerrouPi(signal) {
+        signal.throwIfAborted();
         let liberer = essayerDemarrer("arome-pi-vent");
         while (!liberer) {
             await attendre(INTERVALLE_WCS_MS, undefined, { signal });
             liberer = essayerDemarrer("arome-pi-vent");
         }
+        return liberer;
+    }
+
+    async function lireWcs(operation, parametres, signal) {
+        const url = new URL(WCS + "/" + operation);
+        url.searchParams.set("service", "WCS");
+        url.searchParams.set("version", "2.0.1");
+        for (const [nom, valeur] of parametres) url.searchParams.append(nom, valeur);
+        const liberer = await attendreVerrouPi(signal);
         try {
             const reponse = await fetch(url, {
                 headers: { apikey: apiKey },
                 signal: AbortSignal.any([signal, AbortSignal.timeout(12_000)])
             });
             if (!reponse.ok) {
+                await reponse.body?.cancel().catch(() => {});
                 if (reponse.status === 401 || (operation === "GetCapabilities" && reponse.status === 403)) {
                     throw new Error("La clé API du serveur doit être autorisée pour AROME Prévision Immédiate.");
                 }
                 throw new Error(`Météo-France ${operation} : HTTP ${reponse.status}.`);
             }
-            return operation === "GetCapabilities" ? await reponse.text() : await reponse.arrayBuffer();
+            if (operation === "GetCapabilities") return await reponse.text();
+            if (!reponse.body) throw new Error("Réponse GRIB2 AROME-PI sans contenu.");
+            let octets = 0;
+            const blocs = [];
+            for await (const bloc of reponse.body) {
+                octets += bloc.length;
+                if (octets > MAX_GRIB_OCTETS) throw new Error("Champ AROME-PI trop volumineux pour la zone.");
+                blocs.push(bloc);
+            }
+            const donnees = decoderGrib(Buffer.concat(blocs, octets), MAX_POINTS_PAR_CHAMP);
+            if (!couvreZone(donnees.grille) || !donnees.valeurs.every(Number.isFinite)) {
+                throw new Error("Grille AROME-PI incomplète pour la zone.");
+            }
+            return donnees;
         } finally {
             liberer();
         }
@@ -198,7 +220,7 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome, sauvegarde
             for (const [champ, couverture] of Object.entries(cycle.couvertures)) {
                 // Espacer les 72 téléchargements sans immobiliser le verrou entre deux champs.
                 await attendre(INTERVALLE_WCS_MS, undefined, { signal });
-                const donneesBrutes = await lireWcs("GetCoverage", [
+                champs[champ] = await lireWcs("GetCoverage", [
                     ["coverageid", couverture],
                     ["subset", `time(${date})`],
                     ["subset", "height(10)"],
@@ -206,18 +228,19 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome, sauvegarde
                     ["subset", `long(${(ZONE.lonMin - MAILLE).toFixed(3)},${(ZONE.lonMax + MAILLE).toFixed(3)})`],
                     ["format", "application/wmo-grib"]
                 ], signal);
-                const buffer = Buffer.from(donneesBrutes);
-                if (buffer.length > 512 * 1024) throw new Error("Champ AROME-PI trop volumineux pour la zone.");
-                const donnees = decoderGrib(buffer);
-                if (!couvreZone(donnees.grille) || !donnees.valeurs.every(Number.isFinite)) {
-                    throw new Error("Grille AROME-PI incomplète pour la zone.");
-                }
-                champs[champ] = donnees;
             }
             previsions.push(champs);
         }
 
-        return { modele: cycle.modele, date: Date.now(), zone: { ...ZONE }, previsions };
+        const resultat = { modele: cycle.modele, date: Date.now(), zone: { ...ZONE }, previsions };
+        const liberer = await attendreVerrouPi(signal);
+        try {
+            validerCacheAromePi(resultat);
+            const { gzip } = await compresserCacheArome(resultat, MAX_JSON_OCTETS, MAX_CACHE_GZIP_OCTETS);
+            return { resultat, gzip };
+        } finally {
+            liberer();
+        }
     }
 
     function verifierCycle() {
@@ -227,9 +250,7 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome, sauvegarde
             (cache && Date.parse(cache.modele) >= modeleAttendu)) return modeleAttendu;
 
         actualisationEnCours = true;
-        void chargerCycle(modeleAttendu, maintenant).then(async resultat => {
-            validerCacheAromePi(resultat);
-            const { gzip } = await compresserCacheArome(resultat, MAX_JSON_OCTETS, MAX_CACHE_GZIP_OCTETS);
+        void chargerCycle(modeleAttendu, maintenant).then(({ resultat, gzip }) => {
             cache = resultat;
             cacheCompresse = gzip;
             origineCache = "Météo-France";

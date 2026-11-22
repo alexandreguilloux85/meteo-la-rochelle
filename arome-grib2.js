@@ -1,4 +1,4 @@
-function decoderGrib(buffer) {
+function decoderGrib(buffer, maximumPoints = Infinity) {
     if (
         buffer.subarray(0, 4).toString("ascii") !== "GRIB" ||
         buffer[7] !== 2 ||
@@ -59,6 +59,9 @@ function decoderGrib(buffer) {
 
     const nombreValeurs = s5.readUInt32BE(5);
     const modeleCompression = s5.readUInt16BE(9);
+    if (nombreValeurs !== grille.Ni * grille.Nj || nombreValeurs > maximumPoints) {
+        throw new Error("Nombre de valeurs incompatible avec la grille");
+    }
 
     if (modeleCompression !== 0) {
         throw new Error(
@@ -119,12 +122,6 @@ function decoderGrib(buffer) {
                 reference +
                 entier * Math.pow(2, facteurBinaire)
             ) * Math.pow(10, -facteurDecimal)
-        );
-    }
-
-    if (valeurs.length !== grille.Ni * grille.Nj) {
-        throw new Error(
-            "Nombre de valeurs incompatible avec la grille"
         );
     }
 

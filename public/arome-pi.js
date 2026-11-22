@@ -109,8 +109,14 @@
         }
     }
 
-    function selectionnerPoint(lat, lon) {
-        if (selection?.lat === lat && selection?.lon === lon) return;
+    function selectionnerPoint(lat, lon, { relire = false } = {}) {
+        if (selection?.lat === lat && selection?.lon === lon) {
+            if (relire) {
+                selection.prochaineRequete = 0;
+                planifierActualisation();
+            }
+            return;
+        }
         selection?.requete?.abort();
         selection = { lat, lon, prochaineRequete: 0, requete: null, horsZone: false };
         viderTableau("Chargement des prévisions immédiates…");
