@@ -198,6 +198,18 @@
 
         </section>
 
+        <section id="arome-pi" class="bloc" aria-labelledby="arome-pi-titre" hidden>
+            <div class="entete-bloc arome-pi-entete">
+                <div>
+                    <h2 id="arome-pi-titre">Vent à 10 m · AROME Prévision Immédiate</h2>
+                    <p id="arome-pi-legende">Point sélectionné sur la carte · direction d’origine · heure de Paris</p>
+                </div>
+                <span id="arome-pi-modele" class="unite-graphique" hidden></span>
+            </div>
+            <div id="arome-pi-tableau" class="frise-meteo-scroll" hidden></div>
+            <p id="arome-pi-statut" class="frise-meteo-note" role="status">Chargement des prévisions immédiates…</p>
+        </section>
+
         <!-- Graphique vent moyen et rafales -->
         <section class="bloc graphique">
 
@@ -310,6 +322,7 @@
 
     <!-- Application -->
     <script src="frise-meteo.js"></script>
+    <script src="arome-pi.js"></script>
     <script src="app.js"></script>
 
 </body>

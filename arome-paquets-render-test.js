@@ -7,11 +7,11 @@ const fsSystem = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
-const { gzipSync, gunzipSync } = require("node:zlib");
-const crypto = require("node:crypto");
 const { ajouterMeteoAuxPrevisions } = require("./arome-meteo-point-test");
 const { essayerDemarrer, traitementEnCours } = require("./traitement-lourd");
 const { compresserCacheArome } = require("./arome-cache-stream");
+const { lireSauvegardeAromePages, jetonSauvegardeArome, signalerSauvegardeArome } =
+    require("./arome-cache-pages");
 
 const ROOT = "https://public-api.meteofrance.fr/previnum/DPPaquetAROME/v1";
 const SP1 = ROOT + "/models/AROME/grids/0.025/packages/SP1";
@@ -25,8 +25,6 @@ const CONTROLE_AUTO = 2 * 60 * 1000;
 const TTL_DIAGNOSTIC_CATALOGUE = 5 * 60 * 1000;
 const CACHE_PAGES_URL =
     "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-paquets-cache.json.gz";
-const GITHUB_DISPATCH_URL =
-    "https://api.github.com/repos/alexandreguilloux85/meteo-la-rochelle/dispatches";
 const MAX_CACHE_GZIP_OCTETS = 16 * 1024 * 1024;
 let OAUTH_CACHE = null;
 // La nomenclature officielle regroupe H+0..H+51 en neuf paquets.
@@ -704,47 +702,9 @@ function installerTestAromePaquets(app, {
         }
         restaurationPages = "en_cours";
         try {
-            const url = new URL(CACHE_PAGES_URL);
-            url.searchParams.set("t", String(Date.now()));
-            const reponse = await fetch(url, {
-                redirect: "error",
-                cache: "no-store",
-                headers: { Accept: "application/octet-stream" },
-                signal: AbortSignal.timeout(45000)
-            });
-            if (!reponse.ok) {
-                throw new Error("GitHub Pages HTTP " + reponse.status);
-            }
-            const longueur = Number(reponse.headers.get("content-length"));
-            if (longueur > MAX_JSON_OCTETS) {
-                throw new Error("Sauvegarde Pages trop volumineuse");
-            }
-            const telecharge = Buffer.from(await reponse.arrayBuffer());
-            if (telecharge.length < 1000 ||
-                telecharge.length > MAX_JSON_OCTETS) {
-                throw new Error("Sauvegarde Pages absente ou trop volumineuse");
-            }
-
-            // Certains serveurs décompressent automatiquement HTTP gzip.
-            // Accepter le vrai .gz ET le JSON déjà décompressé par fetch().
-            let compresse;
-            let texte;
-            if (telecharge[0] === 0x1f && telecharge[1] === 0x8b) {
-                if (telecharge.length > MAX_CACHE_GZIP_OCTETS) {
-                    throw new Error("Cache gzip Pages trop volumineux");
-                }
-                compresse = telecharge;
-                texte = gunzipSync(compresse, {
-                    maxOutputLength: MAX_JSON_OCTETS
-                }).toString("utf8");
-            } else {
-                if (!telecharge.toString("utf8", 0, 32).trimStart().startsWith("{")) {
-                    throw new Error("Sauvegarde Pages : format non reconnu");
-                }
-                texte = telecharge.toString("utf8");
-                compresse = gzipSync(telecharge, { level: 6 });
-            }
-            const restaure = JSON.parse(texte);
+            const { cache: restaure, compresse } = await lireSauvegardeAromePages(
+                CACHE_PAGES_URL, MAX_JSON_OCTETS, MAX_CACHE_GZIP_OCTETS
+            );
             validerCacheAromePaquets(restaure, calculerPrevisionsArome);
 
             // Aucun cache actif n'est écrasé par une restauration plus ancienne.
@@ -792,8 +752,7 @@ function installerTestAromePaquets(app, {
     async function signalerSauvegardeGitHub(cache, compresse) {
         if (!serviceTest && !serviceProduction) return;
 
-        const jeton = (process.env.GITHUB_PAQUETS_PUBLISH_TOKEN ||
-            process.env.GITHUB_DATA_TOKEN || "").trim();
+        const jeton = jetonSauvegardeArome();
         if (!jeton) {
             publicationGitHub = "non_configuree";
             erreurPublication = "Configurer GITHUB_PAQUETS_PUBLISH_TOKEN sur Render";
@@ -802,28 +761,13 @@ function installerTestAromePaquets(app, {
         publicationGitHub = "envoi";
         erreurPublication = null;
         try {
-            const sha256 = crypto.createHash("sha256")
-                .update(compresse).digest("hex");
-            const reponse = await fetch(GITHUB_DISPATCH_URL, {
-                method: "POST",
-                redirect: "error",
-                headers: {
-                    Authorization: "Bearer " + jeton,
-                    Accept: "application/vnd.github+json",
-                    "X-GitHub-Api-Version": "2022-11-28",
-                    "Content-Type": "application/json",
-                    "User-Agent": "meteo-la-rochelle-arome-paquets"
-                },
-                body: JSON.stringify({
-                    event_type: serviceProduction
-                        ? "arome-paquets-production-cache-ready" : "arome-paquets-cache-ready",
-                    client_payload: { modele: cache.modele, sha256 }
-                }),
-                signal: AbortSignal.timeout(30000)
+            await signalerSauvegardeArome(jeton, {
+                evenement: serviceProduction
+                    ? "arome-paquets-production-cache-ready" : "arome-paquets-cache-ready",
+                modele: cache.modele,
+                compresse,
+                userAgent: "meteo-la-rochelle-arome-paquets"
             });
-            if (!reponse.ok) {
-                throw new Error("GitHub dispatch HTTP " + reponse.status);
-            }
             // Le dispatch accepté ne signifie pas que Pages a déjà été déployé.
             publicationGitHub = "demande_envoyee";
             console.log("AROME Paquets : sauvegarde demandée à GitHub Actions");

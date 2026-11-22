@@ -476,6 +476,12 @@ tbody tr:hover {
     border-bottom: 1px solid rgba(20, 40, 63, 0.12);
 }
 
+.arome-pi-entete {
+    flex-wrap: wrap;
+    gap: 8px 15px;
+    margin-bottom: 8px;
+}
+
 /* PIED DE PAGE */
 
 footer {

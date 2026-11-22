@@ -118,10 +118,15 @@ traitement lourd s'exécute à la fois **par instance Render** :
 - renouvellement de la mosaïque radar nationale (ancien radar conservé
   pendant le téléchargement GRIB2) ;
 - décodage des neuf paquets GRIB2 et compression du cache ;
-- téléchargement WCS de secours lorsqu'aucun cache ne répond au point ;
-- restauration initiale du gros cache gzip GRIB2.
+- restauration et téléchargement WCS de secours lorsqu'aucun cache ne répond
+  au point ;
+- restauration initiale du gros cache gzip GRIB2 ;
+- sur Render test, restauration, téléchargement et décodage des champs
+  AROME-PI, ainsi que compression du cache du cycle complet.
 
 Si le verrou est occupé, les caches déjà présents restent consultables.
+AROME-PI libère le verrou partagé entre deux champs et le reprend pour
+compresser le cycle. Les autres traitements peuvent démarrer pendant les pauses.
 Le radar retourne son produit en cache et le contrôle GRIB2 est reporté
 (au prochain passage, au plus tôt après une minute). Un appel manuel à
 `/api/arome/paquets/test/refresh` retourne HTTP 409 s'il ne peut pas
@@ -416,10 +421,42 @@ définir `AROME_PAQUETS_AUTO_REFRESH=0`. Le POST de test avec
 **Sécurité :** ces modifications s'appliquent exclusivement à
 `Test_fonction` sur `station-meteo-lr-test`, sans modifier le WCS
 de production. Seule la **sauvegarde compressée** est publiée sur Pages,
-sans modifier le site ni la consultation au point. Le bouton
-AROME sur Render test relit les prévisions au point et affiche le statut
-du traitement : il ne déclenche pas de téléchargement sans autorisation.
+sans modifier le site ni la consultation au point. Le bouton **Prévisions
+AROME** sur Render test relit les deux frises au point sélectionné. Render
+sert le cache disponible et lance ses vérifications de catalogue aux
+intervalles habituels.
 La clé API Météo-France reste uniquement sur le serveur.
+
+### Tableau de vent AROME Prévision Immédiate sur Render test
+
+Les deux tableaux suivent le même point choisi sur la carte. Le tableau
+AROME-PI reprend la mise en forme de la frise. Chaque colonne affiche le vent
+à 10 m, sa direction d'origine et la rafale maximale sur les 15 minutes
+qui se terminent à l'échéance. La frise AROME-PI est vide en dehors
+du rectangle 46,075°–46,300° N et 1,600°–1,050° O, qui englobe l'île de Ré,
+La Rochelle et Aytré. Le serveur récupère 24 échéances de +15 min à +6 h
+sur la grille AROME-PI à 0,025°. Il vérifie le nouveau cycle à partir de
+la 35e minute, espace les téléchargements et conserve le dernier cycle
+complet en cas de retard.
+
+Sur `station-meteo-lr-test`, définir `METEO_AROME_PI_API_KEY` avec une clé
+autorisée pour [AROME Prévision Immédiate](https://portail-api.meteofrance.fr/web/fr/api/AROME-PI).
+Render transmet cette clé dans l'en-tête `apikey`. La route
+`GET /api/arome/pi/vent?lat=46.178&lon=-1.193167` donne les prévisions au point
+ou l'état du premier chargement.
+
+Render test compresse chaque cycle complet avec le même module gzip que
+les Paquets. Avec le jeton GitHub de sauvegarde existant
+(`GITHUB_PAQUETS_PUBLISH_TOKEN` ou `GITHUB_DATA_TOKEN`), il signale à
+GitHub Actions le modèle et le SHA256 du gzip. Les workflows de la branche
+par défaut vérifient les 24 échéances, sauvegardent le fichier sur
+`arome-pi-data` et l'ajoutent à la publication Pages. Au démarrage, Render
+test tente de restaurer `arome-pi-cache.json.gz` depuis Pages avant de
+consulter Météo-France. Un cycle expiré est ignoré.
+
+`GET /api/arome/pi/status` donne l'origine du cache et l'état de restauration
+et de publication. `GET /api/arome/pi/cache` fournit le gzip du cycle actif
+au workflow de sauvegarde.
 
 ## Sauvegarde persistante du cache AROME GRIB2 via GitHub Pages (Render test)
 
