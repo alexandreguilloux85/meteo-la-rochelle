@@ -2109,8 +2109,9 @@ app.get("/api/meteo/status", (req, res) => {
 const hoteRender = process.env.RENDER_EXTERNAL_HOSTNAME;
 if (!hoteRender || hoteRender === "station-meteo-lr-test.onrender.com") {
     require("./arome-pi-vent").installerAromePiVent(app, {
-        apiKey: process.env.METEO_AROME_PI_API_KEY || (hoteRender ? AROME_API_KEY : undefined),
-        calculerPrevisionsArome
+        apiKey: process.env.METEO_AROME_PI_API_KEY?.trim(),
+        calculerPrevisionsArome,
+        sauvegardeGithub: hoteRender === "station-meteo-lr-test.onrender.com"
     });
 }
 

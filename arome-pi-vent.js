@@ -3,6 +3,9 @@
 const { setTimeout: attendre } = require("node:timers/promises");
 const { decoderGrib } = require("./arome-grib2");
 const { essayerDemarrer } = require("./traitement-lourd");
+const { compresserCacheArome } = require("./arome-cache-stream");
+const { lireSauvegardeAromePages, jetonSauvegardeArome, signalerSauvegardeArome } =
+    require("./arome-cache-pages");
 
 const WCS = "https://public-api.meteofrance.fr/public/aromepi/1.0/wcs/" +
     "MF-NWP-HIGHRES-AROMEPI-0025-FRANCE-WCS";
@@ -12,6 +15,10 @@ const DELAI_REESSAI_MS = 4 * 60 * 1000;
 const INTERVALLE_WCS_MS = 1500;
 const PAS_SECONDES = 15 * 60;
 const HORIZON_SECONDES = 6 * 3600;
+const MAX_JSON_OCTETS = 1024 * 1024;
+const MAX_CACHE_GZIP_OCTETS = 512 * 1024;
+const CACHE_PAGES_URL =
+    "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-pi-cache.json.gz";
 const ZONE = { latMin: 46.075, latMax: 46.300, lonMin: -1.600, lonMax: -1.050 };
 const MAILLE = 0.025;
 const NIVEAU = "__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___";
@@ -51,11 +58,103 @@ function couvreZone(grille) {
         sud < ZONE.latMin && nord > ZONE.latMax && ouest < ZONE.lonMin && est > ZONE.lonMax;
 }
 
-function installerAromePiVent(app, { apiKey, calculerPrevisionsArome }) {
+function validerCacheAromePi(cache) {
+    const dateModele = Date.parse(cache?.modele);
+    if (typeof cache?.modele !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:00:00Z$/.test(cache.modele) ||
+        !Number.isFinite(dateModele) || dateModele > Date.now() ||
+        !Object.entries(ZONE).every(([cle, valeur]) => cache.zone?.[cle] === valeur) ||
+        !Array.isArray(cache.previsions) || cache.previsions.length !== HORIZON_SECONDES / PAS_SECONDES) {
+        throw new Error("Cache AROME-PI invalide : modèle, zone ou nombre d’échéances.");
+    }
+    for (const [index, prevision] of cache.previsions.entries()) {
+        if (prevision?.seconde !== (index + 1) * PAS_SECONDES) {
+            throw new Error("Échéances AROME-PI manquantes ou désordonnées.");
+        }
+        for (const champ of Object.keys(COUVERTURES)) {
+            const { grille, valeurs } = prevision[champ] || {};
+            if (!grille || grille.modele !== 0 || grille.mode_balaye !== 0 ||
+                !Number.isInteger(grille.Ni) || !Number.isInteger(grille.Nj) ||
+                grille.Ni < 2 || grille.Nj < 2 || !couvreZone(grille) ||
+                !Array.isArray(valeurs) || valeurs.length !== grille.Ni * grille.Nj ||
+                !valeurs.every(v => Number.isFinite(v) && (champ !== "RAFALE" || v >= 0))) {
+                throw new Error(`Cache AROME-PI : grille ${champ} invalide à ${prevision.seconde} s.`);
+            }
+        }
+    }
+}
+
+function installerAromePiVent(app, { apiKey, calculerPrevisionsArome, sauvegardeGithub = false }) {
     let cache = null;
+    let cacheCompresse = null;
+    let origineCache = null;
     let actualisationEnCours = false;
     let prochainEssai = 0;
     let erreurActualisation = null;
+    let restaurationTerminee = !sauvegardeGithub;
+    let restaurationPages = "non_demarre";
+    let erreurRestauration = null;
+    let publicationGithub = "non_demarre";
+    let erreurPublication = null;
+
+    function cacheDisponible() {
+        return Boolean(cache && Date.parse(cache.modele) + HORIZON_SECONDES * 1000 > Date.now());
+    }
+
+    async function restaurerCachePages() {
+        const liberer = essayerDemarrer("restauration-arome-pi");
+        if (!liberer) {
+            setTimeout(() => { void restaurerCachePages(); }, 2000).unref();
+            return;
+        }
+        restaurationPages = "en_cours";
+        try {
+            const { cache: restaure, compresse } = await lireSauvegardeAromePages(
+                CACHE_PAGES_URL, MAX_JSON_OCTETS, MAX_CACHE_GZIP_OCTETS, 1
+            );
+            validerCacheAromePi(restaure);
+            if (Date.parse(restaure.modele) + HORIZON_SECONDES * 1000 <= Date.now()) {
+                restaurationPages = "expiree";
+                return;
+            }
+            cache = restaure;
+            cacheCompresse = compresse;
+            origineCache = "GitHub Pages";
+            restaurationPages = "reussie";
+            console.log("AROME-PI : sauvegarde GitHub Pages restaurée", cache.modele);
+        } catch (erreur) {
+            restaurationPages = "indisponible";
+            erreurRestauration = erreur.message;
+            console.warn("AROME-PI : pas de restauration Pages :", erreur.message);
+        } finally {
+            restaurationTerminee = true;
+            liberer();
+            verifierCycle();
+        }
+    }
+
+    async function signalerSauvegardeGitHub(cycle, compresse) {
+        const jeton = jetonSauvegardeArome();
+        if (!jeton) {
+            publicationGithub = "non_configuree";
+            erreurPublication = "Configurer GITHUB_PAQUETS_PUBLISH_TOKEN sur Render";
+            return;
+        }
+        publicationGithub = "envoi";
+        erreurPublication = null;
+        try {
+            await signalerSauvegardeArome(jeton, {
+                evenement: "arome-pi-cache-ready",
+                modele: cycle.modele,
+                compresse,
+                userAgent: "meteo-la-rochelle-arome-pi"
+            });
+            publicationGithub = "demande_envoyee";
+        } catch (erreur) {
+            publicationGithub = "echec";
+            erreurPublication = erreur.message;
+            console.warn("AROME-PI : sauvegarde GitHub non envoyée :", erreur.message);
+        }
+    }
 
     async function lireWcs(operation, parametres, signal) {
         const url = new URL(WCS + "/" + operation);
@@ -118,19 +217,24 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome }) {
             previsions.push(champs);
         }
 
-        return { modele: cycle.modele, previsions };
+        return { modele: cycle.modele, date: Date.now(), zone: { ...ZONE }, previsions };
     }
 
     function verifierCycle() {
         const maintenant = Date.now();
         const modeleAttendu = Math.floor((maintenant - DELAI_PUBLICATION_MS) / HEURE_MS) * HEURE_MS;
-        if (!apiKey || actualisationEnCours || maintenant < prochainEssai ||
+        if (!apiKey || !restaurationTerminee || actualisationEnCours || maintenant < prochainEssai ||
             (cache && Date.parse(cache.modele) >= modeleAttendu)) return modeleAttendu;
 
         actualisationEnCours = true;
-        void chargerCycle(modeleAttendu, maintenant).then(resultat => {
+        void chargerCycle(modeleAttendu, maintenant).then(async resultat => {
+            validerCacheAromePi(resultat);
+            const { gzip } = await compresserCacheArome(resultat, MAX_JSON_OCTETS, MAX_CACHE_GZIP_OCTETS);
             cache = resultat;
+            cacheCompresse = gzip;
+            origineCache = "Météo-France";
             erreurActualisation = null;
+            if (sauvegardeGithub) void signalerSauvegardeGitHub(resultat, gzip);
         }).catch(erreur => {
             erreurActualisation = erreur.message;
             console.warn("Actualisation du vent AROME-PI :", erreur.message);
@@ -140,6 +244,30 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome }) {
         });
         return modeleAttendu;
     }
+
+    app.get("/api/arome/pi/status", (_req, res) => {
+        res.set("Cache-Control", "no-store");
+        res.json({
+            modele: cache?.modele || null,
+            cache_disponible: cacheDisponible(),
+            origine_cache: origineCache,
+            taille_cache_gzip_octets: cacheCompresse?.length || 0,
+            actualisation_en_cours: actualisationEnCours,
+            erreur_actualisation: erreurActualisation,
+            restauration_pages: restaurationPages,
+            erreur_restauration_pages: erreurRestauration,
+            publication_github: publicationGithub,
+            erreur_publication_github: erreurPublication
+        });
+    });
+
+    app.get("/api/arome/pi/cache", (_req, res) => {
+        res.set("Cache-Control", "no-store");
+        if (!cacheDisponible() || !cacheCompresse) {
+            return res.status(503).json({ succes: false, erreur: "Cache AROME-PI indisponible." });
+        }
+        return res.type("application/gzip").send(cacheCompresse);
+    });
 
     app.get("/api/arome/pi/vent", (req, res) => {
         res.set("Cache-Control", "no-store");
@@ -154,7 +282,7 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome }) {
         }
 
         const modeleAttendu = verifierCycle();
-        if (cache && Date.parse(cache.modele) + HORIZON_SECONDES * 1000 > Date.now()) {
+        if (cacheDisponible()) {
             const resultat = calculerPrevisionsArome(cache, lat, lon, {
                 pasSecondes: PAS_SECONDES, horizonSecondes: HORIZON_SECONDES
             });
@@ -173,19 +301,19 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome }) {
                 actualisation_retardee: Date.parse(cache.modele) < modeleAttendu
             });
         }
-        return res.status(actualisationEnCours ? 202 : 503).json({
+        const chargementEnCours = !restaurationTerminee || actualisationEnCours;
+        return res.status(chargementEnCours ? 202 : 503).json({
             succes: false,
-            actualisation_en_cours: actualisationEnCours,
+            actualisation_en_cours: chargementEnCours,
             erreur: apiKey
                 ? (erreurActualisation || "En attente du premier cycle AROME-PI.")
                 : "Clé API Météo-France AROME-PI manquante côté serveur."
         });
     });
 
-    if (apiKey) {
-        setInterval(verifierCycle, 60_000).unref();
-        verifierCycle();
-    }
+    if (apiKey) setInterval(verifierCycle, 60_000).unref();
+    if (sauvegardeGithub) setImmediate(() => { void restaurerCachePages(); });
+    else verifierCycle();
 }
 
 module.exports = { installerAromePiVent };

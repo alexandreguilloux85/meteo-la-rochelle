@@ -435,10 +435,22 @@ complet en cas de retard.
 
 Sur `station-meteo-lr-test`, définir `METEO_AROME_PI_API_KEY` avec une clé
 autorisée pour [AROME Prévision Immédiate](https://portail-api.meteofrance.fr/web/fr/api/AROME-PI).
-Le service de test utilise sa clé WCS existante si cette variable est
-absente. Cette clé doit également être autorisée pour AROME-PI. La route
-`GET /api/arome/pi/vent?lat=46.178&lon=-1.193167` donne les prévisions au
-point ou l'état du premier chargement.
+Render transmet cette clé dans l'en-tête `apikey`. La route
+`GET /api/arome/pi/vent?lat=46.178&lon=-1.193167` donne les prévisions au point
+ou l'état du premier chargement.
+
+Render test compresse chaque cycle complet avec le même module gzip que
+les Paquets. Avec le jeton GitHub de sauvegarde existant
+(`GITHUB_PAQUETS_PUBLISH_TOKEN` ou `GITHUB_DATA_TOKEN`), il signale à
+GitHub Actions le modèle et le SHA256 du gzip. Les workflows de la branche
+par défaut vérifient les 24 échéances, sauvegardent le fichier sur
+`arome-pi-data` et l'ajoutent à la publication Pages. Au démarrage, Render
+test tente de restaurer `arome-pi-cache.json.gz` depuis Pages avant de
+consulter Météo-France. Un cycle expiré est ignoré.
+
+`GET /api/arome/pi/status` donne l'origine du cache et l'état de restauration
+et de publication. `GET /api/arome/pi/cache` fournit le gzip du cycle actif
+au workflow de sauvegarde.
 
 ## Sauvegarde persistante du cache AROME GRIB2 via GitHub Pages (Render test)
 
