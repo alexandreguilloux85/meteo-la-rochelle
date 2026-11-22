@@ -1,5 +1,6 @@
 "use strict";
 
+const { setTimeout: attendre } = require("node:timers/promises");
 const { decoderGrib } = require("./arome-grib2");
 const { essayerDemarrer } = require("./traitement-lourd");
 
@@ -8,14 +9,16 @@ const WCS = "https://public-api.meteofrance.fr/public/aromepi/1.0/wcs/" +
 const HEURE_MS = 60 * 60 * 1000;
 const DELAI_PUBLICATION_MS = 35 * 60 * 1000;
 const DELAI_REESSAI_MS = 4 * 60 * 1000;
-const ECHEANCES = [1, 2, 3, 4, 5, 6];
+const INTERVALLE_WCS_MS = 1500;
+const PAS_SECONDES = 15 * 60;
+const HORIZON_SECONDES = 6 * 3600;
 const ZONE = { latMin: 46.075, latMax: 46.300, lonMin: -1.600, lonMax: -1.050 };
 const MAILLE = 0.025;
 const NIVEAU = "__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___";
 const COUVERTURES = {
     U: "U_COMPONENT_OF_WIND" + NIVEAU,
     V: "V_COMPONENT_OF_WIND" + NIVEAU,
-    RAFALE: "WIND_SPEED_GUST" + NIVEAU
+    RAFALE: "WIND_SPEED_GUST_15MIN" + NIVEAU
 };
 
 function choisirCycle(xml, modeleAttendu, modeleEnCache, maintenant) {
@@ -25,13 +28,13 @@ function choisirCycle(xml, modeleAttendu, modeleEnCache, maintenant) {
     ));
 
     for (let heure = modeleAttendu; heure > modeleEnCache &&
-        heure + ECHEANCES.length * HEURE_MS > maintenant; heure -= HEURE_MS) {
+        heure + HORIZON_SECONDES * 1000 > maintenant; heure -= HEURE_MS) {
         const modele = new Date(heure).toISOString().replace(".000Z", "Z");
         const suffixe = modele.replaceAll(":", ".");
         const U = COUVERTURES.U + suffixe;
         const V = COUVERTURES.V + suffixe;
         const rafale = COUVERTURES.RAFALE + suffixe;
-        const RAFALE = ids.has(rafale + "_PT1H") ? rafale + "_PT1H" : rafale;
+        const RAFALE = ids.has(rafale + "_PT15M") ? rafale + "_PT15M" : rafale;
         if (ids.has(U) && ids.has(V) && ids.has(RAFALE)) {
             return { modele, couvertures: { U, V, RAFALE } };
         }
@@ -59,30 +62,44 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome }) {
         url.searchParams.set("service", "WCS");
         url.searchParams.set("version", "2.0.1");
         for (const [nom, valeur] of parametres) url.searchParams.append(nom, valeur);
-        const reponse = await fetch(url, { headers: { apikey: apiKey }, signal });
-        if (!reponse.ok) {
-            if (reponse.status === 401 || (operation === "GetCapabilities" && reponse.status === 403)) {
-                throw new Error("La clé API du serveur doit être autorisée pour AROME Prévision Immédiate.");
-            }
-            throw new Error(`Météo-France ${operation} : HTTP ${reponse.status}.`);
+        let liberer = essayerDemarrer("arome-pi-vent");
+        while (!liberer) {
+            await attendre(INTERVALLE_WCS_MS, undefined, { signal });
+            liberer = essayerDemarrer("arome-pi-vent");
         }
-        return reponse;
+        try {
+            const reponse = await fetch(url, {
+                headers: { apikey: apiKey },
+                signal: AbortSignal.any([signal, AbortSignal.timeout(12_000)])
+            });
+            if (!reponse.ok) {
+                if (reponse.status === 401 || (operation === "GetCapabilities" && reponse.status === 403)) {
+                    throw new Error("La clé API du serveur doit être autorisée pour AROME Prévision Immédiate.");
+                }
+                throw new Error(`Météo-France ${operation} : HTTP ${reponse.status}.`);
+            }
+            return operation === "GetCapabilities" ? await reponse.text() : await reponse.arrayBuffer();
+        } finally {
+            liberer();
+        }
     }
 
     async function chargerCycle(modeleAttendu, maintenant) {
-        const signal = AbortSignal.timeout(45_000);
+        const signal = AbortSignal.timeout(5 * 60_000);
         const catalogue = await lireWcs("GetCapabilities", [["language", "fre"]], signal);
-        const cycle = choisirCycle(await catalogue.text(), modeleAttendu,
+        const cycle = choisirCycle(catalogue, modeleAttendu,
             cache ? Date.parse(cache.modele) : 0, maintenant);
         if (!cycle) throw new Error("Le dernier cycle AROME-PI est en attente de publication.");
 
         const dateModele = Date.parse(cycle.modele);
         const previsions = [];
-        for (const heure of ECHEANCES) {
-            const date = new Date(dateModele + heure * HEURE_MS).toISOString().replace(".000Z", "Z");
-            const champs = { seconde: heure * 3600 };
+        for (let seconde = PAS_SECONDES; seconde <= HORIZON_SECONDES; seconde += PAS_SECONDES) {
+            const date = new Date(dateModele + seconde * 1000).toISOString().replace(".000Z", "Z");
+            const champs = { seconde };
             for (const [champ, couverture] of Object.entries(cycle.couvertures)) {
-                const reponse = await lireWcs("GetCoverage", [
+                // Espacer les 72 téléchargements sans immobiliser le verrou entre deux champs.
+                await attendre(INTERVALLE_WCS_MS, undefined, { signal });
+                const donneesBrutes = await lireWcs("GetCoverage", [
                     ["coverageid", couverture],
                     ["subset", `time(${date})`],
                     ["subset", "height(10)"],
@@ -90,7 +107,7 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome }) {
                     ["subset", `long(${(ZONE.lonMin - MAILLE).toFixed(3)},${(ZONE.lonMax + MAILLE).toFixed(3)})`],
                     ["format", "application/wmo-grib"]
                 ], signal);
-                const buffer = Buffer.from(await reponse.arrayBuffer());
+                const buffer = Buffer.from(donneesBrutes);
                 if (buffer.length > 512 * 1024) throw new Error("Champ AROME-PI trop volumineux pour la zone.");
                 const donnees = decoderGrib(buffer);
                 if (!couvreZone(donnees.grille) || !donnees.valeurs.every(Number.isFinite)) {
@@ -110,9 +127,6 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome }) {
         if (!apiKey || actualisationEnCours || maintenant < prochainEssai ||
             (cache && Date.parse(cache.modele) >= modeleAttendu)) return modeleAttendu;
 
-        const liberer = essayerDemarrer("arome-pi-vent");
-        if (!liberer) return modeleAttendu;
-
         actualisationEnCours = true;
         void chargerCycle(modeleAttendu, maintenant).then(resultat => {
             cache = resultat;
@@ -123,7 +137,6 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome }) {
         }).finally(() => {
             prochainEssai = Date.now() + DELAI_REESSAI_MS;
             actualisationEnCours = false;
-            liberer();
         });
         return modeleAttendu;
     }
@@ -141,9 +154,11 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome }) {
         }
 
         const modeleAttendu = verifierCycle();
-        if (cache && Date.parse(cache.modele) + ECHEANCES.length * HEURE_MS > Date.now()) {
-            const resultat = calculerPrevisionsArome(cache, lat, lon);
-            if (resultat.previsions.length !== ECHEANCES.length || resultat.previsions.some(p =>
+        if (cache && Date.parse(cache.modele) + HORIZON_SECONDES * 1000 > Date.now()) {
+            const resultat = calculerPrevisionsArome(cache, lat, lon, {
+                pasSecondes: PAS_SECONDES, horizonSecondes: HORIZON_SECONDES
+            });
+            if (resultat.previsions.length !== HORIZON_SECONDES / PAS_SECONDES || resultat.previsions.some(p =>
                 !Number.isFinite(p.vitesse) || !Number.isFinite(p.direction) ||
                 !Number.isFinite(p.rafale) || p.rafale < 0)) {
                 return res.status(502).json({ succes: false, erreur: "Prévisions incomplètes à ce point." });

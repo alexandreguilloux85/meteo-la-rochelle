@@ -89,10 +89,11 @@
             milieu + "," + apres + ")";
     }
 
-    function afficherFriseMeteoArome(previsions, lat, lon) {
-        const conteneur = document.getElementById("frise-meteo");
-        const note = document.getElementById("frise-meteo-note");
-        if (!conteneur || !Array.isArray(previsions) || !previsions.length) return;
+    const heureAvecMinutes = new Intl.DateTimeFormat("fr-FR", {
+        timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+    });
+
+    function afficherFrise(conteneur, previsions, { lat, lon, ventSeulement = false }) {
 
         const donnees = previsions.map(p => {
             const date = new Date(p.date);
@@ -108,10 +109,12 @@
                     timeZone: "Europe/Paris", year: "numeric",
                     month: "2-digit", day: "2-digit"
                 }),
-                heure: date.toLocaleTimeString("fr-FR", {
-                    timeZone: "Europe/Paris", hour: "2-digit", hourCycle: "h23"
-                }).match(/\d{1,2}/)?.[0].padStart(2, "0") + "h",
-                ciel: etatDuCiel(p),
+                heure: ventSeulement
+                    ? heureAvecMinutes.format(date).replace(":", "h")
+                    : date.toLocaleTimeString("fr-FR", {
+                        timeZone: "Europe/Paris", hour: "2-digit", hourCycle: "h23"
+                    }).match(/\d{1,2}/)?.[0].padStart(2, "0") + "h",
+                ciel: ventSeulement ? null : etatDuCiel(p),
                 temperature: nombreOuNull(p.temperature),
                 precipitation: nombreOuNull(p.precipitation),
                 vent: vitesse === null ? null : vitesse * 1.94384,
@@ -155,16 +158,18 @@
         const affichage = (v, decimales = 0) =>
             v === null ? "—" : v.toFixed(decimales);
 
-        ligne("Ciel", donnees.map(d => ({
-            contenu: iconeMeteo(d.ciel, estJour(d.date, lat, lon))
-        })), { classe: "frise-cellule-icone" });
-        ligne("Temp. (°C)", donnees.map(d => ({
-            contenu: affichage(d.temperature)
-        })), { compacte: true });
-        ligne("Pluie (mm/h)", donnees.map(d => {
-            const pluie = affichage(d.precipitation, 1);
-            return { contenu: pluie === "0.0" ? "" : pluie };
-        }), { compacte: true });
+        if (!ventSeulement) {
+            ligne("Ciel", donnees.map(d => ({
+                contenu: iconeMeteo(d.ciel, estJour(d.date, lat, lon))
+            })), { classe: "frise-cellule-icone" });
+            ligne("Temp. (°C)", donnees.map(d => ({
+                contenu: affichage(d.temperature)
+            })), { compacte: true });
+            ligne("Pluie (mm/h)", donnees.map(d => {
+                const pluie = affichage(d.precipitation, 1);
+                return { contenu: pluie === "0.0" ? "" : pluie };
+            }), { compacte: true });
+        }
 
         for (const [titre, champ] of [["Vent (kt)", "vent"], ["Rafales (kt)", "rafale"]]) {
             const valeurs = donnees.map(d => d[champ]);
@@ -185,6 +190,15 @@
         })));
         html += '</tbody></table>';
         conteneur.innerHTML = html;
+        return donnees;
+    }
+
+    function afficherFriseMeteoArome(previsions, lat, lon) {
+        const conteneur = document.getElementById("frise-meteo");
+        const note = document.getElementById("frise-meteo-note");
+        if (!conteneur || !Array.isArray(previsions) || !previsions.length) return;
+
+        const donnees = afficherFrise(conteneur, previsions, { lat, lon });
 
         const champsComplets = donnees.every(d =>
             d.temperature !== null && d.precipitation !== null && d.ciel !== null
@@ -198,4 +212,9 @@
     }
 
     window.afficherFriseMeteoArome = afficherFriseMeteoArome;
+    window.afficherFriseVentArome = (conteneur, previsions) => {
+        afficherFrise(conteneur, previsions, { ventSeulement: true });
+        conteneur.firstElementChild.setAttribute("aria-labelledby", "arome-pi-titre");
+        conteneur.firstElementChild.setAttribute("aria-describedby", "arome-pi-legende");
+    };
 })();

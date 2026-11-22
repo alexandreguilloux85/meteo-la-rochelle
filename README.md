@@ -424,12 +424,14 @@ La clé API Météo-France reste uniquement sur le serveur.
 ### Tableau de vent AROME Prévision Immédiate sur Render test
 
 Les deux tableaux suivent le même point choisi sur la carte. Le tableau
-AROME-PI affiche le vent à 10 m, sa direction d'origine et la rafale
-maximale de l'heure qui se termine à l'échéance. Il est vide en dehors
+AROME-PI reprend la mise en forme de la frise. Chaque colonne affiche le vent
+à 10 m, sa direction d'origine et la rafale maximale sur les 15 minutes
+qui se terminent à l'échéance. La frise AROME-PI est vide en dehors
 du rectangle 46,075°–46,300° N et 1,600°–1,050° O, qui englobe l'île de Ré,
-La Rochelle et Aytré. Le serveur récupère les six échéances horaires sur
-la grille AROME-PI à 0,025°, vérifie le nouveau cycle à partir de la
-35e minute et conserve le dernier cycle complet en cas de retard.
+La Rochelle et Aytré. Le serveur récupère 24 échéances de +15 min à +6 h
+sur la grille AROME-PI à 0,025°. Il vérifie le nouveau cycle à partir de
+la 35e minute, espace les téléchargements et conserve le dernier cycle
+complet en cas de retard.
 
 Sur `station-meteo-lr-test`, définir `METEO_AROME_PI_API_KEY` avec une clé
 autorisée pour [AROME Prévision Immédiate](https://portail-api.meteofrance.fr/web/fr/api/AROME-PI).
