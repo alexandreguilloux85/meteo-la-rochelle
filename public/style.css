@@ -476,6 +476,55 @@ tbody tr:hover {
     border-bottom: 1px solid rgba(20, 40, 63, 0.12);
 }
 
+.arome-pi-entete {
+    flex-wrap: wrap;
+    gap: 8px 15px;
+    margin-bottom: 8px;
+}
+
+.arome-pi-tableau {
+    overflow-x: auto;
+    margin-top: 12px;
+}
+
+.arome-pi-tableau table {
+    table-layout: fixed;
+    white-space: normal;
+    min-width: 275px;
+}
+
+.arome-pi-tableau th,
+.arome-pi-tableau td {
+    padding: 7px 4px;
+}
+
+.arome-pi-tableau thead th:first-child {
+    width: 20%;
+}
+
+.arome-pi-tableau tbody th {
+    font-variant-numeric: tabular-nums;
+}
+
+.arome-pi-detail {
+    display: block;
+    margin-top: 3px;
+    color: #536579;
+    font-size: 11px;
+    font-weight: normal;
+}
+
+.arome-pi-vitesse {
+    display: inline-block;
+    min-width: 20px;
+    padding: 2px 3px;
+    border-radius: 3px;
+    background: #edf1f5;
+    color: #14283f;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+}
+
 /* PIED DE PAGE */
 
 footer {

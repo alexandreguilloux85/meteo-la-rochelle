@@ -421,6 +421,23 @@ AROME sur Render test relit les prévisions au point et affiche le statut
 du traitement : il ne déclenche pas de téléchargement sans autorisation.
 La clé API Météo-France reste uniquement sur le serveur.
 
+### Tableau de vent AROME Prévision Immédiate sur Render test
+
+Les deux tableaux suivent le même point choisi sur la carte. Le tableau
+AROME-PI affiche le vent à 10 m, sa direction d'origine et la rafale
+maximale de l'heure qui se termine à l'échéance. Il est vide en dehors
+du rectangle 46,075°–46,300° N et 1,600°–1,050° O, qui englobe l'île de Ré,
+La Rochelle et Aytré. Le serveur récupère les six échéances horaires sur
+la grille AROME-PI à 0,025°, vérifie le nouveau cycle à partir de la
+35e minute et conserve le dernier cycle complet en cas de retard.
+
+Sur `station-meteo-lr-test`, définir `METEO_AROME_PI_API_KEY` avec une clé
+autorisée pour [AROME Prévision Immédiate](https://portail-api.meteofrance.fr/web/fr/api/AROME-PI).
+Le service de test utilise sa clé WCS existante si cette variable est
+absente. Cette clé doit également être autorisée pour AROME-PI. La route
+`GET /api/arome/pi/vent?lat=46.178&lon=-1.193167` donne les prévisions au
+point ou l'état du premier chargement.
+
 ## Sauvegarde persistante du cache AROME GRIB2 via GitHub Pages (Render test)
 
 La consultation au **point GPS cliqué** ne change pas. Render interpole en
