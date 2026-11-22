@@ -1,0 +1,169 @@
+name: Save AROME-PI test cache for GitHub Pages
+
+on:
+  repository_dispatch:
+    types:
+      - arome-pi-cache-ready
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  save-cache:
+    if: github.ref == 'refs/heads/main'
+    concurrency:
+      group: arome-pi-data-branch
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout main (for authenticated push)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+
+      - name: Fetch and validate the AROME-PI test cache
+        id: cache
+        env:
+          EXPECTED_SHA256: ${{ github.event.client_payload.sha256 }}
+          EXPECTED_MODEL: ${{ github.event.client_payload.modele }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --retry 3 --retry-all-errors --max-time 45 --max-filesize 524288 \
+            -H 'Accept: application/gzip' \
+            'https://station-meteo-lr-test.onrender.com/api/arome/pi/cache' \
+            --output "$RUNNER_TEMP/arome-pi-cache.json.gz"
+
+          branch=refs/heads/arome-pi-data
+          published_ref="$(git ls-remote --heads origin "$branch")"
+          lease=''
+          if [ -n "$published_ref" ]; then
+            git fetch --no-tags origin "$branch"
+            lease="$(git rev-parse FETCH_HEAD)"
+            git show "$lease:arome-pi-cache.json.gz" > "$RUNNER_TEMP/arome-pi-cache-previous.json.gz"
+          fi
+          printf 'lease=%s\n' "$lease" >> "$GITHUB_OUTPUT"
+
+          python3 - <<'PY'
+          import gzip
+          import hashlib
+          import json
+          import math
+          import os
+          import re
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+
+          max_gzip = 512 * 1024
+          max_json = 1024 * 1024
+          zone = {"latMin": 46.075, "latMax": 46.300, "lonMin": -1.600, "lonMax": -1.050}
+          now = datetime.now(timezone.utc)
+
+          def number(value):
+              return type(value) in (int, float) and math.isfinite(value)
+
+          def validate(path):
+              if not 0 < path.stat().st_size <= max_gzip:
+                  raise ValueError("Taille du gzip AROME-PI hors limite.")
+              body = path.read_bytes()
+              with gzip.open(path, "rb") as compressed:
+                  raw = compressed.read(max_json + 1)
+              if len(raw) > max_json:
+                  raise ValueError("JSON AROME-PI décompressé supérieur à 1 Mio.")
+              cache = json.loads(raw)
+              if not isinstance(cache, dict):
+                  raise ValueError("Cache AROME-PI invalide.")
+              model = cache.get("modele")
+              if not isinstance(model, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:00:00Z", model):
+                  raise ValueError("Date du modèle AROME-PI invalide.")
+              run = datetime.fromisoformat(model.replace("Z", "+00:00"))
+              if run > now:
+                  raise ValueError("Date du modèle AROME-PI dans le futur.")
+              cached_zone = cache.get("zone")
+              if not isinstance(cached_zone, dict) or any(cached_zone.get(k) != v for k, v in zone.items()):
+                  raise ValueError("Emprise du cache AROME-PI inattendue.")
+              forecasts = cache.get("previsions")
+              if not isinstance(forecasts, list) or len(forecasts) != 24:
+                  raise ValueError("24 échéances AROME-PI sont attendues.")
+
+              for step, forecast in enumerate(forecasts, start=1):
+                  if not isinstance(forecast, dict) or type(forecast.get("seconde")) is not int or forecast["seconde"] != step * 900:
+                      raise ValueError(f"Échéance AROME-PI invalide à H+{step * 15} min.")
+                  for name in ("U", "V", "RAFALE"):
+                      field = forecast.get(name)
+                      if not isinstance(field, dict) or not isinstance(field.get("grille"), dict):
+                          raise ValueError(f"Champ AROME-PI {name} absent à H+{step * 15} min.")
+                      grid = field["grille"]
+                      values = field.get("valeurs")
+                      ni, nj = grid.get("Ni"), grid.get("Nj")
+                      north, west = grid.get("latitude_depart"), grid.get("longitude_depart")
+                      if (
+                          type(ni) is not int or type(nj) is not int or ni < 2 or nj < 2
+                          or type(grid.get("modele")) is not int or grid["modele"] != 0
+                          or type(grid.get("mode_balaye")) is not int or grid["mode_balaye"] != 0
+                          or grid.get("resolution_latitude") != 0.025 or grid.get("resolution_longitude") != 0.025
+                          or not number(north) or not number(west)
+                          or north <= zone["latMax"] or north - (nj - 1) * 0.025 >= zone["latMin"]
+                          or west >= zone["lonMin"] or west + (ni - 1) * 0.025 <= zone["lonMax"]
+                          or not isinstance(values, list) or len(values) != ni * nj
+                          or not all(number(value) and (name != "RAFALE" or value >= 0) for value in values)
+                      ):
+                          raise ValueError(f"Grille AROME-PI {name} invalide à H+{step * 15} min.")
+              return run, model, hashlib.sha256(body).hexdigest()
+
+          directory = Path(os.environ["RUNNER_TEMP"])
+          run, model, digest = validate(directory / "arome-pi-cache.json.gz")
+          expected_model = os.getenv("EXPECTED_MODEL", "")
+          expected_sha = os.getenv("EXPECTED_SHA256", "")
+          if os.environ["GITHUB_EVENT_NAME"] == "repository_dispatch" and not (expected_model and expected_sha):
+              raise ValueError("Le dispatch AROME-PI doit fournir le modèle et le SHA256.")
+          if expected_model and expected_model != model:
+              raise ValueError("Le modèle reçu diffère du modèle annoncé par Render.")
+          if expected_sha and expected_sha != digest:
+              raise ValueError("Le SHA256 du gzip reçu diffère de celui annoncé par Render.")
+          if run + timedelta(hours=6) <= now:
+              raise ValueError("Le modèle AROME-PI reçu a déjà expiré.")
+
+          previous_path = directory / "arome-pi-cache-previous.json.gz"
+          previous_run = validate(previous_path)[0] if previous_path.exists() else None
+          replace = previous_run is None or run > previous_run
+          if not replace:
+              print("La branche AROME-PI contient déjà ce modèle ou un modèle plus récent.")
+          print("Cache AROME-PI validé :", model, "24 échéances / 3 variables")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf8") as output:
+              output.write(f"replace={'true' if replace else 'false'}\n")
+          PY
+
+      - name: Replace the dedicated AROME-PI data branch
+        if: steps.cache.outputs.replace == 'true'
+        env:
+          CACHE_BRANCH_LEASE: ${{ steps.cache.outputs.lease }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch --orphan arome-pi-staging
+          git rm -r -f --ignore-unmatch .
+          cp "$RUNNER_TEMP/arome-pi-cache.json.gz" arome-pi-cache.json.gz
+          git add arome-pi-cache.json.gz
+          git commit -m 'Dernier cache AROME-PI de test validé'
+          git push --force-with-lease="refs/heads/arome-pi-data:$CACHE_BRANCH_LEASE" \
+            origin HEAD:refs/heads/arome-pi-data
+
+      - name: Republish site with the latest AROME-PI test backup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --retry 3 --retry-all-errors \
+            -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            -H 'Content-Type: application/json' \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/dispatches" \
+            -d '{"event_type":"arome-pi-cache-updated"}'

@@ -12,6 +12,7 @@ on:
     types:
       - arome-cache-updated
       - arome-paquets-cache-updated
+      - arome-pi-cache-updated
 
 permissions:
   contents: read
@@ -102,6 +103,24 @@ jobs:
             if [ -s "$tmp/arome-paquets-cache.json.gz" ]; then
               cp "$tmp/arome-paquets-cache.json.gz" site/arome-paquets-cache.json.gz
             fi
+          fi
+
+      - name: Include last validated AROME-PI test cache (optional)
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+
+          file=arome-pi-cache.json.gz
+          if git fetch --no-tags origin arome-pi-data &&
+             git archive FETCH_HEAD "$file" | tar -x -C "$tmp" &&
+             [ -s "$tmp/$file" ] &&
+             [ "$(wc -c < "$tmp/$file")" -le 524288 ] && gzip -t "$tmp/$file"; then
+            cp "$tmp/$file" "site/$file"
+          elif curl --fail --silent --show-error --max-time 30 --max-filesize 524288 \
+            "https://alexandreguilloux85.github.io/meteo-la-rochelle/$file" \
+            --output "$tmp/previous.gz" && gzip -t "$tmp/previous.gz"; then
+            cp "$tmp/previous.gz" "site/$file"
           fi
 
       - name: Configure GitHub Pages
