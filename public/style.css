@@ -101,7 +101,8 @@ main {
     color: #536579;
 }
 
-.commandes-actualisation input {
+.commandes-actualisation input,
+.commandes-actualisation select {
     min-width: 190px;
     padding: 9px 10px;
     border: 1px solid #cbd5e0;

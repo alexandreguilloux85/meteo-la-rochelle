@@ -45,7 +45,7 @@
         <div class="header-contenu">
             <div>
                 <h1>Météo La Rochelle</h1>
-                <p>Station météo 17300009</p>
+                <p>Station météo <span data-id-station>17300009</span></p>
             </div>
 
             <div class="statut">
@@ -65,6 +65,11 @@
                 </div>
             </div>
             <div class="commandes-actualisation">
+                <label for="stationObservations">Station</label>
+                <select id="stationObservations">
+                    <option value="17300009" selected>La Rochelle</option>
+                    <option value="85060002">Château d’Olonne</option>
+                </select>
                 <button type="button" data-refresh="observations">Station de vent</button>
                 <button type="button" data-refresh="radar">Radar</button>
                 <button type="button" data-refresh="arome">Prévisions AROME</button>
@@ -312,7 +317,7 @@
         </section>
 
         <footer>
-            Données issues de Météo-France · Station 17300009
+            Données issues de Météo-France · Station <span data-id-station>17300009</span>
         </footer>
 
     </main>
