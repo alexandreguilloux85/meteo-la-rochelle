@@ -582,7 +582,9 @@ async function chargerCacheAromeNavigateur() {
     }
 }
 
-function calculerPrevisionsAromeNavigateur(cache, latitude, longitude) {
+function calculerPrevisionsAromeNavigateur(cache, latitude, longitude, {
+    pasSecondes = 3600, horizonSecondes = 51 * 3600
+} = {}) {
     function interpoler(grille, valeurs, lat, lon) {
         const x =
             (lon - grille.longitude_depart) /
@@ -642,14 +644,14 @@ function calculerPrevisionsAromeNavigateur(cache, latitude, longitude) {
     const previsions = [];
     const erreurs = [];
 
-    for (let h = 1; h <= 51; h++) {
-        const seconde = h * 3600;
+    for (let seconde = pasSecondes; seconde <= horizonSecondes; seconde += pasSecondes) {
         const donnees = cache.previsions.find(p => p.seconde === seconde);
 
         if (!donnees || !donnees.U || !donnees.V) {
             continue;
         }
 
+        const echeance = "H+" + seconde / 3600;
         try {
             const u = interpoler(
                 donnees.U.grille,
@@ -683,7 +685,7 @@ function calculerPrevisionsAromeNavigateur(cache, latitude, longitude) {
             );
 
             previsions.push({
-                echeance: "H+" + h,
+                echeance,
                 date: dateValide.toISOString(),
                 vitesse: Number(vitesse.toFixed(2)),
                 rafale: Number.isFinite(rafale)
@@ -695,7 +697,7 @@ function calculerPrevisionsAromeNavigateur(cache, latitude, longitude) {
             });
         } catch (erreur) {
             erreurs.push({
-                echeance: "H+" + h,
+                echeance,
                 erreur: erreur.message
             });
         }
