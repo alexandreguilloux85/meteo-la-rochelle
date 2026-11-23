@@ -4,7 +4,7 @@ const { setTimeout: attendre } = require("node:timers/promises");
 const { decoderGrib } = require("./arome-grib2");
 const { essayerDemarrer } = require("./traitement-lourd");
 const { compresserCacheArome } = require("./arome-cache-stream");
-const { lireSauvegardeAromePages, jetonSauvegardeArome, signalerSauvegardeArome } =
+const { lireSauvegardeArome, jetonSauvegardeArome, signalerSauvegardeArome } =
     require("./arome-cache-pages");
 
 const WCS = "https://public-api.meteofrance.fr/public/aromepi/1.0/wcs/" +
@@ -19,8 +19,6 @@ const MAX_GRIB_OCTETS = 512 * 1024;
 const MAX_POINTS_PAR_CHAMP = 1024;
 const MAX_JSON_OCTETS = 1024 * 1024;
 const MAX_CACHE_GZIP_OCTETS = 512 * 1024;
-const CACHE_PAGES_URL =
-    "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-pi-cache.json.gz";
 const ZONE = { latMin: 46.075, latMax: 46.300, lonMin: -1.600, lonMax: -1.050 };
 const MAILLE = 0.025;
 const NIVEAU = "__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___";
@@ -85,15 +83,18 @@ function validerCacheAromePi(cache) {
     }
 }
 
-function installerAromePiVent(app, { apiKey, calculerPrevisionsArome, sauvegardeGithub = false }) {
+function installerAromePiVent(app, { apiKey, calculerPrevisionsArome, service }) {
+    const production = service === "production";
+    const branche = production ? "arome-pi-production-data" : service === "test" ? "arome-pi-data" : null;
+    const source = service ? "Render " + service : null;
     let cache = null;
     let cacheCompresse = null;
     let origineCache = null;
     let actualisationEnCours = false;
     let prochainEssai = 0;
     let erreurActualisation = null;
-    let restaurationTerminee = !sauvegardeGithub;
-    let restaurationPages = "non_demarre";
+    let restaurationTerminee = !branche;
+    let restaurationSauvegarde = "non_demarre";
     let erreurRestauration = null;
     let publicationGithub = "non_demarre";
     let erreurPublication = null;
@@ -102,31 +103,35 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome, sauvegarde
         return Boolean(cache && Date.parse(cache.modele) + HORIZON_SECONDES * 1000 > Date.now());
     }
 
-    async function restaurerCachePages() {
+    async function restaurerSauvegarde() {
         const liberer = essayerDemarrer("restauration-arome-pi");
         if (!liberer) {
-            setTimeout(() => { void restaurerCachePages(); }, 2000).unref();
+            setTimeout(() => { void restaurerSauvegarde(); }, 2000).unref();
             return;
         }
-        restaurationPages = "en_cours";
+        restaurationSauvegarde = "en_cours";
         try {
-            const { cache: restaure, compresse } = await lireSauvegardeAromePages(
-                CACHE_PAGES_URL, MAX_JSON_OCTETS, MAX_CACHE_GZIP_OCTETS, 1
+            const { cache: restaure, compresse } = await lireSauvegardeArome(
+                branche, "arome-pi-cache.json.gz", MAX_JSON_OCTETS, MAX_CACHE_GZIP_OCTETS, 1
             );
             validerCacheAromePi(restaure);
+            // Les sauvegardes historiques de cette branche étaient produites uniquement par Render test.
+            if (restaure.source !== source && (production || restaure.source != null)) {
+                throw new Error("Source de la sauvegarde AROME-PI inattendue.");
+            }
             if (Date.parse(restaure.modele) + HORIZON_SECONDES * 1000 <= Date.now()) {
-                restaurationPages = "expiree";
+                restaurationSauvegarde = "expiree";
                 return;
             }
             cache = restaure;
             cacheCompresse = compresse;
-            origineCache = "GitHub Pages";
-            restaurationPages = "reussie";
-            console.log("AROME-PI : sauvegarde GitHub Pages restaurée", cache.modele);
+            origineCache = "GitHub (" + branche + ")";
+            restaurationSauvegarde = "reussie";
+            console.log("AROME-PI : sauvegarde GitHub restaurée", cache.modele);
         } catch (erreur) {
-            restaurationPages = "indisponible";
+            restaurationSauvegarde = "indisponible";
             erreurRestauration = erreur.message;
-            console.warn("AROME-PI : pas de restauration Pages :", erreur.message);
+            console.warn("AROME-PI : pas de restauration GitHub :", erreur.message);
         } finally {
             restaurationTerminee = true;
             liberer();
@@ -145,7 +150,7 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome, sauvegarde
         erreurPublication = null;
         try {
             await signalerSauvegardeArome(jeton, {
-                evenement: "arome-pi-cache-ready",
+                evenement: production ? "arome-pi-production-cache-ready" : "arome-pi-cache-ready",
                 modele: cycle.modele,
                 compresse,
                 userAgent: "meteo-la-rochelle-arome-pi"
@@ -232,7 +237,7 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome, sauvegarde
             previsions.push(champs);
         }
 
-        const resultat = { modele: cycle.modele, date: Date.now(), zone: { ...ZONE }, previsions };
+        const resultat = { modele: cycle.modele, date: Date.now(), source, zone: { ...ZONE }, previsions };
         const liberer = await attendreVerrouPi(signal);
         try {
             validerCacheAromePi(resultat);
@@ -255,7 +260,7 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome, sauvegarde
             cacheCompresse = gzip;
             origineCache = "Météo-France";
             erreurActualisation = null;
-            if (sauvegardeGithub) void signalerSauvegardeGitHub(resultat, gzip);
+            if (branche) void signalerSauvegardeGitHub(resultat, gzip);
         }).catch(erreur => {
             erreurActualisation = erreur.message;
             console.warn("Actualisation du vent AROME-PI :", erreur.message);
@@ -270,12 +275,15 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome, sauvegarde
         res.set("Cache-Control", "no-store");
         res.json({
             modele: cache?.modele || null,
+            api_configuree: Boolean(apiKey),
             cache_disponible: cacheDisponible(),
             origine_cache: origineCache,
+            source_cache: cache ? source : null,
             taille_cache_gzip_octets: cacheCompresse?.length || 0,
             actualisation_en_cours: actualisationEnCours,
             erreur_actualisation: erreurActualisation,
-            restauration_pages: restaurationPages,
+            restauration_sauvegarde: restaurationSauvegarde,
+            restauration_pages: restaurationSauvegarde,
             erreur_restauration_pages: erreurRestauration,
             publication_github: publicationGithub,
             erreur_publication_github: erreurPublication
@@ -333,7 +341,7 @@ function installerAromePiVent(app, { apiKey, calculerPrevisionsArome, sauvegarde
     });
 
     if (apiKey) setInterval(verifierCycle, 60_000).unref();
-    if (sauvegardeGithub) setImmediate(() => { void restaurerCachePages(); });
+    if (branche) setImmediate(() => { void restaurerSauvegarde(); });
     else verifierCycle();
 }
 

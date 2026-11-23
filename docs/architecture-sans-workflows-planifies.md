@@ -44,18 +44,19 @@ de la branche `arome-data` par l'API GitHub Contents, puis envoie
 Seul le workflow `Publish website` est déclenché pour assembler les fichiers
 publics et le cache AROME. Aucun cron GitHub n'est nécessaire.
 
-**Environnements :** le site GitHub Pages (`main`) utilise le serveur
-`https://station-meteo-lr.onrender.com` (production). Le site Render test
-(`Test_fonction`) utilise `https://station-meteo-lr-test.onrender.com`.
-L'interface choisit sa source de prévisions selon le domaine :
-**GitHub Pages et Render production lisent toujours le JSON GitHub Pages** ;
-seul Render test lit `/api/arome/cache/public` sur son propre service.
-Render test ne publie aucune donnée AROME sur GitHub.
-Cette restriction est appliquée par le code commun aux deux branches grâce
-à `RENDER_EXTERNAL_HOSTNAME`, défini automatiquement par Render :
-seul `station-meteo-lr.onrender.com` peut publier dans `arome-data`.
-Le contrôle d'origine du bouton AROME autorise GitHub Pages seulement sur
-le service de production.
+GitHub Pages déploie `main` et utilise les API de
+`https://station-meteo-lr.onrender.com`. Le service
+`https://station-meteo-lr-test.onrender.com` déploie `Test_fonction` et
+utilise ses API locales. Le cache WCS local reste disponible dans chaque
+service. La sauvegarde WCS `arome-data` sert uniquement la production.
+
+Les sauvegardes GRIB2 et AROME-PI suivent l’environnement du service qui
+calcule le cycle. La production utilise `arome-paquets-data` et
+`arome-pi-production-data`. Le test utilise `arome-paquets-test-data`
+et `arome-pi-data`. Les workflows de sauvegarde contrôlent la provenance
+avant d’écrire. Les sauvegardes de production peuvent déclencher un
+déploiement de GitHub Pages.
+
 Le NAS doit réveiller le service de production. Éviter de maintenir les deux
 services Render gratuits inutilement éveillés en permanence.
 

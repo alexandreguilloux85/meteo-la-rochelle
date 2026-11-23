@@ -1,23 +1,18 @@
 "use strict";
 
 (() => {
-    const hotesTest = ["station-meteo-lr-test.onrender.com", "localhost", "127.0.0.1", "[::1]"];
-    const hotesPublics = ["alexandreguilloux85.github.io", "station-meteo-lr.onrender.com"];
-    const hote = window.location.hostname;
-    const apiLocale = hotesTest.includes(hote);
+    const hotes = [
+        "alexandreguilloux85.github.io", "station-meteo-lr.onrender.com",
+        "station-meteo-lr-test.onrender.com", "localhost", "127.0.0.1", "[::1]"
+    ];
     const section = document.getElementById("arome-pi");
-    if (!section || (!apiLocale && !hotesPublics.includes(hote))) return;
+    if (!section || !hotes.includes(window.location.hostname)) return;
 
     const statut = document.getElementById("arome-pi-statut");
     const modele = document.getElementById("arome-pi-modele");
     const tableau = document.getElementById("arome-pi-tableau");
     const intervalleNormal = 5 * 60 * 1000;
     const intervallePendantCalcul = 30 * 1000;
-    const pasSecondes = 15 * 60;
-    const nombreEcheances = 24;
-    const horizonSecondes = nombreEcheances * pasSecondes;
-    const urlCachePages = "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-pi-cache.json.gz";
-    const zone = { latMin: 46.075, latMax: 46.300, lonMin: -1.600, lonMax: -1.050 };
     const instantParis = new Intl.DateTimeFormat("fr-FR", {
         timeZone: "Europe/Paris", day: "2-digit", month: "2-digit",
         hour: "2-digit", minute: "2-digit", timeZoneName: "short"
@@ -28,100 +23,6 @@
     let minuteurExpiration;
     let message = "Chargement des prévisions immédiates…";
     let previsionsAffichees = [];
-    let cachePages;
-    let chargementCachePages;
-    let prochaineLecturePages = 0;
-
-    function cacheDisponible(cache) {
-        const cycle = Date.parse(cache?.modele);
-        const maintenant = Date.now();
-        return cycle <= maintenant && cycle + horizonSecondes * 1000 > maintenant;
-    }
-
-    async function lireCachePages(relire) {
-        if (!relire && cacheDisponible(cachePages) && Date.now() < prochaineLecturePages) {
-            return cachePages;
-        }
-        if (!chargementCachePages) {
-            const controleur = new AbortController();
-            const limite = setTimeout(() => controleur.abort(), 12000);
-            chargementCachePages = (async () => {
-                const reponse = await fetch(urlCachePages, {
-                    cache: "no-cache", signal: controleur.signal
-                });
-                if (!reponse.ok) throw new Error("Cache AROME-PI indisponible.");
-                const octets = new Uint8Array(await reponse.arrayBuffer());
-                const gzip = octets[0] === 0x1f && octets[1] === 0x8b;
-                if (octets.length > (gzip ? 512 : 1024) * 1024) {
-                    throw new Error("Cache AROME-PI trop volumineux.");
-                }
-                const contenu = gzip
-                    ? new Blob([octets]).stream().pipeThrough(new DecompressionStream("gzip"))
-                    : octets;
-                const cache = await new Response(contenu).json();
-                if (!cacheDisponible(cache) ||
-                    !Object.entries(zone).every(([cle, valeur]) => cache.zone?.[cle] === valeur) ||
-                    !Array.isArray(cache.previsions) || cache.previsions.length !== nombreEcheances ||
-                    !cache.previsions.every((p, i) => p?.seconde === (i + 1) * pasSecondes &&
-                        p.U && p.V && p.RAFALE)) {
-                    throw new Error("Cache AROME-PI invalide ou expiré.");
-                }
-                if (!cachePages || Date.parse(cache.modele) >= Date.parse(cachePages.modele)) {
-                    cachePages = cache;
-                }
-                prochaineLecturePages = Date.now() + intervalleNormal;
-                return cachePages;
-            })().catch(erreur => {
-                if (!cacheDisponible(cachePages)) throw erreur;
-                prochaineLecturePages = Date.now() + intervallePendantCalcul;
-                return cachePages;
-            }).finally(() => {
-                clearTimeout(limite);
-                chargementCachePages = null;
-            });
-        }
-        return chargementCachePages;
-    }
-
-    async function lirePrevisionsPages({ lat, lon }, relire) {
-        if (lat < zone.latMin || lat > zone.latMax || lon < zone.lonMin || lon > zone.lonMax) {
-            return { hors_zone: true };
-        }
-        const cache = await lireCachePages(relire);
-        const { previsions } = calculerPrevisionsAromeNavigateur(cache, lat, lon, {
-            pasSecondes, horizonSecondes
-        });
-        if (previsions.length !== nombreEcheances || previsions.some(p =>
-            !Number.isFinite(p.vitesse) || !Number.isFinite(p.direction) ||
-            !Number.isFinite(p.rafale) || p.rafale < 0)) {
-            throw new Error("Prévisions AROME-PI incomplètes.");
-        }
-        return {
-            succes: true,
-            modele: cache.modele,
-            previsions: previsions.map(p => ({
-                ...p, direction: p.vitesse === 0 ? null : p.direction % 360
-            }))
-        };
-    }
-
-    async function lirePrevisionsApi({ lat, lon }, controleur) {
-        const limite = setTimeout(() => controleur.abort(), 12000);
-        try {
-            const parametres = new URLSearchParams({ lat, lon });
-            const reponse = await fetch("/api/arome/pi/vent?" + parametres, {
-                cache: "no-store", signal: controleur.signal
-            });
-            const resultat = await reponse.json();
-            return {
-                ...resultat,
-                succes: reponse.ok && resultat.succes,
-                actualisation_en_cours: reponse.status === 202 || resultat.actualisation_en_cours
-            };
-        } finally {
-            clearTimeout(limite);
-        }
-    }
 
     function mettreAJourAffichage(nouvellesPrevisions) {
         clearTimeout(minuteurExpiration);
@@ -163,14 +64,16 @@
 
         const controleur = new AbortController();
         point.requete = controleur;
-        const relire = point.relire;
         point.relire = false;
+        const limite = setTimeout(() => controleur.abort(), 12000);
         let delaiRequete = intervalleNormal;
         let nouvellesPrevisions;
         try {
-            const resultat = apiLocale
-                ? await lirePrevisionsApi(point, controleur)
-                : await lirePrevisionsPages(point, relire);
+            const parametres = new URLSearchParams({ lat: point.lat, lon: point.lon });
+            const reponse = await fetch(URL_SERVEUR_RENDER + "/api/arome/pi/vent?" + parametres, {
+                cache: "no-store", signal: controleur.signal
+            });
+            const resultat = await reponse.json();
             if (selection !== point) return;
             if (resultat.hors_zone) {
                 point.horsZone = true;
@@ -178,10 +81,10 @@
                 return;
             }
 
-            const calculEnCours = resultat.actualisation_en_cours;
+            const calculEnCours = reponse.status === 202 || resultat.actualisation_en_cours;
             if (calculEnCours) delaiRequete = intervallePendantCalcul;
             const heureCycle = Date.parse(resultat.modele);
-            if (resultat.succes && Number.isFinite(heureCycle) &&
+            if (reponse.ok && resultat.succes && Number.isFinite(heureCycle) &&
                 Array.isArray(resultat.previsions)) {
                 nouvellesPrevisions = resultat.previsions
                     .map(p => ({ ...p, validite: Date.parse(p.date) }))
@@ -199,6 +102,7 @@
         } catch {
             if (selection === point) message = "Prévisions immédiates indisponibles pour le moment.";
         } finally {
+            clearTimeout(limite);
             point.requete = null;
             if (selection === point) {
                 point.prochaineRequete = point.relire ? 0 : Date.now() + delaiRequete;

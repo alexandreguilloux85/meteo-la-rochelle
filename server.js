@@ -12,13 +12,16 @@ const { masquerRadarSelonQualite } = require("./radar-qualite");
 const { decoderGrib } = require("./arome-grib2");
 
 const app = express();
+const hoteRender = process.env.RENDER_EXTERNAL_HOSTNAME;
+const serviceProduction = hoteRender === "station-meteo-lr.onrender.com";
+const serviceTest = hoteRender === "station-meteo-lr-test.onrender.com";
 
 // Autoriser l'interface GitHub Pages à appeler les API hébergées sur Render.
 app.use((req, res, next) => {
     const origineAutorisee =
         "https://alexandreguilloux85.github.io";
 
-    if (req.headers.origin === origineAutorisee) {
+    if (serviceProduction && req.headers.origin === origineAutorisee) {
         res.setHeader("Access-Control-Allow-Origin", origineAutorisee);
         res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         res.setHeader("Access-Control-Allow-Headers", "Authorization");
@@ -678,9 +681,10 @@ app.get("/api/radar/tiles/:zoom/:x/:y.png", async (req, res) => {
 
 const AROME_API_KEY = process.env.METEO_AROME_API_KEY;
 const AROME_REFRESH_TOKEN = process.env.AROME_REFRESH_TOKEN;
-const AROME_CACHE_URL =
-    process.env.AROME_CACHE_URL ||
-    "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json";
+const AROME_CACHE_URL = serviceProduction
+    ? process.env.AROME_CACHE_URL ||
+        "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json"
+    : null;
 
 const AROME_WCS_BASE =
     "https://public-api.meteofrance.fr/public/arome/1.0/wcs/" +
@@ -694,8 +698,7 @@ const POINT_AROME_LA_ROCHELLE = { lat: 46.178, lon: -1.193167 };
 // Les deux branches partagent ce même serveur. Seul le service Render
 // de production est autorisé à modifier la branche de données GitHub.
 // RENDER_EXTERNAL_HOSTNAME est fourni automatiquement par Render.
-const AROME_PUBLICATION_GITHUB_AUTORISEE =
-    process.env.RENDER_EXTERNAL_HOSTNAME === "station-meteo-lr.onrender.com";
+const AROME_PUBLICATION_GITHUB_AUTORISEE = serviceProduction;
 
 function normaliserModeleArome(modele) {
     if (typeof modele !== "string") return modele;
@@ -1999,8 +2002,8 @@ app.get("/api/arome/cache/public", async (req, res) => {
         }
         return res.json({
             ...cache,
-            origine_cache: AROME_CACHE_SOURCE === "Render"
-                ? "Render test" : "GitHub Pages"
+            origine_cache: AROME_CACHE_SOURCE === "Render" && serviceTest
+                ? "Render test" : AROME_CACHE_SOURCE
         });
     } catch (error) {
         console.error("Erreur lecture publique du cache AROME :", error);
@@ -2097,12 +2100,12 @@ app.get("/api/meteo/status", (req, res) => {
 // DEMARRAGE SERVEUR
 // --------------------------------------------------
 
-const hoteRender = process.env.RENDER_EXTERNAL_HOSTNAME;
-if (!hoteRender || hoteRender === "station-meteo-lr-test.onrender.com") {
+if (!hoteRender || serviceProduction || serviceTest) {
+    const service = serviceProduction ? "production" : serviceTest ? "test" : null;
     require("./arome-pi-vent").installerAromePiVent(app, {
         apiKey: process.env.METEO_AROME_PI_API_KEY?.trim(),
         calculerPrevisionsArome,
-        sauvegardeGithub: hoteRender === "station-meteo-lr-test.onrender.com"
+        service
     });
 }
 
