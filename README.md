@@ -421,13 +421,12 @@ définir `AROME_PAQUETS_AUTO_REFRESH=0`. Le POST de test avec
 **Sécurité :** ces modifications s'appliquent exclusivement à
 `Test_fonction` sur `station-meteo-lr-test`, sans modifier le WCS
 de production. Seule la **sauvegarde compressée** est publiée sur Pages,
-sans modifier le site ni la consultation au point. Le bouton **Prévisions
-AROME** sur Render test relit les deux frises au point sélectionné. Render
-sert le cache disponible et lance ses vérifications de catalogue aux
-intervalles habituels.
+sans modifier la consultation au point pour les Paquets. Render sert le
+cache disponible et lance ses vérifications de catalogue aux intervalles
+habituels.
 La clé API Météo-France reste uniquement sur le serveur.
 
-### Tableau de vent AROME Prévision Immédiate sur Render test
+### Tableau de vent AROME Prévision Immédiate
 
 Les deux tableaux suivent le même point choisi sur la carte. Le tableau
 AROME-PI reprend la mise en forme de la frise. Chaque colonne affiche le vent
@@ -452,7 +451,10 @@ GitHub Actions le modèle et le SHA256 du gzip. Les workflows de la branche
 par défaut vérifient les 24 échéances, sauvegardent le fichier sur
 `arome-pi-data` et l'ajoutent à la publication Pages. Au démarrage, Render
 test tente de restaurer `arome-pi-cache.json.gz` depuis Pages avant de
-consulter Météo-France. Un cycle expiré est ignoré.
+consulter Météo-France. Sur GitHub Pages et Render production, le navigateur
+lit ce même cache et interpole le vent au point choisi. Un cycle expiré est
+ignoré. Le bouton **Prévisions AROME** relit les deux frises. La clé
+`METEO_AROME_PI_API_KEY` est utilisée sur Render test pour alimenter le cache.
 
 `GET /api/arome/pi/status` donne l'origine du cache et l'état de restauration
 et de publication. `GET /api/arome/pi/cache` fournit le gzip du cycle actif
