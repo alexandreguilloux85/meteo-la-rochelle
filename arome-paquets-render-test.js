@@ -10,7 +10,7 @@ const { spawn } = require("node:child_process");
 const { ajouterMeteoAuxPrevisions } = require("./arome-meteo-point-test");
 const { essayerDemarrer, traitementEnCours } = require("./traitement-lourd");
 const { compresserCacheArome } = require("./arome-cache-stream");
-const { lireSauvegardeAromePages, jetonSauvegardeArome, signalerSauvegardeArome } =
+const { lireSauvegardeArome, jetonSauvegardeArome, signalerSauvegardeArome } =
     require("./arome-cache-pages");
 
 const ROOT = "https://public-api.meteofrance.fr/previnum/DPPaquetAROME/v1";
@@ -23,8 +23,6 @@ const INTERVALLE_CONTROLE_CATALOGUE = 30 * 60 * 1000;
 const RETRY_AUTO = 20 * 60 * 1000;
 const CONTROLE_AUTO = 2 * 60 * 1000;
 const TTL_DIAGNOSTIC_CATALOGUE = 5 * 60 * 1000;
-const CACHE_PAGES_URL =
-    "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-paquets-cache.json.gz";
 const MAX_CACHE_GZIP_OCTETS = 16 * 1024 * 1024;
 let OAUTH_CACHE = null;
 // La nomenclature officielle regroupe H+0..H+51 en neuf paquets.
@@ -410,6 +408,10 @@ function installerTestAromePaquets(app, {
     }
     const origineCache = serviceProduction
         ? "Paquets AROME Render production" : "Paquets AROME Render test";
+    const sourceCache = "AROME 0.025 SP1 GRIB2 ecCodes - " +
+        (serviceProduction ? "Render production" : "Render test");
+    const brancheSauvegarde = serviceProduction ? "arome-paquets-data"
+        : serviceTest ? "arome-paquets-test-data" : null;
 
     let cacheTest = null;
     let cacheCompresse = null;
@@ -421,8 +423,8 @@ function installerTestAromePaquets(app, {
     let dernierControleCatalogue = 0;
     let modeleCataloguePlusRecent = null;
     let erreurControleCatalogue = null;
-    let restaurationTerminee = false;
-    let restaurationPages = "non_demarre";
+    let restaurationTerminee = !brancheSauvegarde;
+    let restaurationGitHub = brancheSauvegarde ? "non_demarre" : "non_configuree";
     let erreurRestauration = null;
     let publicationGitHub = "non_demarre";
     let erreurPublication = null;
@@ -446,12 +448,14 @@ function installerTestAromePaquets(app, {
             cache_disponible: Boolean(cacheTest),
             traitement_lourd: traitementEnCours(),
             modele_cache_disponible: cacheTest?.modele || null,
+            source_cache: cacheTest?.source || null,
             meteo_version: cacheTest?.meteo_version || 0,
             champs_meteo: cacheTest?.champs_meteo || null,
             definitions_meteofrance_installees: fsSystem.existsSync(
                 path.join(__dirname, "vendor", "meteofrance", "definitions", "grib2")
             ),
-            restauration_pages: restaurationPages,
+            branche_sauvegarde: brancheSauvegarde,
+            restauration_pages: restaurationGitHub,
             erreur_restauration_pages: erreurRestauration,
             publication_github: publicationGitHub,
             erreur_publication_github: erreurPublication,
@@ -689,22 +693,26 @@ function installerTestAromePaquets(app, {
         }
     });
 
-    async function restaurerCachePages() {
+    async function restaurerCacheGitHub() {
         // Ne pas décompresser ~12 Mo gzip / ~40 Mo JSON pendant un radar
         // national ou un décodage AROME en cours sur la même instance.
         const libererRestauration = essayerDemarrer("restauration-grib2");
         if (!libererRestauration) {
             const rappel = setTimeout(() => {
-                void restaurerCachePages();
+                void restaurerCacheGitHub();
             }, 2000);
             rappel.unref?.();
             return;
         }
-        restaurationPages = "en_cours";
+        restaurationGitHub = "en_cours";
         try {
-            const { cache: restaure, compresse } = await lireSauvegardeAromePages(
-                CACHE_PAGES_URL, MAX_JSON_OCTETS, MAX_CACHE_GZIP_OCTETS
+            const { cache: restaure, compresse } = await lireSauvegardeArome(
+                brancheSauvegarde, "arome-paquets-cache.json.gz",
+                MAX_JSON_OCTETS, MAX_CACHE_GZIP_OCTETS
             );
+            if (restaure?.source !== sourceCache) {
+                throw new Error("Source du cache AROME Paquets incompatible avec le service Render");
+            }
             validerCacheAromePaquets(restaure, calculerPrevisionsArome);
 
             // Aucun cache actif n'est écrasé par une restauration plus ancienne.
@@ -723,7 +731,7 @@ function installerTestAromePaquets(app, {
                     etape: "restauration_pages",
                     modele: restaure.modele,
                     erreur: null,
-                    origine_actualisation: "GitHub Pages",
+                    origine_actualisation: "GitHub " + brancheSauvegarde,
                     groupes_total: 9,
                     groupes_termines: 9,
                     echeances_uv: 51,
@@ -732,16 +740,16 @@ function installerTestAromePaquets(app, {
                     dernier_test: new Date().toISOString()
                 };
             }
-            restaurationPages = "reussie";
+            restaurationGitHub = "reussie";
             erreurRestauration = null;
             console.log(
-                "AROME Paquets : sauvegarde GitHub Pages restaurée",
-                restaure.modele, arrondiMo(compresse.length), "Mo"
+                "AROME Paquets : sauvegarde GitHub restaurée",
+                brancheSauvegarde, restaure.modele, arrondiMo(compresse.length), "Mo"
             );
         } catch (e) {
-            restaurationPages = "indisponible";
+            restaurationGitHub = "indisponible";
             erreurRestauration = e.message;
-            console.warn("AROME Paquets : pas de restauration Pages :", e.message);
+            console.warn("AROME Paquets : restauration GitHub indisponible :", brancheSauvegarde, e.message);
         } finally {
             restaurationTerminee = true;
             libererRestauration();
@@ -768,7 +776,7 @@ function installerTestAromePaquets(app, {
                 compresse,
                 userAgent: "meteo-la-rochelle-arome-paquets"
             });
-            // Le dispatch accepté ne signifie pas que Pages a déjà été déployé.
+            // Le dispatch accepté ne signifie pas que la sauvegarde est déjà publiée.
             publicationGitHub = "demande_envoyee";
             console.log("AROME Paquets : sauvegarde demandée à GitHub Actions");
         } catch (e) {
@@ -896,8 +904,7 @@ function installerTestAromePaquets(app, {
                 champs_meteo: champsMeteo,
                 modele: produit.modele,
                 date: Date.now(),
-                source: "AROME 0.025 SP1 GRIB2 ecCodes - " +
-                    (serviceProduction ? "Render production" : "Render test"),
+                source: sourceCache,
                 zone: { ...ZONE, centreLat: (ZONE.latMin + ZONE.latMax) / 2,
                     centreLon: (ZONE.lonMin + ZONE.lonMax) / 2 },
                 previsions,
@@ -1083,7 +1090,7 @@ function installerTestAromePaquets(app, {
         }
         if (!restaurationTerminee) {
             return res.status(409).json({
-                succes: false, erreur: "Restauration du cache Pages en cours"
+                succes: false, erreur: "Restauration de la sauvegarde GitHub en cours"
             });
         }
         if (enCours) {
@@ -1112,7 +1119,13 @@ function installerTestAromePaquets(app, {
 
     // Au démarrage, restaurer le cache existant AVANT de lancer l'éventuel
     // téléchargement des neuf paquets, sans bloquer la mise en route HTTP.
-    setImmediate(() => { void restaurerCachePages(); });
+    setImmediate(() => {
+        if (brancheSauvegarde) {
+            void restaurerCacheGitHub();
+        } else {
+            verifierActualisationAutomatique();
+        }
+    });
 
     if (actualisationAutoActive) {
         // Les timers sont suspendus quand Render gratuit est en veille.

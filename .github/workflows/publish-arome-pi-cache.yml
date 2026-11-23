@@ -1,10 +1,19 @@
-name: Save AROME-PI test cache for GitHub Pages
+name: Save AROME-PI cache
 
 on:
   repository_dispatch:
     types:
       - arome-pi-cache-ready
+      - arome-pi-production-cache-ready
   workflow_dispatch:
+    inputs:
+      source:
+        description: Render environment
+        type: choice
+        options:
+          - production
+          - test
+        default: production
 
 permissions:
   contents: write
@@ -13,10 +22,12 @@ jobs:
   save-cache:
     if: github.ref == 'refs/heads/main'
     concurrency:
-      group: arome-pi-data-branch
+      group: arome-pi-data-${{ inputs.source || (github.event.action == 'arome-pi-cache-ready' && 'test' || 'production') }}
       cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      CACHE_SOURCE: ${{ inputs.source || (github.event.action == 'arome-pi-cache-ready' && 'test' || 'production') }}
     steps:
       - name: Checkout main (for authenticated push)
         uses: actions/checkout@v4
@@ -24,20 +35,32 @@ jobs:
           ref: main
           persist-credentials: true
 
-      - name: Fetch and validate the AROME-PI test cache
+      - name: Fetch and validate the AROME-PI cache from the selected Render service
         id: cache
         env:
           EXPECTED_SHA256: ${{ github.event.client_payload.sha256 }}
           EXPECTED_MODEL: ${{ github.event.client_payload.modele }}
         run: |
           set -euo pipefail
+          case "$CACHE_SOURCE" in
+            test)
+              render_origin='https://station-meteo-lr-test.onrender.com'
+              branch='refs/heads/arome-pi-data'
+              export EXPECTED_SOURCE='Render test'
+              ;;
+            production)
+              render_origin='https://station-meteo-lr.onrender.com'
+              branch='refs/heads/arome-pi-production-data'
+              export EXPECTED_SOURCE='Render production'
+              ;;
+            *) echo "Source AROME-PI invalide : $CACHE_SOURCE" >&2; exit 1 ;;
+          esac
           curl --fail --silent --show-error \
             --retry 3 --retry-all-errors --max-time 45 --max-filesize 524288 \
             -H 'Accept: application/gzip' \
-            'https://station-meteo-lr-test.onrender.com/api/arome/pi/cache' \
+            "${render_origin}/api/arome/pi/cache" \
             --output "$RUNNER_TEMP/arome-pi-cache.json.gz"
 
-          branch=refs/heads/arome-pi-data
           published_ref="$(git ls-remote --heads origin "$branch")"
           lease=''
           if [ -n "$published_ref" ]; then
@@ -45,7 +68,7 @@ jobs:
             lease="$(git rev-parse FETCH_HEAD)"
             git show "$lease:arome-pi-cache.json.gz" > "$RUNNER_TEMP/arome-pi-cache-previous.json.gz"
           fi
-          printf 'lease=%s\n' "$lease" >> "$GITHUB_OUTPUT"
+          printf 'branch=%s\nlease=%s\n' "$branch" "$lease" >> "$GITHUB_OUTPUT"
 
           python3 - <<'PY'
           import gzip
@@ -61,11 +84,12 @@ jobs:
           max_json = 1024 * 1024
           zone = {"latMin": 46.075, "latMax": 46.300, "lonMin": -1.600, "lonMax": -1.050}
           now = datetime.now(timezone.utc)
+          expected_source = os.environ["EXPECTED_SOURCE"]
 
           def number(value):
               return type(value) in (int, float) and math.isfinite(value)
 
-          def validate(path):
+          def validate(path, allow_legacy_test=False):
               if not 0 < path.stat().st_size <= max_gzip:
                   raise ValueError("Taille du gzip AROME-PI hors limite.")
               body = path.read_bytes()
@@ -76,6 +100,8 @@ jobs:
               cache = json.loads(raw)
               if not isinstance(cache, dict):
                   raise ValueError("Cache AROME-PI invalide.")
+              if cache.get("source") != expected_source and not (allow_legacy_test and "source" not in cache):
+                  raise ValueError("Source du cache AROME-PI inattendue.")
               model = cache.get("modele")
               if not isinstance(model, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:00:00Z", model):
                   raise ValueError("Date du modèle AROME-PI invalide.")
@@ -128,7 +154,7 @@ jobs:
               raise ValueError("Le modèle AROME-PI reçu a déjà expiré.")
 
           previous_path = directory / "arome-pi-cache-previous.json.gz"
-          previous_run = validate(previous_path)[0] if previous_path.exists() else None
+          previous_run = validate(previous_path, allow_legacy_test=expected_source == "Render test")[0] if previous_path.exists() else None
           replace = previous_run is None or run > previous_run
           if not replace:
               print("La branche AROME-PI contient déjà ce modèle ou un modèle plus récent.")
@@ -140,6 +166,7 @@ jobs:
       - name: Replace the dedicated AROME-PI data branch
         if: steps.cache.outputs.replace == 'true'
         env:
+          CACHE_BRANCH: ${{ steps.cache.outputs.branch }}
           CACHE_BRANCH_LEASE: ${{ steps.cache.outputs.lease }}
         run: |
           set -euo pipefail
@@ -149,11 +176,12 @@ jobs:
           git rm -r -f --ignore-unmatch .
           cp "$RUNNER_TEMP/arome-pi-cache.json.gz" arome-pi-cache.json.gz
           git add arome-pi-cache.json.gz
-          git commit -m 'Dernier cache AROME-PI de test validé'
-          git push --force-with-lease="refs/heads/arome-pi-data:$CACHE_BRANCH_LEASE" \
-            origin HEAD:refs/heads/arome-pi-data
+          git commit -m 'Dernier cache AROME-PI validé'
+          git push --force-with-lease="$CACHE_BRANCH:$CACHE_BRANCH_LEASE" \
+            origin "HEAD:$CACHE_BRANCH"
 
-      - name: Republish site with the latest AROME-PI test backup
+      - name: Republish site with the latest AROME-PI production backup
+        if: env.CACHE_SOURCE == 'production'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

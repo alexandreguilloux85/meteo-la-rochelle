@@ -1,4 +1,4 @@
-name: Save AROME Paquets cache for GitHub Pages
+name: Save AROME Paquets cache
 
 on:
   repository_dispatch:
@@ -6,26 +6,28 @@ on:
       - arome-paquets-cache-ready
       - arome-paquets-production-cache-ready
   workflow_dispatch:
+    inputs:
+      source:
+        description: Render environment
+        type: choice
+        options:
+          - production
+          - test
+        default: production
 
 permissions:
   contents: write
 
 jobs:
   save-cache:
-    if: >-
-      github.ref == 'refs/heads/main' && (
-        ((vars.AROME_PAQUETS_PUBLISH_SOURCE == '' || vars.AROME_PAQUETS_PUBLISH_SOURCE == 'test') &&
-          (github.event_name == 'workflow_dispatch' || github.event.action == 'arome-paquets-cache-ready')) ||
-        (vars.AROME_PAQUETS_PUBLISH_SOURCE == 'production' &&
-          (github.event_name == 'workflow_dispatch' || github.event.action == 'arome-paquets-production-cache-ready'))
-      )
+    if: github.ref == 'refs/heads/main'
     concurrency:
-      group: arome-paquets-data-branch
+      group: arome-paquets-data-${{ inputs.source || (github.event.action == 'arome-paquets-cache-ready' && 'test' || 'production') }}
       cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      CACHE_SOURCE: ${{ vars.AROME_PAQUETS_PUBLISH_SOURCE || 'test' }}
+      CACHE_SOURCE: ${{ inputs.source || (github.event.action == 'arome-paquets-cache-ready' && 'test' || 'production') }}
     steps:
       - name: Checkout main (for authenticated push)
         uses: actions/checkout@v4
@@ -34,31 +36,51 @@ jobs:
           persist-credentials: true
 
       - name: Fetch and validate the latest GRIB2 cache from the configured Render service
+        id: cache
         env:
           EXPECTED_SHA256: ${{ github.event.client_payload.sha256 }}
           EXPECTED_MODEL: ${{ github.event.client_payload.modele }}
         run: |
           set -euo pipefail
           case "$CACHE_SOURCE" in
-            test) render_origin='https://station-meteo-lr-test.onrender.com' ;;
-            production) render_origin='https://station-meteo-lr.onrender.com' ;;
+            test)
+              render_origin='https://station-meteo-lr-test.onrender.com'
+              branch='refs/heads/arome-paquets-test-data'
+              export EXPECTED_SOURCE='AROME 0.025 SP1 GRIB2 ecCodes - Render test'
+              ;;
+            production)
+              render_origin='https://station-meteo-lr.onrender.com'
+              branch='refs/heads/arome-paquets-data'
+              export EXPECTED_SOURCE='AROME 0.025 SP1 GRIB2 ecCodes - Render production'
+              ;;
             *) echo "Source AROME Paquets invalide : $CACHE_SOURCE" >&2; exit 1 ;;
           esac
 
           # Conserver le corps HTTP tel que reçu : certains intermédiaires
           # peuvent le décompresser en JSON malgré son nom .gz.
           curl --fail --silent --show-error \
-            --retry 3 --retry-all-errors --max-time 180 \
+            --retry 3 --retry-all-errors --max-time 180 --max-filesize 47185920 \
             -H "Accept: application/octet-stream" \
             --dump-header /tmp/arome-paquets-cache.headers \
             "${render_origin}/api/arome/paquets/test/cache" \
             --output /tmp/arome-paquets-cache.download
 
+          lease=''
+          published_ref="$(git ls-remote --heads origin "$branch")"
+          if [ -n "$published_ref" ]; then
+            git fetch --no-tags origin "$branch"
+            lease="$(git rev-parse FETCH_HEAD)"
+            git show "$lease:arome-paquets-cache.json.gz" > /tmp/arome-paquets-cache-previous.json.gz
+          fi
+          printf 'branch=%s\nlease=%s\n' "$branch" "$lease" >> "$GITHUB_OUTPUT"
+
           python3 - <<'PY'
           import gzip
           import hashlib
+          import io
           import json
           import os
+          from datetime import datetime, timezone
           from pathlib import Path
 
           source = Path("/tmp/arome-paquets-cache.download")
@@ -73,12 +95,16 @@ jobs:
               )
 
           expected_sha = os.getenv("EXPECTED_SHA256", "")
+          expected_model = os.getenv("EXPECTED_MODEL", "")
+          if os.environ["GITHUB_EVENT_NAME"] == "repository_dispatch" and not (expected_model and expected_sha):
+              raise ValueError("Le dispatch AROME Paquets doit fournir le modèle et le SHA256.")
           if body.startswith(b"\x1f\x8b"):
               print("Format reçu : GZIP natif", flush=True)
               sha = hashlib.sha256(body).hexdigest()
               if expected_sha and sha != expected_sha:
                   raise ValueError("Cache remplacé sur Render entre la demande et la sauvegarde : SHA différent")
-              raw = gzip.decompress(body)
+              with gzip.GzipFile(fileobj=io.BytesIO(body)) as compressed:
+                  raw = compressed.read(45 * 1024 * 1024 + 1)
               if len(raw) > 45 * 1024 * 1024:
                   raise ValueError("JSON décompressé trop volumineux")
               destination.write_bytes(body)
@@ -97,11 +123,16 @@ jobs:
               )
 
           cache = json.loads(raw)
-          expected_model = os.getenv("EXPECTED_MODEL", "")
+          expected_source = os.environ["EXPECTED_SOURCE"]
+          if cache.get("source") != expected_source:
+              raise ValueError("Source du cache AROME Paquets inattendue.")
           if expected_model and cache.get("modele") != expected_model:
               raise ValueError(
                   f"Modèle AROME différent du modèle annoncé : {cache.get('modele')!r}"
               )
+          run = datetime.fromisoformat(cache["modele"].replace("Z", "+00:00"))
+          if run > datetime.now(timezone.utc):
+              raise ValueError("Date du modèle AROME Paquets dans le futur.")
           previsions = cache.get("previsions", [])
           if len(previsions) != 51:
               raise ValueError(f"Cache AROME incomplet : {len(previsions)} / 51 échéances")
@@ -117,16 +148,28 @@ jobs:
               raise ValueError("Zone AROME inattendue")
           if not (1_000 < destination.stat().st_size < 16 * 1024 * 1024):
               raise ValueError(f"Cache recompressé de taille inattendue : {destination.stat().st_size} octets")
+          previous = Path("/tmp/arome-paquets-cache-previous.json.gz")
+          if previous.exists():
+              if previous.stat().st_size >= 16 * 1024 * 1024:
+                  raise ValueError("Ancienne sauvegarde AROME Paquets trop volumineuse.")
+              with gzip.open(previous, "rb") as compressed:
+                  previous_raw = compressed.read(45 * 1024 * 1024 + 1)
+              if len(previous_raw) > 45 * 1024 * 1024:
+                  raise ValueError("Ancienne sauvegarde AROME Paquets décompressée trop volumineuse.")
+              old_cache = json.loads(previous_raw)
+              if old_cache.get("source") == expected_source:
+                  old_run = datetime.fromisoformat(old_cache["modele"].replace("Z", "+00:00"))
+                  if old_run > run:
+                      raise ValueError("La sauvegarde existante contient déjà un modèle plus récent.")
           print("Paquets AROME vérifiés :", cache["modele"], "51 échéances / 3 variables")
           print("Gzip sauvegardé :", round(destination.stat().st_size / 1048576, 2), "Mo", flush=True)
           PY
 
       - name: Require complete point forecasts for the production backup
-        if: vars.AROME_PAQUETS_PUBLISH_SOURCE == 'production'
+        if: env.CACHE_SOURCE == 'production'
         run: |
           node <<'NODE'
           const { readFileSync } = require('node:fs');
-          const { execFileSync } = require('node:child_process');
           const { gunzipSync } = require('node:zlib');
           const { ajouterMeteoAuxPrevisions } = require('./arome-meteo-point-test');
 
@@ -149,22 +192,13 @@ jobs:
             throw new Error(`Prévision de production incomplète à La Rochelle : ${incomplete.echeance}.`);
           }
 
-          const modele = Date.parse(cache.modele);
-          if (!Number.isFinite(modele)) throw new Error('Date du modèle de production invalide.');
-          const branche = 'refs/heads/arome-paquets-data';
-          if (execFileSync('git', ['ls-remote', '--heads', 'origin', branche], { encoding: 'utf8' }).trim()) {
-            execFileSync('git', ['fetch', '--no-tags', 'origin', branche]);
-            const ancien = lireCache(execFileSync('git', ['show', 'FETCH_HEAD:arome-paquets-cache.json.gz'], {
-              maxBuffer: 16 * 1024 * 1024
-            }));
-            if (Date.parse(ancien.modele) > modele) {
-              throw new Error('La sauvegarde existante contient déjà un modèle plus récent.');
-            }
-          }
           console.log('Production AROME : 51 échéances météo vérifiées à La Rochelle.');
           NODE
 
       - name: Replace dedicated data branch with one single commit
+        env:
+          CACHE_BRANCH: ${{ steps.cache.outputs.branch }}
+          CACHE_BRANCH_LEASE: ${{ steps.cache.outputs.lease }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -177,9 +211,11 @@ jobs:
           cp /tmp/arome-paquets-cache.json.gz arome-paquets-cache.json.gz
           git add arome-paquets-cache.json.gz
           git commit -m "Dernier cache AROME Paquets GRIB2 validé"
-          git push --force origin HEAD:refs/heads/arome-paquets-data
+          git push --force-with-lease="$CACHE_BRANCH:$CACHE_BRANCH_LEASE" \
+            origin "HEAD:$CACHE_BRANCH"
 
-      - name: Republish site with latest AROME Paquets backup
+      - name: Republish site with latest AROME Paquets production backup
+        if: env.CACHE_SOURCE == 'production'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

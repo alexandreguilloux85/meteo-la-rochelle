@@ -5,6 +5,14 @@ observations de la station et sert à la demande les tuiles radar couvrant la
 France entière. Render calcule les prévisions AROME au point sélectionné.
 GitHub Actions sauvegarde les caches et publie le site sur GitHub Pages.
 
+| Branche | Site | Service de données |
+| --- | --- | --- |
+| `main` | GitHub Pages et station-meteo-LR | `station-meteo-lr.onrender.com` |
+| `Test_fonction` | station-meteo-LR-test | `station-meteo-lr-test.onrender.com` |
+
+Chaque service calcule ses prévisions et restaure ses propres sauvegardes
+AROME. GitHub Pages déploie uniquement `main` et appelle les API de production.
+
 ## Actualisation des données
 
 | Données | Fréquence | Source |
@@ -74,8 +82,8 @@ encore d'afficher le vent dans sa zone si Render ne peut pas répondre.
 Une zone WCS calculée sur Render à la suite d'un clic peut servir localement.
 La sauvegarde WCS publiée reste limitée aux caches qui couvrent La Rochelle.
 
-Après un redémarrage, les deux services cherchent d'abord à restaurer la
-sauvegarde GRIB2 de GitHub Pages, puis vérifient le catalogue. Un contrôle
+Après un redémarrage, chaque service restaure sa sauvegarde GRIB2 depuis sa
+branche de données GitHub, puis vérifie le catalogue. Un contrôle
 réussi est renouvelé après 30 minutes et un modèle complet plus récent
 déclenche le téléchargement des neuf groupes.
 
@@ -91,17 +99,10 @@ déclenche le téléchargement des neuf groupes.
    Attendre `cache_disponible: true`, `meteo_version: 2` ou une version
    supérieure, et `51` pour chacun des trois `champs_meteo`. Vérifier la
    frise de GitHub Pages sur un point dans la zone GRIB2, comme La Rochelle.
-4. Pour confier la sauvegarde à la production, configurer sur le service
-   `GITHUB_PAQUETS_PUBLISH_TOKEN` ou réutiliser `GITHUB_DATA_TOKEN` avec
-   **Contents: Read and write**. Dans **GitHub → Settings → Secrets and
-   variables → Actions → Variables**, définir `AROME_PAQUETS_PUBLISH_SOURCE`
-   à `production`. Dans **Actions**, lancer **Save AROME Paquets cache for
-   GitHub Pages** sur `main` pour valider et publier le cache actif.
-
-Tant que `AROME_PAQUETS_PUBLISH_SOURCE` est absente ou vaut `test`, Render
-test fournit la sauvegarde. Avec `production`, seuls les signaux de
-production peuvent lancer sa publication automatique. Le service de test
-garde la branche `Test_fonction` et continue ses propres calculs.
+4. Pour sauvegarder les cycles, configurer `GITHUB_PAQUETS_PUBLISH_TOKEN`
+   ou réutiliser `GITHUB_DATA_TOKEN` avec **Contents: Read and write**.
+   Dans **Actions**, le workflow **Save AROME Paquets cache** permet de choisir
+   le service dont le cycle doit être sauvegardé.
 
 ### Éviter les dépassements mémoire Render (512 Mio)
 
@@ -121,8 +122,8 @@ traitement lourd s'exécute à la fois **par instance Render** :
 - restauration et téléchargement WCS de secours lorsqu'aucun cache ne répond
   au point ;
 - restauration initiale du gros cache gzip GRIB2 ;
-- sur Render test, restauration, téléchargement et décodage des champs
-  AROME-PI, ainsi que compression du cache du cycle complet.
+- restauration, téléchargement et décodage des champs AROME-PI, ainsi que
+  compression du cache du cycle complet.
 
 Si le verrou est occupé, les caches déjà présents restent consultables.
 AROME-PI libère le verrou partagé entre deux champs et le reprend pour
@@ -187,7 +188,7 @@ sans afficher le secret.
 
 **Branche :** `Test_fonction`, service `station-meteo-lr-test`.
 Le service utilise son propre cache en mémoire. La sauvegarde GRIB2 utilise
-la branche `arome-paquets-data`. Les mises à jour automatiques du catalogue
+la branche `arome-paquets-test-data`. Les mises à jour automatiques du catalogue
 sont actives par défaut.
 
 ### Préparer Render test
@@ -388,13 +389,12 @@ un téléchargement WCS ni le modifier.
 `/api/arome/paquets/test/previsions?lat=…&lon=…`. Render interpole la
 grille conservée en mémoire et renvoie **uniquement les 51 prévisions au
 point demandé** (U/V, vitesse, direction, rafales). Le navigateur ne
-télécharge pas la grille de 31 Mo. Une **sauvegarde** GRIB2 est publiée
-sur GitHub Pages pour Render uniquement ; elle n'est pas téléchargée
-par le navigateur. Le WCS reste un secours au point cliqué via
+télécharge pas la grille de 31 Mo. Render test sauvegarde le gzip dans
+`arome-paquets-test-data`. Le WCS reste un secours au point cliqué via
 `/api/arome/previsions` si le cache Paquets n'est pas encore prêt.
 
 **Actualisation automatique (Render test) :** à chaque démarrage, Render
-restaure d'abord le cache depuis GitHub Pages, puis vérifie le **catalogue
+restaure d'abord le cache depuis sa branche GitHub, puis vérifie le **catalogue
 Météo-France**. Ensuite, le catalogue est contrôlé toutes les **30 minutes**
 (surveillance par minuteur toutes les 2 minutes lorsque le serveur est
 éveillé). Un nouveau cycle de **9 paquets** n'est téléchargé que lorsqu'un
@@ -409,8 +409,8 @@ réseaux, les groupes manquants et le modèle complet le plus récent.
 `/api/arome/paquets/test/status` expose désormais
 `intervalle_controle_catalogue_minutes`, `dernier_controle_catalogue`,
 `modele_catalogue_plus_recent`, `erreur_controle_catalogue` et
-`prochaine_tentative`. Le téléchargement et la sauvegarde sur GitHub Pages
-ne se déclenchent pas si aucun nouveau modèle complet n'est disponible.
+`prochaine_tentative`. Le téléchargement et la sauvegarde se déclenchent
+lorsqu’un nouveau modèle complet est disponible.
 
 La clé longue durée `METEO_AROME_PAQUETS_API_KEY` (ou l'identifiant
 OAuth2 `METEO_AROME_PAQUETS_APPLICATION_ID`) doit être configurée dans
@@ -418,13 +418,7 @@ Render test. Pour désactiver l'automatisation durant un diagnostic,
 définir `AROME_PAQUETS_AUTO_REFRESH=0`. Le POST de test avec
 `AROME_REFRESH_TOKEN` reste disponible.
 
-**Sécurité :** ces modifications s'appliquent exclusivement à
-`Test_fonction` sur `station-meteo-lr-test`, sans modifier le WCS
-de production. Seule la **sauvegarde compressée** est publiée sur Pages,
-sans modifier la consultation au point pour les Paquets. Render sert le
-cache disponible et lance ses vérifications de catalogue aux intervalles
-habituels.
-La clé API Météo-France reste uniquement sur le serveur.
+Les clés Météo-France sont configurées dans les services Render.
 
 ### Tableau de vent AROME Prévision Immédiate
 
@@ -438,29 +432,25 @@ sur la grille AROME-PI à 0,025°. Il vérifie le nouveau cycle à partir de
 la 35e minute, espace les téléchargements et conserve le dernier cycle
 complet en cas de retard.
 
-Sur `station-meteo-lr-test`, définir `METEO_AROME_PI_API_KEY` avec une clé
+Sur chaque service Render, définir `METEO_AROME_PI_API_KEY` avec sa clé
 autorisée pour [AROME Prévision Immédiate](https://portail-api.meteofrance.fr/web/fr/api/AROME-PI).
-Render transmet cette clé dans l'en-tête `apikey`. La route
-`GET /api/arome/pi/vent?lat=46.178&lon=-1.193167` donne les prévisions au point
-ou l'état du premier chargement.
+La route `GET /api/arome/pi/vent?lat=46.178&lon=-1.193167` donne les
+prévisions au point ou l’état du premier chargement. GitHub Pages appelle
+cette route sur `station-meteo-lr.onrender.com`. Le bouton **Prévisions AROME**
+relit les deux frises.
 
-Render test compresse chaque cycle complet avec le même module gzip que
-les Paquets. Avec le jeton GitHub de sauvegarde existant
-(`GITHUB_PAQUETS_PUBLISH_TOKEN` ou `GITHUB_DATA_TOKEN`), il signale à
-GitHub Actions le modèle et le SHA256 du gzip. Les workflows de la branche
-par défaut vérifient les 24 échéances, sauvegardent le fichier sur
-`arome-pi-data` et l'ajoutent à la publication Pages. Au démarrage, Render
-test tente de restaurer `arome-pi-cache.json.gz` depuis Pages avant de
-consulter Météo-France. Sur GitHub Pages et Render production, le navigateur
-lit ce même cache et interpole le vent au point choisi. Un cycle expiré est
-ignoré. Le bouton **Prévisions AROME** relit les deux frises. La clé
-`METEO_AROME_PI_API_KEY` est utilisée sur Render test pour alimenter le cache.
+Après validation de chaque cycle, Render signale le modèle et le SHA256 du
+gzip à GitHub Actions avec `GITHUB_PAQUETS_PUBLISH_TOKEN` ou
+`GITHUB_DATA_TOKEN`. Les branches de sauvegarde sont
+`arome-pi-production-data` en production et `arome-pi-data` en test.
+Chaque service relit la sienne au démarrage. GitHub Pages ne publie que le
+gzip de production. Un cycle expiré est ignoré.
 
 `GET /api/arome/pi/status` donne l'origine du cache et l'état de restauration
 et de publication. `GET /api/arome/pi/cache` fournit le gzip du cycle actif
 au workflow de sauvegarde.
 
-## Sauvegarde persistante du cache AROME GRIB2 via GitHub Pages (Render test)
+## Sauvegardes du cache AROME GRIB2
 
 La consultation au **point GPS cliqué** ne change pas. Render interpole en
 mémoire la grille AROME 0,025° et n'envoie que les 51 prévisions demandées.
@@ -468,29 +458,24 @@ Le navigateur ne charge **jamais** le cache GRIB2 complet.
 
 ### Sauvegarde
 
-Après validation d'un cycle complet de **neuf groupes (H+1 à H+51)**,
-Render test peut déclencher l'événement GitHub
-`arome-paquets-cache-ready`. Le workflow GitHub Actions
-[`Save AROME Paquets cache for GitHub Pages`](https://github.com/alexandreguilloux85/meteo-la-rochelle/blob/main/.github/workflows/publish-arome-paquets-cache.yml)
-télécharge le gzip depuis le service sélectionné par `AROME_PAQUETS_PUBLISH_SOURCE`,
-vérifie le SHA256 annoncé, le modèle et les **51 échéances U/V/FF_RAF**, puis
-remplace le contenu de la branche
-**`arome-paquets-data` par un unique commit orphelin**. Le workflow
-[`Publish website`](https://github.com/alexandreguilloux85/meteo-la-rochelle/blob/main/.github/workflows/publish-website.yml) ajoute
-`arome-paquets-cache.json.gz` à GitHub Pages en plus du cache WCS
-`arome-cache.json`. Aucune partie du site public n'utilise directement
-le fichier GRIB2.
+Après validation d’un cycle complet de **neuf groupes (H+1 à H+51)**,
+le workflow [Save AROME Paquets cache](https://github.com/alexandreguilloux85/meteo-la-rochelle/blob/main/.github/workflows/publish-arome-paquets-cache.yml)
+télécharge le gzip depuis le service qui l’a signalé. Il vérifie sa
+provenance, le SHA256, le modèle et les **51 échéances U/V/FF_RAF**.
+La production sauvegarde sur `arome-paquets-data`, et le test sur
+`arome-paquets-test-data`. Seul un cycle de production déclenche la
+publication du gzip sur GitHub Pages.
 
 Le fichier est disponible après publication à :
 `https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-paquets-cache.json.gz`
 
-### Autorisation GitHub sur Render test
+### Autorisation GitHub sur Render
 
 Ajouter **`GITHUB_PAQUETS_PUBLISH_TOKEN`** dans
-**Render test → Environment** : token GitHub finement limité au dépôt
+**Environment** sur chaque service Render : token GitHub finement limité au dépôt
 `alexandreguilloux85/meteo-la-rochelle` avec la permission
 **Contents: Read and write** (pour `repository_dispatch`).
-Si `GITHUB_DATA_TOKEN` est déjà présent sur Render test avec les mêmes
+Si `GITHUB_DATA_TOKEN` est déjà présent sur ce service avec les mêmes
 permissions, il est utilisé comme solution de repli. Ne pas mettre
 de token GitHub dans le JavaScript navigateur ni dans GitHub Pages.
 
@@ -498,24 +483,24 @@ Le statut public `/api/arome/paquets/test/status` expose
 `publication_github` : `non_configuree`, `envoi`,
 `demande_envoyee` ou `echec`.
 `demande_envoyee` signifie seulement que GitHub a accepté le signal :
-il faut aussi vérifier la réussite des deux workflows.
+le résultat de la sauvegarde apparaît dans GitHub Actions.
 
 ### Restauration
 
-À chaque redémarrage, Render test essaie de charger **en premier** le
-fichier gzip depuis GitHub Pages, de contrôler la zone, les 51 échéances
+À chaque redémarrage, Render charge le gzip depuis sa branche de sauvegarde
+et contrôle la provenance, la zone, les 51 échéances
 et l'interpolation, puis le remet en mémoire. Le champ
 `restauration_pages` passe à `reussie`, le cache devient immédiatement
 disponible pour le calcul au point cliqué. Si le modèle est ancien,
 le traitement des neuf paquets redémarre en arrière-plan, **sans retirer
-le dernier cache restauré**. Si Pages est inaccessible ou le gzip
+le dernier cache restauré**. Si la sauvegarde est inaccessible ou le gzip
 invalide, Render utilise l'actualisation automatique actuelle et le WCS
 reste disponible en secours.
 
 Aucune suppression manuelle n'est nécessaire pour les fichiers **actifs** :
-un nouveau déploiement de Pages remplace le précédent, et la branche
-`arome-paquets-data` contient un seul commit et un seul fichier gzip
-à chaque mise à jour. La réécriture de la branche ne purge pas
+un nouveau déploiement de Pages remplace le précédent. Chaque branche de
+sauvegarde contient un seul commit et un seul fichier gzip à chaque mise à
+jour. La réécriture de la branche ne purge pas
 instantanément les objets Git inaccessibles ou les anciens artefacts
 GitHub Actions, dont la conservation dépend de GitHub.
 

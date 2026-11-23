@@ -78,47 +78,50 @@ jobs:
             console.log("Échéances AROME :", cache.previsions.length);
           '
 
-      - name: Include last validated AROME GRIB2 cache (optional)
+      - name: Include the validated production AROME backups (optional)
         run: |
           set -euo pipefail
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
 
-          # Le fichier GRIB2 ne remplace jamais le cache WCS historique :
-          # la page et les API de production continuent de fonctionner comme avant.
-          if git fetch --no-tags origin arome-paquets-data; then
-            git archive FETCH_HEAD arome-paquets-cache.json.gz | tar -x -C "$tmp"
-            test -s "$tmp/arome-paquets-cache.json.gz"
-            cp "$tmp/arome-paquets-cache.json.gz" site/arome-paquets-cache.json.gz
-            echo "Sauvegarde AROME Paquets incluse : $(du -h site/arome-paquets-cache.json.gz)"
-          else
-            echo "Pas encore de branche arome-paquets-data : publication du site sans la sauvegarde."
-            # Sauvegarde conservée si déjà publiée, même si la branche est inaccessible.
-            curl --fail --silent --show-error --max-time 30 \
-              "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-paquets-cache.json.gz" \
-              --output "$tmp/arome-paquets-cache.json.gz" || true
-            if [ -s "$tmp/arome-paquets-cache.json.gz" ]; then
-              cp "$tmp/arome-paquets-cache.json.gz" site/arome-paquets-cache.json.gz
+          validate_cache() {
+            python3 - "$@" <<'PY'
+          import gzip
+          import json
+          import sys
+          from pathlib import Path
+
+          filename, source, max_gzip, max_json, count = sys.argv[1:]
+          path = Path(filename)
+          if not 0 < path.stat().st_size <= int(max_gzip):
+              sys.exit("Sauvegarde AROME de taille inattendue.")
+          max_json = int(max_json)
+          with gzip.open(path, "rb") as compressed:
+              raw = compressed.read(max_json + 1)
+          if len(raw) > max_json:
+              sys.exit("Sauvegarde AROME décompressée trop volumineuse.")
+          cache = json.loads(raw)
+          if cache.get("source") != source or len(cache.get("previsions", [])) != int(count):
+              sys.exit("Source ou échéances de la sauvegarde AROME inattendues.")
+          PY
+          }
+
+          include_cache() {
+            local branch="$1" file="$2"
+            shift 2
+            if git fetch --no-tags origin "$branch" &&
+               git archive FETCH_HEAD "$file" | tar -x -C "$tmp" &&
+               validate_cache "$tmp/$file" "$@"; then
+              cp "$tmp/$file" "site/$file"
+            else
+              echo "Sauvegarde de production $file indisponible."
             fi
-          fi
+          }
 
-      - name: Include last validated AROME-PI test cache (optional)
-        run: |
-          set -euo pipefail
-          tmp="$(mktemp -d)"
-          trap 'rm -rf "$tmp"' EXIT
-
-          file=arome-pi-cache.json.gz
-          if git fetch --no-tags origin arome-pi-data &&
-             git archive FETCH_HEAD "$file" | tar -x -C "$tmp" &&
-             [ -s "$tmp/$file" ] &&
-             [ "$(wc -c < "$tmp/$file")" -le 524288 ] && gzip -t "$tmp/$file"; then
-            cp "$tmp/$file" "site/$file"
-          elif curl --fail --silent --show-error --max-time 30 --max-filesize 524288 \
-            "https://alexandreguilloux85.github.io/meteo-la-rochelle/$file" \
-            --output "$tmp/previous.gz" && gzip -t "$tmp/previous.gz"; then
-            cp "$tmp/previous.gz" "site/$file"
-          fi
+          include_cache arome-paquets-data arome-paquets-cache.json.gz \
+            'AROME 0.025 SP1 GRIB2 ecCodes - Render production' 16777216 47185920 51
+          include_cache arome-pi-production-data arome-pi-cache.json.gz \
+            'Render production' 524288 1048576 24
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

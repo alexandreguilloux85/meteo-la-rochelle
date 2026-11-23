@@ -16,10 +16,10 @@ let etiquette15Nm = null;
 let axeNordSud = null;
 let axeEstOuest = null;
 
-const URL_SERVEUR_RENDER =
-    window.location.hostname.endsWith(".onrender.com")
-        ? window.location.origin
-        : "https://station-meteo-lr.onrender.com";
+const HOTE_PAGES = "alexandreguilloux85.github.io";
+const URL_RENDER_PRODUCTION = "https://station-meteo-lr.onrender.com";
+const URL_SERVEUR_RENDER = window.location.hostname === HOTE_PAGES
+    ? URL_RENDER_PRODUCTION : window.location.origin;
 const URL_OBSERVATIONS_RENDER = URL_SERVEUR_RENDER + "/api/observations";
 const URL_RADAR_TUILES = URL_SERVEUR_RENDER + "/api/radar/tiles";
 const URL_RADAR_METADATA = URL_SERVEUR_RENDER + "/api/radar/metadata";
@@ -533,8 +533,9 @@ const URL_PREVISIONS_PAQUETS_POINT =
 const URL_STATUT_PAQUETS = URL_SERVEUR_RENDER + "/api/arome/paquets/test/status";
 const URL_PREVISIONS_WCS_POINT =
     URL_SERVEUR_RENDER + "/api/arome/previsions";
-const URL_CACHE_AROME =
-    "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json";
+const URL_CACHE_AROME = URL_SERVEUR_RENDER === URL_RENDER_PRODUCTION
+    ? "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-cache.json"
+    : URL_SERVEUR_RENDER + "/api/arome/cache/public";
 
 let cacheAromeNavigateur = null;
 let chargementCacheAromeNavigateur = null;
@@ -582,9 +583,7 @@ async function chargerCacheAromeNavigateur() {
     }
 }
 
-function calculerPrevisionsAromeNavigateur(cache, latitude, longitude, {
-    pasSecondes = 3600, horizonSecondes = 51 * 3600
-} = {}) {
+function calculerPrevisionsAromeNavigateur(cache, latitude, longitude) {
     function interpoler(grille, valeurs, lat, lon) {
         const x =
             (lon - grille.longitude_depart) /
@@ -644,14 +643,15 @@ function calculerPrevisionsAromeNavigateur(cache, latitude, longitude, {
     const previsions = [];
     const erreurs = [];
 
-    for (let seconde = pasSecondes; seconde <= horizonSecondes; seconde += pasSecondes) {
+    for (let h = 1; h <= 51; h++) {
+        const seconde = h * 3600;
         const donnees = cache.previsions.find(p => p.seconde === seconde);
 
         if (!donnees || !donnees.U || !donnees.V) {
             continue;
         }
 
-        const echeance = "H+" + seconde / 3600;
+        const echeance = "H+" + h;
         try {
             const u = interpoler(
                 donnees.U.grille,
@@ -783,7 +783,7 @@ async function obtenirPrevisionsAromePourAffichage(lat, lon) {
         );
         return { resultat, source: "WCS" };
     } catch (erreurWcs) {
-        console.warn("AROME WCS sur Render indisponible, lecture du cache GitHub Pages", erreurWcs.message);
+        console.warn("AROME WCS sur Render indisponible, lecture du cache de secours", erreurWcs.message);
     }
 
     const cache = await chargerCacheAromeNavigateur();
