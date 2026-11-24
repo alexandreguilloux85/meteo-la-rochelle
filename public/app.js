@@ -1438,6 +1438,7 @@ function afficherDonnees(donnees) {
                 <td>${Number.isFinite(d.raf10) ? noeuds(d.raf10).toFixed(1) : "--"}</td>
                 <td>${Number.isFinite(d.dd) ? d.dd.toFixed(0) + "° " + directionTexte(d.dd) : "--"}</td>
                 <td>${Number.isFinite(d.pmer) ? (d.pmer / 100).toFixed(1) : "--"}</td>
+                <td>${Number.isFinite(d.rr_per) && d.rr_per >= 0 ? d.rr_per.toFixed(1) : "--"}</td>
                 <td>${Number.isFinite(d.t) ? (d.t - 273.15).toFixed(1) : "--"}</td>
             </tr>
         `).join("");
@@ -1720,7 +1721,7 @@ selecteurStation.addEventListener("change", () => {
     document.getElementById("flecheDirection").style.transform = "";
     document.getElementById("pressionActuelle").textContent = "----";
     document.getElementById("tableau").innerHTML =
-        '<tr><td colspan="6">Aucun relevé à afficher</td></tr>';
+        '<tr><td colspan="7">Aucun relevé à afficher</td></tr>';
     derniereMesureVentStation = null;
     actualiserFlecheVentStation();
     creerGraphiques([]);
