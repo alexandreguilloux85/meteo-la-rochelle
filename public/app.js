@@ -1,6 +1,7 @@
 let graphiqueVent = null;
 let graphiqueDirection = null;
 let graphiquePression = null;
+let graphiquePrecipitations = null;
 let graphiqueTemperature = null;
 
 // --------------------------------------------------
@@ -1113,7 +1114,7 @@ function optionsGraphique(titreAxe, unite) {
 }
 
 // --------------------------------------------------
-// CREATION DES QUATRE GRAPHIQUES
+// CREATION DES GRAPHIQUES
 // --------------------------------------------------
 
 function creerGraphiques(donnees) {
@@ -1137,6 +1138,10 @@ function creerGraphiques(donnees) {
         Number.isFinite(d.pmer) ? d.pmer / 100 : null
     );
 
+    const precipitations = donnees.map(d =>
+        Number.isFinite(d.rr_per) && d.rr_per >= 0 ? d.rr_per : null
+    );
+
     // Température en degrés Celsius
     const temperature = donnees.map(d =>
         Number.isFinite(d.t) ? celsius(d.t) : null
@@ -1146,6 +1151,7 @@ function creerGraphiques(donnees) {
     if (graphiqueVent) graphiqueVent.destroy();
     if (graphiqueDirection) graphiqueDirection.destroy();
     if (graphiquePression) graphiquePression.destroy();
+    if (graphiquePrecipitations) graphiquePrecipitations.destroy();
     if (graphiqueTemperature) graphiqueTemperature.destroy();
 
     // Graphique vent moyen et rafales
@@ -1276,6 +1282,35 @@ function creerGraphiques(donnees) {
         }
     );
 
+    // Graphique précipitations (cumul par période de 6 minutes)
+    const optionsPrecipitations = optionsGraphique("Précipitations (mm)", "mm");
+    optionsPrecipitations.scales.y.suggestedMax = 0.1;
+    graphiquePrecipitations = new Chart(
+        document.getElementById("graphPrecipitations"),
+        {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Précipitations sur 6 min",
+                    data: precipitations,
+                    backgroundColor: "#1685c8",
+                    borderWidth: 0
+                }]
+            },
+            options: optionsPrecipitations
+        }
+    );
+    const statutPrecipitations = document.getElementById("statutPrecipitations");
+    const nombreValides = precipitations.filter(Number.isFinite).length;
+    statutPrecipitations.textContent = donnees.length === 0
+        ? "En attente des relevés."
+        : nombreValides === 0
+            ? "Aucune mesure de précipitations disponible pour cette station."
+            : nombreValides < donnees.length
+                ? "Certaines mesures de précipitations sont indisponibles."
+                : "";
+
     // Graphique température
     graphiqueTemperature = new Chart(
         document.getElementById("graphTemperature"),
@@ -1345,6 +1380,7 @@ function normaliserObservations(resultat) {
             raf10: d.raf10 == null ? null : Number(d.raf10),
             dd: d.dd == null ? null : Number(d.dd),
             pmer: d.pmer == null ? null : Number(d.pmer),
+            rr_per: d.rr_per == null || String(d.rr_per).trim() === "" ? null : Number(d.rr_per),
             t: d.t == null ? null : Number(d.t)
         };
     }).filter(d =>
