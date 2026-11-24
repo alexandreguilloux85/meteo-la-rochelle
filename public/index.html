@@ -126,7 +126,7 @@
             <div class="entete-bloc">
                 <div>
                     <h2>Radar de précipitations</h2>
-                    <p>Météo-France · Accumulation sur 5 minutes</p>
+                    <p>Météo-France · Intensité moyenne sur 5 minutes (mm/h)</p>
                 </div>
                 <span id="radarMiseAJour" class="unite-graphique">
                     Chargement...
@@ -137,38 +137,38 @@
 
             <div class="legende-radar" aria-label="Légende des précipitations">
                 <span class="titre-legende-radar">
-                    Précipitations sur 5 min :
+                    Intensité des précipitations (mm/h) :
                 </span>
 
                 <div class="echelle-radar">
                     <div class="niveau-radar">
                         <span class="couleur-radar radar-tres-faible"></span>
-                        <span>&lt; 0,1 mm</span>
+                        <span>&lt; 1,2 mm/h</span>
                     </div>
 
                     <div class="niveau-radar">
                         <span class="couleur-radar radar-faible"></span>
-                        <span>0,1 à 0,5 mm</span>
+                        <span>1,2 à 6 mm/h</span>
                     </div>
 
                     <div class="niveau-radar">
                         <span class="couleur-radar radar-moderee"></span>
-                        <span>0,5 à 1 mm</span>
+                        <span>6 à 12 mm/h</span>
                     </div>
 
                     <div class="niveau-radar">
                         <span class="couleur-radar radar-soutenue"></span>
-                        <span>1 à 2 mm</span>
+                        <span>12 à 24 mm/h</span>
                     </div>
 
                     <div class="niveau-radar">
                         <span class="couleur-radar radar-forte"></span>
-                        <span>2 à 5 mm</span>
+                        <span>24 à 60 mm/h</span>
                     </div>
 
                     <div class="niveau-radar">
                         <span class="couleur-radar radar-tres-forte"></span>
-                        <span>≥ 5 mm</span>
+                        <span>≥ 60 mm/h</span>
                     </div>
                 </div>
             </div>
@@ -272,10 +272,10 @@
             <div class="entete-bloc">
                 <div>
                     <h2>Précipitations</h2>
-                    <p>Quantité de pluie par période de 6 minutes sur les dernières 24 heures</p>
+                    <p>Intensité moyenne sur 6 minutes, sur les dernières 24 heures</p>
                     <p id="statutPrecipitations" aria-live="polite"></p>
                 </div>
-                <span class="unite-graphique">mm</span>
+                <span class="unite-graphique">mm/h</span>
             </div>
 
             <div class="zone-graphique">
@@ -320,7 +320,7 @@
                             <th>Rafales (kt)</th>
                             <th>Direction</th>
                             <th>Pression (hPa)</th>
-                            <th>Précipitations (mm)</th>
+                            <th>Précipitations (mm/h)</th>
                             <th>Température (°C)</th>
                         </tr>
                     </thead>
