@@ -1117,6 +1117,11 @@ function optionsGraphique(titreAxe, unite) {
 // CREATION DES GRAPHIQUES
 // --------------------------------------------------
 
+// rr_per : cumul mesuré en mm sur 6 minutes, converti en mm/h à l’affichage.
+function intensitePrecipitations(rrPer) {
+    return Number.isFinite(rrPer) && rrPer >= 0 ? rrPer * 10 : null;
+}
+
 function creerGraphiques(donnees) {
 
     const labels = donnees.map(d =>
@@ -1138,9 +1143,7 @@ function creerGraphiques(donnees) {
         Number.isFinite(d.pmer) ? d.pmer / 100 : null
     );
 
-    const precipitations = donnees.map(d =>
-        Number.isFinite(d.rr_per) && d.rr_per >= 0 ? d.rr_per : null
-    );
+    const precipitations = donnees.map(d => intensitePrecipitations(d.rr_per));
 
     // Température en degrés Celsius
     const temperature = donnees.map(d =>
@@ -1282,9 +1285,9 @@ function creerGraphiques(donnees) {
         }
     );
 
-    // Graphique précipitations (cumul par période de 6 minutes)
-    const optionsPrecipitations = optionsGraphique("Précipitations (mm)", "mm");
-    optionsPrecipitations.scales.y.suggestedMax = 0.1;
+    // Graphique précipitations (intensité moyenne sur 6 minutes, en mm/h)
+    const optionsPrecipitations = optionsGraphique("Précipitations (mm/h)", "mm/h");
+    optionsPrecipitations.scales.y.suggestedMax = 1;
     graphiquePrecipitations = new Chart(
         document.getElementById("graphPrecipitations"),
         {
@@ -1292,7 +1295,7 @@ function creerGraphiques(donnees) {
             data: {
                 labels: labels,
                 datasets: [{
-                    label: "Précipitations sur 6 min",
+                    label: "Intensité des précipitations",
                     data: precipitations,
                     backgroundColor: "#1685c8",
                     borderWidth: 0
@@ -1438,7 +1441,7 @@ function afficherDonnees(donnees) {
                 <td>${Number.isFinite(d.raf10) ? noeuds(d.raf10).toFixed(1) : "--"}</td>
                 <td>${Number.isFinite(d.dd) ? d.dd.toFixed(0) + "° " + directionTexte(d.dd) : "--"}</td>
                 <td>${Number.isFinite(d.pmer) ? (d.pmer / 100).toFixed(1) : "--"}</td>
-                <td>${Number.isFinite(d.rr_per) && d.rr_per >= 0 ? d.rr_per.toFixed(1) : "--"}</td>
+                <td>${intensitePrecipitations(d.rr_per)?.toFixed(1) ?? "--"}</td>
                 <td>${Number.isFinite(d.t) ? (d.t - 273.15).toFixed(1) : "--"}</td>
             </tr>
         `).join("");
