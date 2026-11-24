@@ -1,6 +1,7 @@
 let graphiqueVent = null;
 let graphiqueDirection = null;
 let graphiquePression = null;
+let graphiquePrecipitations = null;
 let graphiqueTemperature = null;
 
 // --------------------------------------------------
@@ -1113,7 +1114,7 @@ function optionsGraphique(titreAxe, unite) {
 }
 
 // --------------------------------------------------
-// CREATION DES QUATRE GRAPHIQUES
+// CREATION DES GRAPHIQUES
 // --------------------------------------------------
 
 function creerGraphiques(donnees) {
@@ -1137,6 +1138,10 @@ function creerGraphiques(donnees) {
         Number.isFinite(d.pmer) ? d.pmer / 100 : null
     );
 
+    const precipitations = donnees.map(d =>
+        Number.isFinite(d.rr_per) && d.rr_per >= 0 ? d.rr_per : null
+    );
+
     // Température en degrés Celsius
     const temperature = donnees.map(d =>
         Number.isFinite(d.t) ? celsius(d.t) : null
@@ -1146,6 +1151,7 @@ function creerGraphiques(donnees) {
     if (graphiqueVent) graphiqueVent.destroy();
     if (graphiqueDirection) graphiqueDirection.destroy();
     if (graphiquePression) graphiquePression.destroy();
+    if (graphiquePrecipitations) graphiquePrecipitations.destroy();
     if (graphiqueTemperature) graphiqueTemperature.destroy();
 
     // Graphique vent moyen et rafales
@@ -1276,6 +1282,35 @@ function creerGraphiques(donnees) {
         }
     );
 
+    // Graphique précipitations (cumul par période de 6 minutes)
+    const optionsPrecipitations = optionsGraphique("Précipitations (mm)", "mm");
+    optionsPrecipitations.scales.y.suggestedMax = 0.1;
+    graphiquePrecipitations = new Chart(
+        document.getElementById("graphPrecipitations"),
+        {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Précipitations sur 6 min",
+                    data: precipitations,
+                    backgroundColor: "#1685c8",
+                    borderWidth: 0
+                }]
+            },
+            options: optionsPrecipitations
+        }
+    );
+    const statutPrecipitations = document.getElementById("statutPrecipitations");
+    const nombreValides = precipitations.filter(Number.isFinite).length;
+    statutPrecipitations.textContent = donnees.length === 0
+        ? "En attente des relevés."
+        : nombreValides === 0
+            ? "Aucune mesure de précipitations disponible pour cette station."
+            : nombreValides < donnees.length
+                ? "Certaines mesures de précipitations sont indisponibles."
+                : "";
+
     // Graphique température
     graphiqueTemperature = new Chart(
         document.getElementById("graphTemperature"),
@@ -1311,6 +1346,8 @@ function creerGraphiques(donnees) {
 
 const CLE_CACHE_OBSERVATIONS = "meteo_observations_v1";
 const CLE_CACHE_RADAR = "meteo_radar_metadata_v1";
+const STATION_OBSERVATIONS_PAR_DEFAUT = "17300009";
+const selecteurStation = document.getElementById("stationObservations");
 
 function lireCacheLocal(cle) {
     try {
@@ -1343,6 +1380,7 @@ function normaliserObservations(resultat) {
             raf10: d.raf10 == null ? null : Number(d.raf10),
             dd: d.dd == null ? null : Number(d.dd),
             pmer: d.pmer == null ? null : Number(d.pmer),
+            rr_per: d.rr_per == null || String(d.rr_per).trim() === "" ? null : Number(d.rr_per),
             t: d.t == null ? null : Number(d.t)
         };
     }).filter(d =>
@@ -1400,6 +1438,7 @@ function afficherDonnees(donnees) {
                 <td>${Number.isFinite(d.raf10) ? noeuds(d.raf10).toFixed(1) : "--"}</td>
                 <td>${Number.isFinite(d.dd) ? d.dd.toFixed(0) + "° " + directionTexte(d.dd) : "--"}</td>
                 <td>${Number.isFinite(d.pmer) ? (d.pmer / 100).toFixed(1) : "--"}</td>
+                <td>${Number.isFinite(d.rr_per) && d.rr_per >= 0 ? d.rr_per.toFixed(1) : "--"}</td>
                 <td>${Number.isFinite(d.t) ? (d.t - 273.15).toFixed(1) : "--"}</td>
             </tr>
         `).join("");
@@ -1408,39 +1447,44 @@ function afficherDonnees(donnees) {
         "Dernier relevé : " + new Date(dernier.date).toLocaleString("fr-FR");
 }
 
-let promesseChargementObservations = null;
+const chargementsObservations = new Map();
 
 async function chargerDonnees(forcerVerification = false) {
-    // Si un chargement automatique est en cours, attendre sa fin
-    // avant de lancer le contrôle manuel sans cache.
-    if (promesseChargementObservations) {
-        if (!forcerVerification) return false;
-        await promesseChargementObservations;
-    }
-
-    const promesse = chargerDonneesInterne(forcerVerification);
-    promesseChargementObservations = promesse;
-    try {
-        return await promesse;
-    } finally {
-        if (promesseChargementObservations === promesse) {
-            promesseChargementObservations = null;
-        }
-    }
-}
-
-async function chargerDonneesInterne(forcerVerification) {
+    const idStation = selecteurStation.value;
+    const cleCache = idStation === STATION_OBSERVATIONS_PAR_DEFAUT
+        ? CLE_CACHE_OBSERVATIONS : `${CLE_CACHE_OBSERVATIONS}_${idStation}`;
 
     // Afficher immédiatement les dernières observations sauvegardées localement.
-    const cacheInitial = lireCacheLocal(CLE_CACHE_OBSERVATIONS);
+    const cacheInitial = lireCacheLocal(cleCache);
     if (cacheInitial && Array.isArray(cacheInitial.donnees) && cacheInitial.donnees.length) {
         afficherDonnees(cacheInitial.donnees);
     }
 
+    const chargementEnCours = chargementsObservations.get(idStation);
+    // Si un chargement automatique est en cours, attendre sa fin
+    // avant de lancer le contrôle manuel sans cache.
+    if (chargementEnCours) {
+        if (!forcerVerification) return false;
+        await chargementEnCours;
+        if (idStation !== selecteurStation.value) return false;
+    }
+
+    const promesse = chargerDonneesInterne(idStation, cleCache, forcerVerification);
+    chargementsObservations.set(idStation, promesse);
     try {
-        const urlObservations = forcerVerification
-            ? URL_OBSERVATIONS_RENDER + "?refresh=1"
-            : URL_OBSERVATIONS_RENDER;
+        return await promesse;
+    } finally {
+        if (chargementsObservations.get(idStation) === promesse) {
+            chargementsObservations.delete(idStation);
+        }
+    }
+}
+
+async function chargerDonneesInterne(idStation, cleCache, forcerVerification) {
+    try {
+        const urlObservations = new URL(URL_OBSERVATIONS_RENDER);
+        urlObservations.searchParams.set("id_station", idStation);
+        if (forcerVerification) urlObservations.searchParams.set("refresh", "1");
         const reponse = await fetch(urlObservations, {
             cache: "no-store"
         });
@@ -1456,7 +1500,7 @@ async function chargerDonneesInterne(forcerVerification) {
             throw new Error("Aucune donnée météo exploitable");
         }
 
-        const cache = lireCacheLocal(CLE_CACHE_OBSERVATIONS);
+        const cache = lireCacheLocal(cleCache);
         const anciennesDonnees = cache && Array.isArray(cache.donnees)
             ? cache.donnees
             : [];
@@ -1472,11 +1516,11 @@ async function chargerDonneesInterne(forcerVerification) {
         const nouveauReleve =
             new Date(dernierReleve.date).getTime() > dateAncienReleve;
 
-        ecrireCacheLocal(CLE_CACHE_OBSERVATIONS, {
+        ecrireCacheLocal(cleCache, {
             dateDernierReleve: dernierReleve.date,
             donnees: nouvellesDonnees
         });
-        afficherDonnees(nouvellesDonnees);
+        if (idStation === selecteurStation.value) afficherDonnees(nouvellesDonnees);
 
         if (anciennesDonnees.length === 0) {
             console.log(
@@ -1505,8 +1549,9 @@ async function chargerDonneesInterne(forcerVerification) {
         };
     } catch (erreur) {
         console.error("Vérification des relevés météo via Render impossible :", erreur);
-        const cache = lireCacheLocal(CLE_CACHE_OBSERVATIONS);
-        if (!cache || !Array.isArray(cache.donnees) || cache.donnees.length === 0) {
+        const cache = lireCacheLocal(cleCache);
+        if (idStation === selecteurStation.value &&
+            (!Array.isArray(cache?.donnees) || cache.donnees.length === 0)) {
             document.getElementById("miseAJour").textContent =
                 "Relevés indisponibles · aucune donnée en cache";
         }
@@ -1552,8 +1597,10 @@ function distanceMetres(
 // --------------------------------------------------
 async function actualiserDepuisInterface(action, bouton) {
     const statut = document.getElementById("workflowTriggerStatus");
+    const idStation = selecteurStation.value;
 
     bouton.disabled = true;
+    statut.dataset.action = action;
     statut.textContent = "Actualisation en cours…";
 
     try {
@@ -1561,6 +1608,7 @@ async function actualiserDepuisInterface(action, bouton) {
             const actualisationReussie = action === "observations"
                 ? await chargerDonnees(true)
                 : await chargerRadar(true);
+            if (action === "observations" && idStation !== selecteurStation.value) return;
             if (!actualisationReussie || actualisationReussie.echec) {
                 throw new Error(
                     actualisationReussie?.erreur ||
@@ -1655,6 +1703,29 @@ document.querySelectorAll("[data-refresh]").forEach(bouton => {
     bouton.addEventListener("click", () => {
         actualiserDepuisInterface(bouton.dataset.refresh, bouton);
     });
+});
+
+selecteurStation.addEventListener("change", () => {
+    document.querySelectorAll("[data-id-station]").forEach(element => {
+        element.textContent = selecteurStation.value;
+    });
+    const statut = document.getElementById("workflowTriggerStatus");
+    if (statut.dataset.action === "observations") statut.textContent = "";
+
+    // Effacer les mesures de la station précédente pendant le chargement.
+    document.getElementById("miseAJour").textContent = "Chargement des données...";
+    document.getElementById("ventActuel").textContent = "--";
+    document.getElementById("rafaleActuelle").textContent = "--";
+    document.getElementById("directionActuelle").textContent = "--°";
+    document.getElementById("directionCardinale").textContent = "--";
+    document.getElementById("flecheDirection").style.transform = "";
+    document.getElementById("pressionActuelle").textContent = "----";
+    document.getElementById("tableau").innerHTML =
+        '<tr><td colspan="7">Aucun relevé à afficher</td></tr>';
+    derniereMesureVentStation = null;
+    actualiserFlecheVentStation();
+    creerGraphiques([]);
+    chargerDonnees();
 });
 
 function demarrerApplication() {

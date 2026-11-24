@@ -460,20 +460,27 @@ app.use(express.static("public"));
 // --------------------------------------------------
 // OBSERVATIONS METEO : dernier paquet conservé en mémoire entre deux contrôles.
 const OBSERVATIONS_TTL_MS = 5 * 60 * 1000;
-let observationsCache = null;
-let observationsChargement = null;
+const STATION_OBSERVATIONS_PAR_DEFAUT = "17300009";
+const observationsParStation = new Map([
+    [STATION_OBSERVATIONS_PAR_DEFAUT, {}],
+    ["85060002", {}]
+]);
 
-async function obtenirObservations({ forcerVerification = false } = {}) {
-    if (!forcerVerification && observationsCache &&
-        Date.now() - observationsCache.verifieLe < OBSERVATIONS_TTL_MS) {
-        return observationsCache.donnees;
+async function obtenirObservations({
+    idStation = STATION_OBSERVATIONS_PAR_DEFAUT,
+    forcerVerification = false
+} = {}) {
+    const station = observationsParStation.get(idStation);
+    if (!forcerVerification && station.cache &&
+        Date.now() - station.cache.verifieLe < OBSERVATIONS_TTL_MS) {
+        return station.cache.donnees;
     }
-    if (!observationsChargement) {
-        observationsChargement = (async () => {
+    if (!station.chargement) {
+        station.chargement = (async () => {
             const url = new URL(
                 "https://public-api.meteofrance.fr/public/DPPaquetObs/v2/paquet/infrahoraire-6m"
             );
-            url.searchParams.set("id_station", "17300009");
+            url.searchParams.set("id_station", idStation);
             url.searchParams.set("format", "json");
             const reponse = await fetch(url, {
                 headers: { accept: "*/*", apikey: API_KEY, "cache-control": "no-cache" },
@@ -487,30 +494,34 @@ async function obtenirObservations({ forcerVerification = false } = {}) {
             if (!Array.isArray(donnees)) {
                 throw new Error("Format des relevés météo invalide.");
             }
-            observationsCache = { donnees, verifieLe: Date.now() };
+            station.cache = { donnees, verifieLe: Date.now() };
             return donnees;
-        })();
+        })().finally(() => {
+            station.chargement = null;
+        });
     }
     try {
-        return await observationsChargement;
+        return await station.chargement;
     } catch (erreur) {
-        if (!forcerVerification && observationsCache) {
+        if (!forcerVerification && station.cache) {
             console.warn("Observations indisponibles : ancien cache conservé", erreur.message);
-            return observationsCache.donnees;
+            return station.cache.donnees;
         }
         throw erreur;
-    } finally {
-        observationsChargement = null;
     }
 }
 
 app.get("/api/observations", async (req, res) => {
     res.set("Cache-Control", "no-store");
+    const idStation = req.query.id_station ?? STATION_OBSERVATIONS_PAR_DEFAUT;
+    if (!observationsParStation.has(idStation)) {
+        return res.status(400).json({ erreur: "Station météo inconnue." });
+    }
     try {
         // Le bouton station contourne le TTL et impose une requête Météo-France.
         // En mode refresh, un échec ne doit jamais paraître être une vérification réussie.
         const forcerVerification = req.query.refresh === "1";
-        return res.json(await obtenirObservations({ forcerVerification }));
+        return res.json(await obtenirObservations({ idStation, forcerVerification }));
     } catch (erreur) {
         console.error("Erreur observations :", erreur);
         return res.status(502).json({ erreur: erreur.message });
@@ -2061,6 +2072,7 @@ app.get("/api/arome/cache/export", async (req, res) => {
 // État non sensible des caches : utile pour contrôler Render et le NAS.
 app.get("/api/meteo/status", (req, res) => {
     res.set("Cache-Control", "no-store");
+    const observationsCache = observationsParStation.get(STATION_OBSERVATIONS_PAR_DEFAUT).cache;
     return res.json({
         traitement_lourd: traitementEnCours(),
         memoire_node_mio: {

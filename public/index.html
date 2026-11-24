@@ -45,7 +45,7 @@
         <div class="header-contenu">
             <div>
                 <h1>Météo La Rochelle</h1>
-                <p>Station météo 17300009</p>
+                <p>Station météo <span data-id-station>17300009</span></p>
             </div>
 
             <div class="statut">
@@ -65,6 +65,11 @@
                 </div>
             </div>
             <div class="commandes-actualisation">
+                <label for="stationObservations">Station</label>
+                <select id="stationObservations">
+                    <option value="17300009" selected>La Rochelle</option>
+                    <option value="85060002">Château d’Olonne</option>
+                </select>
                 <button type="button" data-refresh="observations">Station de vent</button>
                 <button type="button" data-refresh="radar">Radar</button>
                 <button type="button" data-refresh="arome">Prévisions AROME</button>
@@ -261,6 +266,24 @@
 
         </section>
 
+        <!-- Graphique précipitations -->
+        <section class="bloc graphique">
+
+            <div class="entete-bloc">
+                <div>
+                    <h2>Précipitations</h2>
+                    <p>Quantité de pluie par période de 6 minutes sur les dernières 24 heures</p>
+                    <p id="statutPrecipitations" aria-live="polite"></p>
+                </div>
+                <span class="unite-graphique">mm</span>
+            </div>
+
+            <div class="zone-graphique">
+                <canvas id="graphPrecipitations"></canvas>
+            </div>
+
+        </section>
+
         <!-- Graphique température -->
         <section class="bloc graphique">
 
@@ -297,13 +320,14 @@
                             <th>Rafales (kt)</th>
                             <th>Direction</th>
                             <th>Pression (hPa)</th>
+                            <th>Précipitations (mm)</th>
                             <th>Température (°C)</th>
                         </tr>
                     </thead>
 
                     <tbody id="tableau">
                         <tr>
-                            <td colspan="6">Chargement...</td>
+                            <td colspan="7">Chargement...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -312,7 +336,7 @@
         </section>
 
         <footer>
-            Données issues de Météo-France · Station 17300009
+            Données issues de Météo-France · Station <span data-id-station>17300009</span>
         </footer>
 
     </main>
