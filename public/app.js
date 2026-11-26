@@ -1,5 +1,6 @@
 let graphiqueVent = null;
 let graphiqueDirection = null;
+let graphiqueVentPolaire = null;
 let graphiquePression = null;
 let graphiquePrecipitations = null;
 let graphiqueTemperature = null;
@@ -1122,6 +1123,109 @@ function intensitePrecipitations(rrPer) {
     return Number.isFinite(rrPer) && rrPer >= 0 ? rrPer * 10 : null;
 }
 
+function creerGraphiquePolaireVent(donnees) {
+    const points = [];
+    let vitesseMax = 0;
+
+    for (const { ff, dd, date } of donnees) {
+        if (!Number.isFinite(ff) || ff < 0 || !Number.isFinite(dd) || dd < 0 || dd > 360) {
+            continue;
+        }
+
+        const vitesse = noeuds(ff);
+        const direction = dd % 360;
+        const angle = direction * Math.PI / 180;
+        points.push({
+            x: vitesse * Math.sin(angle),
+            y: vitesse * Math.cos(angle),
+            vitesse,
+            direction,
+            date
+        });
+        vitesseMax = Math.max(vitesse, vitesseMax);
+    }
+
+    const pas = Math.max(5, Math.ceil(vitesseMax / 25) * 5);
+    const rayonMax = Math.max(2, Math.ceil(vitesseMax / pas)) * pas;
+    const echelle = { display: false, min: -rayonMax, max: rayonMax };
+    const options = optionsGraphique("Vitesse", "kt");
+
+    return new Chart(document.getElementById("graphVentPolaire"), {
+        type: "scatter",
+        data: {
+            datasets: [{
+                data: points,
+                showLine: false,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                pointHitRadius: 7,
+                pointBorderWidth: 0,
+                pointBackgroundColor: "#1677b8b3"
+            }]
+        },
+        options: {
+            ...options,
+            animation: false,
+            layout: { padding: 28 },
+            interaction: { mode: "nearest", intersect: true },
+            scales: { x: { ...echelle }, y: { ...echelle } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    ...options.plugins.tooltip,
+                    displayColors: false,
+                    callbacks: {
+                        title: ([{ raw }]) => new Date(raw.date).toLocaleString("fr-FR", {
+                            day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
+                        }),
+                        label: ({ raw }) => [
+                            `Vent moyen : ${raw.vitesse.toFixed(1)} kt`,
+                            `Provenance : ${raw.direction}° (${directionTexte(raw.direction)})`
+                        ]
+                    }
+                }
+            }
+        },
+        plugins: [{
+            id: "grillePolaireVent",
+            beforeDatasetsDraw({ ctx, scales: { x, y } }) {
+                const centreX = x.getPixelForValue(0);
+                const centreY = y.getPixelForValue(0);
+                const rayon = x.getPixelForValue(rayonMax) - centreX;
+
+                ctx.save();
+                ctx.strokeStyle = "#d8e2ec";
+                ctx.fillStyle = "#49627d";
+                ctx.font = "12px Arial";
+                ctx.textBaseline = "middle";
+                ctx.textAlign = "center";
+
+                for (let i = 0; i < 8; i++) {
+                    const angle = i * Math.PI / 4;
+                    const dx = Math.sin(angle);
+                    const dy = -Math.cos(angle);
+                    ctx.beginPath();
+                    ctx.moveTo(centreX, centreY);
+                    ctx.lineTo(centreX + rayon * dx, centreY + rayon * dy);
+                    ctx.stroke();
+                    ctx.fillText(directionTexte(i * 45),
+                        centreX + (rayon + 14) * dx, centreY + (rayon + 14) * dy);
+                }
+
+                ctx.textAlign = "left";
+                for (let vitesse = pas; vitesse <= rayonMax; vitesse += pas) {
+                    const rayonGraduation = rayon * vitesse / rayonMax;
+                    ctx.beginPath();
+                    ctx.arc(centreX, centreY, rayonGraduation, 0, 2 * Math.PI);
+                    ctx.stroke();
+                    ctx.fillText(String(vitesse), centreX + 5, centreY - rayonGraduation + 8);
+                }
+                ctx.restore();
+            }
+        }]
+    });
+}
+
 function creerGraphiques(donnees) {
 
     const labels = donnees.map(d =>
@@ -1153,6 +1257,7 @@ function creerGraphiques(donnees) {
     // Détruire les anciens graphiques
     if (graphiqueVent) graphiqueVent.destroy();
     if (graphiqueDirection) graphiqueDirection.destroy();
+    if (graphiqueVentPolaire) graphiqueVentPolaire.destroy();
     if (graphiquePression) graphiquePression.destroy();
     if (graphiquePrecipitations) graphiquePrecipitations.destroy();
     if (graphiqueTemperature) graphiqueTemperature.destroy();
@@ -1256,6 +1361,8 @@ function creerGraphiques(donnees) {
             }
         }
     );
+
+    graphiqueVentPolaire = creerGraphiquePolaireVent(donnees);
 
     // Graphique pression
     graphiquePression = new Chart(
