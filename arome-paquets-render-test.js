@@ -7,7 +7,7 @@ const fsSystem = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
-const { ajouterMeteoAuxPrevisions } = require("./arome-meteo-point-test");
+const { preparerCacheDisque } = require("./arome-paquets-disque");
 const { essayerDemarrer, traitementEnCours } = require("./traitement-lourd");
 const { compresserCacheArome } = require("./arome-cache-stream");
 const { lireSauvegardeArome, jetonSauvegardeArome, signalerSauvegardeArome } =
@@ -414,7 +414,6 @@ function installerTestAromePaquets(app, {
         : serviceTest ? "arome-paquets-test-data" : null;
 
     let cacheTest = null;
-    let cacheCompresse = null;
     let enCours = false;
     let dernierDemarrage = 0;
     let derniereReussite = 0;
@@ -446,6 +445,7 @@ function installerTestAromePaquets(app, {
             ...etat,
             en_cours: enCours,
             cache_disponible: Boolean(cacheTest),
+            stockage_cache: cacheTest ? "disque_temporaire" : null,
             traitement_lourd: traitementEnCours(),
             modele_cache_disponible: cacheTest?.modele || null,
             source_cache: cacheTest?.source || null,
@@ -569,7 +569,7 @@ function installerTestAromePaquets(app, {
         }
     });
 
-    app.get("/api/arome/paquets/test/previsions", (req, res) => {
+    app.get("/api/arome/paquets/test/previsions", async (req, res) => {
         res.set("Cache-Control", "no-store");
         if (!cacheTest) {
             verifierActualisationAutomatique();
@@ -589,17 +589,14 @@ function installerTestAromePaquets(app, {
             });
         }
         try {
-            const resultat = calculerPrevisionsArome(cacheTest, lat, lon);
-            // Champs météorologiques facultatifs, décompressés uniquement au
-            // point GPS demandé ; U/V, vitesse, direction et rafales inchangés.
-            ajouterMeteoAuxPrevisions(cacheTest, resultat, lat, lon);
+            const resultat = await cacheTest.calculerPoint(calculerPrevisionsArome, lat, lon);
             return res.json({
                 ...resultat,
                 cache: true,
                 origine_cache: origineCache,
                 actualisation_en_cours: enCours,
                 actualisation_statut: etat.statut,
-                modele_cache: cacheTest.modele
+                modele_cache: resultat.modele
             });
         } catch (e) {
             return res.status(422).json({ succes: false, erreur: e.message });
@@ -608,8 +605,8 @@ function installerTestAromePaquets(app, {
 
     // Cache complet téléchargé par le workflow de sauvegarde, compressé à la source.
     // Cache-Control court pour limiter les réponses lourdes répétées.
-    app.get("/api/arome/paquets/test/cache", (_req, res) => {
-        if (!cacheCompresse) {
+    app.get("/api/arome/paquets/test/cache", async (req, res) => {
+        if (!cacheTest) {
             return res.status(503).json({
                 succes: false,
                 erreur: "Cache des paquets AROME indisponible"
@@ -618,10 +615,12 @@ function installerTestAromePaquets(app, {
         res.set({
             "Content-Type": "application/json; charset=utf-8",
             "Content-Encoding": "gzip",
+            "Content-Length": String(cacheTest.tailleGzip),
             "Cache-Control": "public, max-age=60",
             "Vary": "Accept-Encoding"
         });
-        return res.send(cacheCompresse);
+        if (req.method === "HEAD") return res.end();
+        await cacheTest.envoyerGzip(res);
     });
 
     // Comparaison indépendante et sans déclenchement du WCS.
@@ -647,7 +646,7 @@ function installerTestAromePaquets(app, {
                     succes: false, erreur: "Cache WCS indisponible"
                 });
             }
-            const paquets = calculerPrevisionsArome(cacheTest, lat, lon);
+            const paquets = await cacheTest.calculerPoint(calculerPrevisionsArome, lat, lon, false);
             const wcs = calculerPrevisionsArome(cacheWcs, lat, lon);
             const donneesWcs = new Map(wcs.previsions.map(p => [p.date, p]));
             const comparaisons = paquets.previsions
@@ -677,7 +676,7 @@ function installerTestAromePaquets(app, {
             return res.json({
                 succes: true,
                 latitude: lat, longitude: lon,
-                modele_paquets: cacheTest.modele,
+                modele_paquets: paquets.modele,
                 modele_wcs: cacheWcs.modele,
                 nombre_dates_communes: comparaisons.length,
                 avertissement: comparaisons.length
@@ -717,8 +716,7 @@ function installerTestAromePaquets(app, {
 
             // Aucun cache actif n'est écrasé par une restauration plus ancienne.
             if (!cacheTest) {
-                cacheTest = restaure;
-                cacheCompresse = compresse;
+                cacheTest = await preparerCacheDisque(restaure, compresse);
                 const dateCache = Number(restaure.date);
                 derniereReussite = Number.isFinite(dateCache) &&
                     dateCache > 0 && dateCache <= Date.now()
@@ -757,7 +755,7 @@ function installerTestAromePaquets(app, {
         }
     }
 
-    async function signalerSauvegardeGitHub(cache, compresse) {
+    async function signalerSauvegardeGitHub(modele, compresse) {
         if (!serviceTest && !serviceProduction) return;
 
         const jeton = jetonSauvegardeArome();
@@ -772,7 +770,7 @@ function installerTestAromePaquets(app, {
             await signalerSauvegardeArome(jeton, {
                 evenement: serviceProduction
                     ? "arome-paquets-production-cache-ready" : "arome-paquets-cache-ready",
-                modele: cache.modele,
+                modele,
                 compresse,
                 userAgent: "meteo-la-rochelle-arome-paquets"
             });
@@ -938,9 +936,11 @@ function installerTestAromePaquets(app, {
                 );
             }
             const { gzip, tailleJson } = resultatCompression;
-            // Publication atomique des deux objets uniquement après validation.
-            cacheTest = cache;
-            cacheCompresse = gzip;
+            // Les requêtes déjà engagées terminent leur lecture sur l'ancien cycle.
+            const nouveau = await preparerCacheDisque(cache, gzip);
+            const precedent = cacheTest;
+            cacheTest = nouveau;
+            precedent?.retirer();
             derniereReussite = Date.now();
             prochainEssai = derniereReussite + INTERVALLE_CONTROLE_CATALOGUE;
             etat = {
@@ -968,7 +968,7 @@ function installerTestAromePaquets(app, {
             // Ne jamais ralentir les prévisions au point pendant la sauvegarde.
             // Seul un cache complet H+51 est publiable vers GitHub Pages.
             if (heureMax === 51) {
-                void signalerSauvegardeGitHub(cache, gzip);
+                void signalerSauvegardeGitHub(cache.modele, gzip);
             }
         } catch (e) {
             console.error(origineCache + " :", e.message);
@@ -1039,7 +1039,7 @@ function installerTestAromePaquets(app, {
                 dernierControleCatalogue = Date.now();
                 modeleCataloguePlusRecent = produit.modele;
                 erreurControleCatalogue = null;
-                const cacheComplet = cacheTest?.previsions?.length === 51;
+                const cacheComplet = cacheTest?.nombreEcheances === 51;
                 // Première reconstruction après la mise à jour : restaurer
                 // l'ancien cache de vent, puis l'enrichir sans attendre un
                 // changement de réseau. Les cycles suivants restent à 30 min.

@@ -421,9 +421,9 @@ function initialiserCarteRadar() {
     setInterval(chargerRadar, 10 * 60 * 1000);
 }
 
-function chargerPrevisionsAuPoint({ lat, lon }, optionsPi) {
-    window.selectionnerPointAromePi?.(lat, lon, optionsPi);
-    return chargerPrevisionsArome(lat, lon);
+function chargerPrevisionsAuPoint({ lat, lon }, options) {
+    window.selectionnerPointAromePi?.(lat, lon, options);
+    return chargerPrevisionsArome(lat, lon, options);
 }
 
 // --------------------------------------------------
@@ -529,7 +529,7 @@ function couleurVentWindy(vitesseKt) {
 // --------------------------------------------------
 
 const ZONE_AROME_GRIB = [[43.2, -5.0], [48.3, -0.3]];
-// Render interpole les paquets GRIB2 et renvoie les prévisions au point cliqué.
+// Le serveur au point et le WCS restent disponibles en secours.
 const URL_PREVISIONS_PAQUETS_POINT =
     URL_SERVEUR_RENDER + "/api/arome/paquets/test/previsions";
 const URL_STATUT_PAQUETS = URL_SERVEUR_RENDER + "/api/arome/paquets/test/status";
@@ -541,6 +541,47 @@ const URL_CACHE_AROME = URL_SERVEUR_RENDER === URL_RENDER_PRODUCTION
 
 let cacheAromeNavigateur = null;
 let chargementCacheAromeNavigateur = null;
+let workerPaquets = null;
+let numeroPointLocal = 0;
+const pointsLocauxEnAttente = new Map();
+
+function pointDansPaquets(lat, lon) {
+    const [[sud, ouest], [nord, est]] = ZONE_AROME_GRIB;
+    return lat >= sud && lat <= nord && lon >= ouest && lon <= est;
+}
+
+function obtenirPointLocal(lat, lon, forcer) {
+    if (!workerPaquets) {
+        workerPaquets = new Worker(new URL("arome-paquets-worker.js", document.baseURI));
+        workerPaquets.onmessage = ({ data }) => {
+            if (data.type === "nouveau-modele") {
+                const p = positionCourante;
+                if (pointDansPaquets(p.lat, p.lon)) {
+                    void chargerPrevisionsArome(p.lat, p.lon, { silencieux: true });
+                }
+                return;
+            }
+            const demande = pointsLocauxEnAttente.get(data.id);
+            if (!demande) return;
+            pointsLocauxEnAttente.delete(data.id);
+            if (data.erreur) demande.reject(new Error(data.erreur));
+            else demande.resolve(data.resultat);
+        };
+        workerPaquets.onerror = () => {
+            workerPaquets.terminate();
+            workerPaquets = null;
+            for (const demande of pointsLocauxEnAttente.values()) {
+                demande.reject(new Error("Calcul local AROME indisponible"));
+            }
+            pointsLocauxEnAttente.clear();
+        };
+    }
+    return new Promise((resolve, reject) => {
+        const id = ++numeroPointLocal;
+        pointsLocauxEnAttente.set(id, { resolve, reject });
+        workerPaquets.postMessage({ id, lat, lon, forcer });
+    });
+}
 
 async function chargerCacheAromeNavigateur() {
     if (cacheAromeNavigateur) {
@@ -585,154 +626,6 @@ async function chargerCacheAromeNavigateur() {
     }
 }
 
-function calculerPrevisionsAromeNavigateur(cache, latitude, longitude) {
-    function interpoler(grille, valeurs, lat, lon) {
-        const x =
-            (lon - grille.longitude_depart) /
-            grille.resolution_longitude;
-
-        const y =
-            (grille.latitude_depart - lat) /
-            grille.resolution_latitude;
-
-        if (
-            x < 0 || y < 0 ||
-            x > grille.Ni - 1 ||
-            y > grille.Nj - 1
-        ) {
-            throw new Error("Point GPS hors de la grille AROME");
-        }
-
-        const i0 = Math.min(Math.floor(x), grille.Ni - 2);
-        const j0 = Math.min(Math.floor(y), grille.Nj - 2);
-        const tx = x - i0;
-        const ty = y - j0;
-
-        const v00 = valeurs[j0 * grille.Ni + i0];
-        const v10 = valeurs[j0 * grille.Ni + i0 + 1];
-        const v01 = valeurs[(j0 + 1) * grille.Ni + i0];
-        const v11 = valeurs[(j0 + 1) * grille.Ni + i0 + 1];
-
-        const haut = v00 * (1 - tx) + v10 * tx;
-        const bas = v01 * (1 - tx) + v11 * tx;
-
-        return haut * (1 - ty) + bas * ty;
-    }
-
-    const zone = cache.zone;
-
-    if (
-        latitude < zone.latMin ||
-        latitude > zone.latMax ||
-        longitude < zone.lonMin ||
-        longitude > zone.lonMax
-    ) {
-        throw new Error(
-            "Position hors de la zone AROME disponible (15 × 15 km autour de La Rochelle)"
-        );
-    }
-
-    const dateModele = cache.modele.replace(
-        /T(\d{2})\.(\d{2})\.(\d{2})Z$/,
-        "T$1:$2:$3Z"
-    );
-    const dateInitialisation = new Date(dateModele);
-
-    if (Number.isNaN(dateInitialisation.getTime())) {
-        throw new Error("Date du modèle AROME invalide");
-    }
-
-    const previsions = [];
-    const erreurs = [];
-
-    for (let h = 1; h <= 51; h++) {
-        const seconde = h * 3600;
-        const donnees = cache.previsions.find(p => p.seconde === seconde);
-
-        if (!donnees || !donnees.U || !donnees.V) {
-            continue;
-        }
-
-        const echeance = "H+" + h;
-        try {
-            const u = interpoler(
-                donnees.U.grille,
-                donnees.U.valeurs,
-                latitude,
-                longitude
-            );
-            const v = interpoler(
-                donnees.V.grille,
-                donnees.V.valeurs,
-                latitude,
-                longitude
-            );
-            const vitesse = Math.sqrt(u * u + v * v);
-            let rafale = null;
-
-            if (donnees.RAFALE) {
-                rafale = interpoler(
-                    donnees.RAFALE.grille,
-                    donnees.RAFALE.valeurs,
-                    latitude,
-                    longitude
-                );
-            }
-
-            const direction = (
-                Math.atan2(-u, -v) * 180 / Math.PI + 360
-            ) % 360;
-            const dateValide = new Date(
-                dateInitialisation.getTime() + seconde * 1000
-            );
-
-            previsions.push({
-                echeance,
-                date: dateValide.toISOString(),
-                vitesse: Number(vitesse.toFixed(2)),
-                rafale: Number.isFinite(rafale)
-                    ? Number(rafale.toFixed(2))
-                    : null,
-                direction: Number(direction.toFixed(1)),
-                composante_U: Number(u.toFixed(3)),
-                composante_V: Number(v.toFixed(3))
-            });
-        } catch (erreur) {
-            erreurs.push({
-                echeance,
-                erreur: erreur.message
-            });
-        }
-    }
-
-    const erreursCache = Array.isArray(cache.erreurs)
-        ? cache.erreurs
-        : [];
-
-    if (previsions.length === 0) {
-        throw new Error("Aucune prévision exploitable dans le cache AROME");
-    }
-
-    return {
-        succes: true,
-        coordonnees: {
-            latitude,
-            longitude
-        },
-        modele: cache.modele,
-        hauteur: "10 m",
-        nombre_echeances: previsions.length,
-        nombre_erreurs: erreursCache.length + erreurs.length,
-        methode: "Interpolation bilinéaire locale des composantes U/V",
-        cache: true,
-        origine_cache: cache.origine_cache || "GitHub Pages",
-        actualisation_en_cours: false,
-        actualisation_statut: "non applicable",
-        previsions,
-        erreurs: [...erreursCache, ...erreurs]
-    };
-}
-
 // --------------------------------------------------
 // PREVISIONS AROME AU POINT CLIQUE
 // --------------------------------------------------
@@ -763,9 +656,14 @@ async function obtenirPrevisionsAromeAuPoint(url, lat, lon) {
     return resultat;
 }
 
-async function obtenirPrevisionsAromePourAffichage(lat, lon) {
-    const [[latMin, lonMin], [latMax, lonMax]] = ZONE_AROME_GRIB;
-    if (lat >= latMin && lat <= latMax && lon >= lonMin && lon <= lonMax) {
+async function obtenirPrevisionsAromePourAffichage(lat, lon, forcer = false) {
+    if (pointDansPaquets(lat, lon)) {
+        try {
+            const resultat = await obtenirPointLocal(lat, lon, forcer);
+            return { resultat, source: "local" };
+        } catch (erreurLocale) {
+            console.warn("Cache GitHub Pages indisponible pour ce point :", erreurLocale.message);
+        }
         try {
             const resultat = await obtenirPrevisionsAromeAuPoint(
                 URL_PREVISIONS_PAQUETS_POINT, lat, lon
@@ -817,7 +715,7 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
 
     try {
 
-        const { resultat, source } = await obtenirPrevisionsAromePourAffichage(lat, lon);
+        const { resultat, source } = await obtenirPrevisionsAromePourAffichage(lat, lon, options.relire);
 
         console.log("Prévisions AROME au point sélectionné", resultat);
 
@@ -835,9 +733,11 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
                 .replace("Z", " UTC")
             : "--";
 
-        const origine = source === "GRIB2"
-            ? "Prévisions AROME GRIB2 au point sélectionné"
-            : "Prévisions WCS de secours au point sélectionné";
+        const origine = {
+            local: "AROME calculé sur cet appareil · Cache GitHub Pages",
+            GRIB2: "Prévisions AROME GRIB2 depuis Render (secours)",
+            WCS: "Prévisions WCS de secours au point sélectionné"
+        }[source];
 
         let statutActualisation = "";
 
@@ -1807,20 +1707,9 @@ async function actualiserDepuisInterface(action, bouton) {
             return;
         }
 
-        const chargementStatut = fetch(URL_STATUT_PAQUETS, {
-            cache: "no-store",
-            signal: AbortSignal.timeout?.(10000)
-        }).then(reponse => reponse.ok ? reponse.json() : null)
-            .catch(() => null);
-        const chargementPrevisions = chargerPrevisionsAuPoint(
-            positionCourante, { relire: true }
-        );
-        const numeroRequete = numeroRequetePrevisions;
-        const [source, etatPaquets] = await Promise.all([
-            chargementPrevisions,
-            chargementStatut
-        ]);
-        if (numeroRequete !== numeroRequetePrevisions) {
+        const point = positionCourante;
+        const source = await chargerPrevisionsAuPoint(point, { relire: true });
+        if (point !== positionCourante) {
             statut.textContent = "Le point de prévision a changé.";
             return;
         }
@@ -1829,7 +1718,18 @@ async function actualiserDepuisInterface(action, bouton) {
             statut.textContent = "Prévisions AROME indisponibles pour ce point.";
             return;
         }
+        if (source === "local") {
+            statut.textContent = "Prévisions calculées sur cet appareil. Vérification du modèle publié sur GitHub Pages.";
+            return;
+        }
 
+        const etatPaquets = await fetch(URL_STATUT_PAQUETS, {
+            cache: "no-store", signal: AbortSignal.timeout?.(10000)
+        }).then(reponse => reponse.ok ? reponse.json() : null).catch(() => null);
+        if (point !== positionCourante) {
+            statut.textContent = "Le point de prévision a changé.";
+            return;
+        }
         const actualisationEnCours = etatPaquets?.en_cours
             ? "AROME GRIB2 : actualisation en cours (" +
                 (etatPaquets.groupes_termines || 0) + "/" +

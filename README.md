@@ -2,7 +2,8 @@
 
 Site météo hébergé sur GitHub Pages. Render récupère directement les
 observations de la station et sert à la demande les tuiles radar couvrant la
-France entière. Render calcule les prévisions AROME au point sélectionné.
+France entière. Sur la branche `Test_fonction`, le navigateur calcule les
+51 prévisions horaires au point sélectionné à partir du cycle publié sur GitHub Pages.
 GitHub Actions sauvegarde les caches et publie le site sur GitHub Pages.
 
 | Branche | Site | Service de données |
@@ -10,8 +11,9 @@ GitHub Actions sauvegarde les caches et publie le site sur GitHub Pages.
 | `main` | GitHub Pages et station-meteo-LR | `station-meteo-lr.onrender.com` |
 | `Test_fonction` | station-meteo-LR-test | `station-meteo-lr-test.onrender.com` |
 
-Chaque service calcule ses prévisions et restaure ses propres sauvegardes
-AROME. GitHub Pages déploie uniquement `main` et appelle les API de production.
+Chaque service Render prépare les cycles AROME et restaure sa propre sauvegarde.
+GitHub Pages déploie `main` et publie le cycle GRIB2 validé de production.
+L’interface de test peut lire cette archive depuis son propre domaine.
 
 ## Actualisation des données
 
@@ -51,7 +53,7 @@ déploiement même si le workflow se termine correctement.
 Les boutons **Station de vent** et **Radar** appellent directement les API
 Render; le bouton Radar vérifie le dernier produit national et recharge ses
 tuiles. Le bouton **Prévisions AROME** relit les prévisions au point choisi
-et affiche le statut du calcul GRIB2 lorsqu'il est disponible. Le serveur
+et vérifie si un nouveau cycle GRIB2 est disponible. Le serveur
 vérifie le catalogue AROME selon son propre cycle automatique.
 
 Dans **Render → Environment**, configurer les variables suivantes :
@@ -74,8 +76,9 @@ observations et les tuiles radar ne nécessitent plus de workflow GitHub.
 
 ## Activer le GRIB2 en production
 
-Chaque site Render calcule les prévisions au point sélectionné sur son
-propre service. GitHub Pages utilise `station-meteo-lr.onrender.com`. Si le
+Chaque site Render propose une API de calcul au point sélectionné.
+La frise de `Test_fonction` utilise cette API en secours. GitHub Pages
+utilise `station-meteo-lr.onrender.com` pour les appels serveur. Si le
 GRIB2 est indisponible ou si le clic est hors de sa zone, l'interface demande
 le WCS au même service Render. Le cache WCS publié sur GitHub Pages permet
 encore d'afficher le vent dans sa zone si Render ne peut pas répondre.
@@ -187,7 +190,8 @@ sans afficher le secret.
 ## Tester les paquets AROME directement sur Render test
 
 **Branche :** `Test_fonction`, service `station-meteo-lr-test`.
-Le service utilise son propre cache en mémoire. La sauvegarde GRIB2 utilise
+Le service conserve son cycle validé sur disque temporaire pour servir l’API
+de secours et le gzip de publication. La sauvegarde GRIB2 utilise
 la branche `arome-paquets-test-data`. Les mises à jour automatiques du catalogue
 sont actives par défaut.
 
@@ -296,8 +300,8 @@ le nombre d'échéances et les tailles GRIB2/JSON. Le second calcule les vents
 au point demandé seulement après la réussite du test.
 
 Le déclenchement est limité à une exécution à la fois et à une demande
-toutes les quatre minutes. Un redémarrage de Render vide le cache de test
-en mémoire, sans affecter le cache WCS.
+toutes les quatre minutes. À chaque redémarrage, Render restaure le dernier
+cycle sauvegardé depuis la branche de données du service.
 
 **Rafales AROME :** Météo-France nomme la vitesse de rafale maximale
 sur une heure à 10 m `FF_RAF(10m)`, en **m/s**. Le paquet SP1 de
@@ -359,9 +363,8 @@ Le statut expose `groupes_total`, `groupes_termines`,
 `groupe_actuel`, `echeances_recuperees`, `taille_grib_mo`,
 `taille_cache_mo`, `taille_cache_gzip_mo`, la compression et les
 éventuelles erreurs. Chaque groupe U/V/FF_RAF est vérifié avant fusion.
-Le cache précédent reste accessible si un téléchargement échoue ; le
-nouveau cache n'est publié en mémoire qu'après validation de toutes les
-échéances du test choisi.
+Le cache précédent reste accessible si un téléchargement échoue. Le nouveau
+cycle le remplace après validation de toutes les échéances du test choisi.
 
 **Mesure du poids du cache :** Render construit un cache JSON identique
 à la structure utilisée par le site et calcule sa version gzip
@@ -385,13 +388,19 @@ deux caches n'ont aucune date commune, aucune comparaison numérique
 n'est prétendue. Cette route lit le cache WCS existant sans déclencher
 un téléchargement WCS ni le modifier.
 
-**Intégration au point cliqué (Render test) :** le navigateur interroge
-`/api/arome/paquets/test/previsions?lat=…&lon=…`. Render interpole la
-grille conservée en mémoire et renvoie **uniquement les 51 prévisions au
-point demandé** (U/V, vitesse, direction, rafales). Le navigateur ne
-télécharge pas la grille de 31 Mo. Render test sauvegarde le gzip dans
-`arome-paquets-test-data`. Le WCS reste un secours au point cliqué via
-`/api/arome/previsions` si le cache Paquets n'est pas encore prêt.
+### Frise AROME au point cliqué sur le site de test
+
+À la première ouverture, le navigateur télécharge le gzip du cycle de production
+publié sur GitHub Pages. Il le garde dans le stockage du site et interpole les
+51 heures dans un Web Worker. Un clic déplace la prévision. Un F5 reprend la
+copie locale pendant que le navigateur vérifie la version en arrière-plan.
+Le bouton **Prévisions AROME** et un contrôle toutes les 30 minutes permettent
+de récupérer une nouvelle archive. Une mise à jour incomplète conserve le cycle
+précédent. Si le navigateur a effacé les données du site, il retélécharge le gzip.
+
+Si le calcul local est indisponible, le site essaie le cache propre à Render test
+via `/api/arome/paquets/test/previsions`, puis le WCS. Render test sauvegarde
+ses propres cycles dans `arome-paquets-test-data`.
 
 **Actualisation automatique (Render test) :** à chaque démarrage, Render
 restaure d'abord le cache depuis sa branche GitHub, puis vérifie le **catalogue
@@ -452,9 +461,9 @@ au workflow de sauvegarde.
 
 ## Sauvegardes du cache AROME GRIB2
 
-La consultation au **point GPS cliqué** ne change pas. Render interpole en
-mémoire la grille AROME 0,025° et n'envoie que les 51 prévisions demandées.
-Le navigateur ne charge **jamais** le cache GRIB2 complet.
+Le même gzip sert à la restauration du service et au calcul des 51 prévisions
+dans le navigateur de test. La copie locale du navigateur est propre à chaque
+site et à chaque profil.
 
 ### Sauvegarde
 
@@ -489,9 +498,9 @@ le résultat de la sauvegarde apparaît dans GitHub Actions.
 
 À chaque redémarrage, Render charge le gzip depuis sa branche de sauvegarde
 et contrôle la provenance, la zone, les 51 échéances
-et l'interpolation, puis le remet en mémoire. Le champ
-`restauration_pages` passe à `reussie`, le cache devient immédiatement
-disponible pour le calcul au point cliqué. Si le modèle est ancien,
+et l'interpolation. Sur le service de test, il conserve le gzip et une copie
+organisée par échéance sur son disque temporaire. Le statut indique alors
+`restauration_pages: reussie` et `stockage_cache: disque_temporaire`. Si le modèle est ancien,
 le traitement des neuf paquets redémarre en arrière-plan, **sans retirer
 le dernier cache restauré**. Si la sauvegarde est inaccessible ou le gzip
 invalide, Render utilise l'actualisation automatique actuelle et le WCS

@@ -81,3 +81,41 @@ test("masque radar : mêmes pixels valides, qualité invalide transparente", () 
     assert.deepEqual(pluie, new Uint16Array([0, 65535, 255, 65535, 1024, 65534, 65535]));
     assert.throws(() => masquerRadarSelonQualite(pluie, new Uint8Array(2)));
 });
+
+test("cycle sur disque : lectures en cours, ordre des heures et cumuls de pluie", async () => {
+    const { deflateSync, gzipSync } = require("node:zlib");
+    const { Writable } = require("node:stream");
+    const { preparerCacheDisque } = require("../arome-paquets-disque");
+    const grille = { Ni: 2, Nj: 2, latitude_depart: 47, longitude_depart: -2,
+        resolution_latitude: 1, resolution_longitude: 1 };
+    function creerHeure(h, dixiemesMm) {
+        const donnees = Buffer.alloc(8);
+        for (let i = 0; i < 4; i++) donnees.writeInt16LE(dixiemesMm, 2 * i);
+        return { seconde: 3600 * h, PRECIP_METEO: { grille, debut_cumul: 0,
+            encodage: "zlib-base64-int16-v1", donnees: deflateSync(donnees).toString("base64") } };
+    }
+    const cache = { modele: "2026-11-26T12:00:00Z", meteo_version: 2,
+        previsions: [creerHeure(2, 28), creerHeure(1, 13)], erreurs: [] };
+    const gzip = gzipSync(JSON.stringify(cache));
+    const cycle = await preparerCacheDisque(cache, gzip);
+    assert.equal(cycle.nombreEcheances, 2);
+    assert.equal(cycle.tailleGzip, gzip.length);
+    assert.equal(cycle.previsions, undefined);
+
+    const morceaux = [];
+    const archive = cycle.envoyerGzip(new Writable({
+        write(morceau, _encodage, fini) { morceaux.push(morceau); fini(); }
+    }));
+    const point = cycle.calculerPoint(({ previsions }) => ({
+        erreurs: [], previsions: previsions.map(p => ({ echeance: "H+" + p.seconde / 3600 }))
+    }), 46.5, -1.5);
+    // Le prochain modèle peut devenir actif avant la fin des deux lectures.
+    cycle.retirer();
+    const [resultat] = await Promise.all([point, archive]);
+    assert.deepEqual(Buffer.concat(morceaux), gzip);
+    assert.equal(resultat.nombre_echeances, 2);
+    assert.equal(resultat.nombre_erreurs, 0);
+    assert.deepEqual(resultat.previsions.map(p => [p.echeance, p.precipitation]), [
+        ["H+1", 1.3], ["H+2", 1.5]
+    ]);
+});
