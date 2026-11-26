@@ -375,6 +375,48 @@ main {
     width: 100%;
 }
 
+.zone-graphique.zone-graphique-polaire {
+    max-width: 360px;
+    height: auto;
+    aspect-ratio: 1;
+    margin: 0 auto;
+}
+
+.zone-graphique-polaire canvas {
+    position: absolute;
+    inset: 0;
+}
+
+.legende-temps-vent {
+    max-width: 360px;
+    margin: 8px auto 0;
+    padding: 0 28px;
+    color: #49627d;
+    font-size: 12px;
+}
+
+.degrade-temps-vent {
+    height: 8px;
+    border-radius: 4px;
+}
+
+.bornes-temps-vent {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.bornes-temps-vent > :last-child {
+    text-align: right;
+}
+
+.bornes-temps-vent time {
+    display: block;
+    margin-top: 2px;
+    font-weight: bold;
+}
+
 /* TABLEAU */
 
 .table-container {
