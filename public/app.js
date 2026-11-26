@@ -1123,14 +1123,55 @@ function intensitePrecipitations(rrPer) {
     return Number.isFinite(rrPer) && rrPer >= 0 ? rrPer * 10 : null;
 }
 
+const COULEURS_TEMPS_VENT = [
+    [35, 91, 175],
+    [109, 55, 161],
+    [181, 53, 91],
+    [205, 98, 7]
+];
+
+const formatDateVentPolaire = new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
+});
+
+function couleurTempsVent(fraction) {
+    const position = fraction * (COULEURS_TEMPS_VENT.length - 1);
+    const indice = Math.min(Math.floor(position), COULEURS_TEMPS_VENT.length - 2);
+    const progression = position - indice;
+    const debut = COULEURS_TEMPS_VENT[indice];
+    const fin = COULEURS_TEMPS_VENT[indice + 1];
+    const couleur = debut.map((canal, i) => Math.round(canal + progression * (fin[i] - canal)));
+    return `rgb(${couleur.join(", ")})`;
+}
+
+function actualiserLegendeTempsVent(premierTemps, dernierTemps) {
+    const legende = document.getElementById("legendeTempsVent");
+    legende.hidden = premierTemps >= dernierTemps;
+    if (legende.hidden) return;
+
+    legende.querySelector(".degrade-temps-vent").style.backgroundImage =
+        `linear-gradient(90deg, ${COULEURS_TEMPS_VENT.map(couleur => `rgb(${couleur.join(", ")})`).join(", ")})`;
+
+    const dates = legende.querySelectorAll("time");
+    for (const [i, temps] of [premierTemps, dernierTemps].entries()) {
+        dates[i].dateTime = new Date(temps).toISOString();
+        dates[i].textContent = formatDateVentPolaire.format(temps);
+    }
+}
+
 function creerGraphiquePolaireVent(donnees) {
     const points = [];
     let vitesseMax = 0;
+    let premierTemps = Infinity;
+    let dernierTemps = -Infinity;
 
     for (const { ff, dd, date } of donnees) {
         if (!Number.isFinite(ff) || ff < 0 || !Number.isFinite(dd) || dd < 0 || dd > 360) {
             continue;
         }
+
+        const temps = new Date(date).getTime();
+        if (!Number.isFinite(temps)) continue;
 
         const vitesse = noeuds(ff);
         const direction = dd % 360;
@@ -1140,10 +1181,18 @@ function creerGraphiquePolaireVent(donnees) {
             y: vitesse * Math.cos(angle),
             vitesse,
             direction,
-            date
+            temps
         });
         vitesseMax = Math.max(vitesse, vitesseMax);
+        premierTemps = Math.min(premierTemps, temps);
+        dernierTemps = Math.max(dernierTemps, temps);
     }
+
+    actualiserLegendeTempsVent(premierTemps, dernierTemps);
+    const duree = dernierTemps - premierTemps;
+    const couleurs = points.map(({ temps }) =>
+        couleurTempsVent(duree > 0 ? (temps - premierTemps) / duree : 1)
+    );
 
     const pas = Math.max(5, Math.ceil(vitesseMax / 25) * 5);
     const rayonMax = Math.max(2, Math.ceil(vitesseMax / pas)) * pas;
@@ -1160,7 +1209,7 @@ function creerGraphiquePolaireVent(donnees) {
                 pointHoverRadius: 5,
                 pointHitRadius: 7,
                 pointBorderWidth: 0,
-                pointBackgroundColor: "#1677b8b3"
+                pointBackgroundColor: couleurs
             }]
         },
         options: {
@@ -1175,9 +1224,7 @@ function creerGraphiquePolaireVent(donnees) {
                     ...options.plugins.tooltip,
                     displayColors: false,
                     callbacks: {
-                        title: ([{ raw }]) => new Date(raw.date).toLocaleString("fr-FR", {
-                            day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
-                        }),
+                        title: ([{ raw }]) => formatDateVentPolaire.format(raw.temps),
                         label: ({ raw }) => [
                             `Vent moyen : ${raw.vitesse.toFixed(1)} kt`,
                             `Provenance : ${raw.direction}° (${directionTexte(raw.direction)})`

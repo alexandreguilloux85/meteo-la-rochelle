@@ -10,7 +10,7 @@
     <title>Météo La Rochelle</title>
 
     <link rel="icon" href="./favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="style.css?v=20261126">
+    <link rel="stylesheet" href="style.css?v=20261126-2">
     <link rel="stylesheet" href="frise-meteo.css">
 
     <!-- Leaflet : bibliothèque cartographique -->
@@ -260,7 +260,15 @@
 
             <div class="zone-graphique zone-graphique-polaire">
                 <canvas id="graphVentPolaire" role="img"
-                    aria-label="Nuage polaire du vent moyen. La distance au centre indique la vitesse en nœuds."></canvas>
+                    aria-label="Nuage polaire du vent moyen. La distance au centre indique la vitesse en nœuds et la couleur indique l’heure du relevé."></canvas>
+            </div>
+
+            <div class="legende-temps-vent" id="legendeTempsVent" hidden>
+                <div class="degrade-temps-vent" aria-hidden="true"></div>
+                <div class="bornes-temps-vent">
+                    <div>Plus ancien<time></time></div>
+                    <div>Plus récent<time></time></div>
+                </div>
             </div>
         </section>
 
@@ -362,7 +370,7 @@
     <!-- Application -->
     <script src="frise-meteo.js"></script>
     <script src="arome-pi.js?v=20261123"></script>
-    <script src="app.js?v=20261126"></script>
+    <script src="app.js?v=20261126-2"></script>
 
 </body>
 </html>
