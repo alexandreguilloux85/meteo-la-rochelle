@@ -2,7 +2,6 @@
     "use strict";
 
     const FUSEAU = "Europe/Paris";
-    const SEUIL = 4.5;
     const MINUTE = 60 * 1000;
     const HEURE = 60 * MINUTE;
     const PAS_HAUTEURS = 10 * MINUTE;
@@ -73,7 +72,7 @@
         return { points, extrema };
     }
 
-    function calculerFranchissements(points) {
+    function calculerFranchissements(points, seuil) {
         const franchissements = [];
         let precedent = null;
         let horsSeuil = null;
@@ -84,14 +83,14 @@
                 debutAuSeuil = null;
             }
             precedent = point;
-            if (point.y === SEUIL) {
+            if (point.y === seuil) {
                 debutAuSeuil ??= point.x;
                 continue;
             }
-            const monte = point.y > SEUIL;
-            if (horsSeuil && monte !== (horsSeuil.y > SEUIL)) {
+            const monte = point.y > seuil;
+            if (horsSeuil && monte !== (horsSeuil.y > seuil)) {
                 const x = debutAuSeuil ?? (horsSeuil.x + (point.x - horsSeuil.x) *
-                    (SEUIL - horsSeuil.y) / (point.y - horsSeuil.y));
+                    (seuil - horsSeuil.y) / (point.y - horsSeuil.y));
                 franchissements.push({ x, monte });
             }
             horsSeuil = point;
@@ -100,7 +99,7 @@
         return franchissements;
     }
 
-    function calculerCycle({ points, extrema }, instant) {
+    function calculerCycle({ points, extrema }, instant, seuil) {
         if (instant < points[0].x || instant > points.at(-1).x) return null;
         const bassesMers = extrema.filter(point => point.type === "BM").map(point => point.x);
         const minima = points.filter((point, index) => {
@@ -127,7 +126,8 @@
             fin,
             points: visibles,
             extrema: extrema.filter(point => point.x >= debut && point.x <= fin),
-            franchissements: calculerFranchissements(visibles),
+            seuil,
+            franchissements: calculerFranchissements(visibles, seuil),
             actuel: { x: instant, y: interpolerHauteur(points, instant) }
         };
     }
@@ -165,7 +165,7 @@
             beforeDatasetsDraw({ ctx, chartArea: { left, right, top, bottom }, scales: { x, y } }) {
                 const cycle = lireCycle();
                 if (!cycle) return;
-                const seuil = y.getPixelForValue(SEUIL);
+                const seuil = y.getPixelForValue(cycle.seuil);
                 const present = x.getPixelForValue(cycle.actuel.x);
                 ctx.save();
                 ctx.strokeStyle = ROUGE;
@@ -187,9 +187,9 @@
                 const cycle = lireCycle();
                 if (!cycle) return;
                 const { actuel, franchissements } = cycle;
-                const seuil = y.getPixelForValue(SEUIL);
+                const seuil = y.getPixelForValue(cycle.seuil);
                 ctx.save();
-                dessinerEtiquette(ctx, chartArea, chartArea.right, seuil - 9, texteHauteur(SEUIL), "#fff", ROUGE);
+                dessinerEtiquette(ctx, chartArea, chartArea.right, seuil - 9, texteHauteur(cycle.seuil), "#fff", ROUGE);
                 for (const { x: temps, monte } of franchissements) {
                     const abscisse = x.getPixelForValue(temps);
                     ctx.fillStyle = ROUGE;
@@ -209,8 +209,6 @@
                     ctx.fill();
                     ctx.stroke();
                 }
-                dessinerEtiquette(ctx, { ...chartArea, top: 0, bottom: chartArea.top }, present,
-                    chartArea.top - 21, "Maintenant", "#fff", BLEU);
                 ctx.restore();
             }
         };
@@ -232,7 +230,7 @@
                 parsing: false,
                 animation: false,
                 maintainAspectRatio: false,
-                layout: { padding: { top: 26, right: 4 } },
+                layout: { padding: { right: 4 } },
                 interaction: { mode: "nearest", axis: "x", intersect: false },
                 plugins: {
                     legend: { display: false },
@@ -260,8 +258,14 @@
                     },
                     y: {
                         suggestedMin: 0,
-                        suggestedMax: Math.ceil(SEUIL + 0.5),
-                        ticks: { stepSize: 1, callback: value => `${value} m` }
+                        suggestedMax: 5,
+                        afterDataLimits(echelle) {
+                            const cycle = lireCycle();
+                            if (!cycle) return;
+                            echelle.min = Math.min(echelle.min, cycle.seuil);
+                            echelle.max = Math.max(echelle.max, cycle.seuil + 0.5);
+                        },
+                        ticks: { precision: 0, maxTicksLimit: 9, callback: value => `${value} m` }
                     }
                 }
             },
@@ -287,8 +291,11 @@
         const heure = document.getElementById("mareeHeure");
         const statut = document.getElementById("mareeStatut");
         const details = document.getElementById("mareeDetails");
+        const champSeuil = document.getElementById("mareeSeuil");
+        const titreFranchissements = document.getElementById("mareeTitreFranchissements");
         const listeFranchissements = document.getElementById("mareeFranchissements");
         const listeExtrema = document.getElementById("mareeExtrema");
+        let seuil = Number(champSeuil.defaultValue.replace(",", "."));
         let donnees = null;
         let cycle = null;
         let graphique = null;
@@ -302,7 +309,7 @@
         }
 
         function actualiserAffichage(instant, jour) {
-            cycle = donnees && calculerCycle(donnees, instant);
+            cycle = donnees && calculerCycle(donnees, instant, seuil);
             const hauteurActuelle = cycle?.actuel.y ?? null;
             hauteur.textContent = hauteurActuelle === null ? "—" : texteHauteur(hauteurActuelle);
             heure.hidden = hauteurActuelle === null;
@@ -324,6 +331,10 @@
             else if (echec) afficher("Actualisation indisponible. Dernières prévisions affichées.");
             else afficher("");
 
+            const seuilAffiche = texteHauteur(seuil);
+            titreFranchissements.textContent = `Passages à ${seuilAffiche}`;
+            canvas.setAttribute("aria-label",
+                `Hauteur d’eau prévue pendant la marée en cours, niveau actuel en bleu et seuil à ${seuilAffiche}.`);
             listeFranchissements.replaceChildren();
             for (const { x, monte } of cycle.franchissements) {
                 ajouterHoraire(listeFranchissements, monte ? "À la montée" : "À la descente", heureArrondie(x), jour);
@@ -380,6 +391,18 @@
             const nouveau = Date.now();
             actualiserAffichage(nouveau, jourParis(nouveau));
         }
+
+        champSeuil.addEventListener("input", () => {
+            if (!champSeuil.validity.valid) return;
+            const valeur = Number(champSeuil.value.replace(",", "."));
+            if (!Number.isSafeInteger(Math.round(valeur * 100)) || valeur === seuil) return;
+            seuil = valeur;
+            const instant = Date.now();
+            actualiserAffichage(instant, jourParis(instant));
+        });
+        champSeuil.addEventListener("blur", () => {
+            champSeuil.value = seuil.toFixed(2).replace(".", ",");
+        });
 
         actualiser();
         setInterval(actualiser, MINUTE);

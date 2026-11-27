@@ -10,7 +10,7 @@
     <title>Météo La Rochelle</title>
 
     <link rel="icon" href="./favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="style.css?v=20261127-cartes">
+    <link rel="stylesheet" href="style.css?v=20261127-seuil">
     <link rel="stylesheet" href="frise-meteo.css">
 
     <!-- Leaflet : bibliothèque cartographique -->
@@ -132,13 +132,18 @@
                 </div>
                 <p id="mareeStatut" class="maree-statut" role="status">Chargement de la marée…</p>
                 <div id="mareeDetails" hidden>
+                    <div class="maree-reglage-seuil">
+                        <label for="mareeSeuil">Seuil de marée (m)</label>
+                        <input id="mareeSeuil" type="text" inputmode="decimal" value="4,50"
+                            pattern="-?[0-9]+([.,][0-9]{1,2})?" required>
+                    </div>
                     <div class="zone-graphique zone-graphique-maree">
                         <canvas id="graphMaree" role="img"
                             aria-label="Hauteur d’eau prévue pendant la marée en cours, niveau actuel en bleu et seuil à 4,50 m."></canvas>
                     </div>
                     <div class="maree-reperes">
                         <div>
-                            <h3>Passages à 4,50 m</h3>
+                            <h3 id="mareeTitreFranchissements">Passages à 4,50 m</h3>
                             <ul id="mareeFranchissements"></ul>
                         </div>
                         <div>
@@ -404,7 +409,7 @@
                     <a href="https://www.etalab.gouv.fr/licence-ouverte-open-licence">Licence Ouverte 2.0</a>, juil. 2026).
                     Citations <a href="https://doi.org/10.17183/REFMAR#RONIM">REFMAR RONIM</a> et
                     <a href="https://doi.org/10.17183/REFMAR#PARTENAIRES">REFMAR Partenaires</a>.
-                    Le site interpole la hauteur actuelle et les heures de passage à 4,50 m.
+                    Le site interpole la hauteur actuelle et les heures de passage au seuil choisi.
                 </p>
             </details>
         </footer>
@@ -418,7 +423,7 @@
     <script src="frise-meteo.js"></script>
     <script src="arome-pi.js?v=20261123"></script>
     <script src="arome-calcul-point.js"></script>
-    <script src="marees.js?v=20261127"></script>
+    <script src="marees.js?v=20261127-seuil"></script>
     <script src="app.js?v=20261127-marees"></script>
 
 </body>

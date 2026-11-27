@@ -193,6 +193,25 @@ main {
     display: none;
 }
 
+.maree-reglage-seuil {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.maree-reglage-seuil input {
+    width: 80px;
+    padding: 5px 8px;
+    border: 1px solid #aebdcd;
+    border-radius: 6px;
+    color: #26384a;
+    font: inherit;
+    font-size: 16px;
+}
+
 .zone-graphique.zone-graphique-maree {
     height: 275px;
 }
