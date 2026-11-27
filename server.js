@@ -10,6 +10,7 @@ const { PNG } = require("pngjs");
 const { essayerDemarrer, traitementEnCours } = require("./traitement-lourd");
 const { masquerRadarSelonQualite } = require("./radar-qualite");
 const { decoderGrib } = require("./arome-grib2");
+const { creerRouteMarees } = require("./marees");
 
 const app = express();
 const hoteRender = process.env.RENDER_EXTERNAL_HOSTNAME;
@@ -456,6 +457,7 @@ async function obtenirTuileRadar(produit, zoom, tuileX, tuileY) {
 // --------------------------------------------------
 
 app.use(express.static("public"));
+app.get("/api/marees", creerRouteMarees());
 
 // --------------------------------------------------
 // OBSERVATIONS METEO : dernier paquet conservé en mémoire entre deux contrôles.

@@ -152,6 +152,86 @@ main {
     color: #1677b8;
 }
 
+.bloc.carte-maree {
+    grid-column: 1 / -1;
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.carte-maree .entete-bloc {
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.carte-maree .entete-bloc p {
+    color: #536579;
+}
+
+.maree-hauteur-actuelle {
+    display: grid;
+    min-width: 120px;
+    gap: 2px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #17649b;
+    color: #fff;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.maree-hauteur-actuelle strong {
+    font-size: 23px;
+}
+
+.maree-statut {
+    margin: 0 0 10px;
+    color: #536579;
+    font-size: 13px;
+}
+
+.maree-statut:empty {
+    display: none;
+}
+
+.zone-graphique.zone-graphique-maree {
+    height: 275px;
+}
+
+.maree-reperes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 32px;
+    margin-top: 12px;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+.maree-reperes h3 {
+    margin: 0 0 4px;
+    font-size: 13px;
+}
+
+.maree-reperes ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: #536579;
+}
+
+.maree-sources {
+    margin: 12px 0 0;
+    color: #536579;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.maree-sources a {
+    color: #165d92;
+}
+
 /* legende du radar */
 .legende-radar {
     margin-top: 10px;
@@ -594,6 +674,11 @@ footer {
     .zone-graphique {
         height: 260px;
     }
+
+    .zone-graphique.zone-graphique-maree {
+        height: 235px;
+    }
+
         .legende-radar {
         padding: 9px;
         font-size: 11px;

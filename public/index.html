@@ -10,7 +10,7 @@
     <title>Météo La Rochelle</title>
 
     <link rel="icon" href="./favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="style.css?v=20261126-2">
+    <link rel="stylesheet" href="style.css?v=20261127-marees">
     <link rel="stylesheet" href="frise-meteo.css">
 
     <!-- Leaflet : bibliothèque cartographique -->
@@ -117,6 +117,50 @@
                 <div class="valeur-principale" id="pressionActuelle">----</div>
                 <div class="unite">hPa · niveau de la mer</div>
             </div>
+
+            <article class="bloc carte-maree" aria-labelledby="titreMaree">
+                <div class="entete-bloc">
+                    <div>
+                        <h2 id="titreMaree">Marée · La Rochelle-Pallice</h2>
+                        <p>Prédiction du cycle en cours · heure locale</p>
+                    </div>
+                    <div class="maree-hauteur-actuelle">
+                        <span>Hauteur actuelle</span>
+                        <strong id="mareeActuelle">—</strong>
+                        <time id="mareeHeure"></time>
+                    </div>
+                </div>
+                <p id="mareeStatut" class="maree-statut" role="status">Chargement de la marée…</p>
+                <div id="mareeDetails" hidden>
+                    <div class="zone-graphique zone-graphique-maree">
+                        <canvas id="graphMaree" role="img"
+                            aria-label="Hauteur d’eau prévue pendant la marée en cours, niveau actuel en bleu et seuil à 4,50 m."></canvas>
+                    </div>
+                    <div class="maree-reperes">
+                        <div>
+                            <h3>Passages à 4,50 m</h3>
+                            <ul id="mareeFranchissements"></ul>
+                        </div>
+                        <div>
+                            <h3>Pleines et basses mers</h3>
+                            <ul id="mareeExtrema"></ul>
+                        </div>
+                    </div>
+                    <p class="maree-sources">
+                        Hauteur actuelle et heures de passage interpolées à partir des prévisions au pas de 10 min.
+                        Données de marée fournies par <a href="https://api-maree.fr/">api-maree.fr</a>
+                        sous licence <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>,
+                        calculées à partir des composantes harmoniques
+                        <a href="https://sextant.ifremer.fr/geonetwork/srv/api/records/1bc4a49d-d4cd-469e-827c-bd3bd0eeabba/formatters/xsl-view">Ifremer / PREVIMER</a>,
+                        elles-mêmes sous licence <a href="https://creativecommons.org/licenses/by/4.0/">CC BY</a>,
+                        et recalées sur les observations du réseau <a href="https://data.shom.fr/donnees/refmar">REFMAR</a>
+                        (Shom et producteurs partenaires,
+                        <a href="https://www.etalab.gouv.fr/licence-ouverte-open-licence">Licence Ouverte 2.0</a>, juil. 2026).
+                        Citations <a href="https://doi.org/10.17183/REFMAR#RONIM">REFMAR RONIM</a> et
+                        <a href="https://doi.org/10.17183/REFMAR#PARTENAIRES">REFMAR Partenaires</a>.
+                    </p>
+                </div>
+            </article>
 
         </section>
 
@@ -371,7 +415,8 @@
     <script src="frise-meteo.js"></script>
     <script src="arome-pi.js?v=20261123"></script>
     <script src="arome-calcul-point.js"></script>
-    <script src="app.js?v=20261126-arome-local"></script>
+    <script src="marees.js?v=20261127"></script>
+    <script src="app.js?v=20261127-marees"></script>
 
 </body>
 </html>

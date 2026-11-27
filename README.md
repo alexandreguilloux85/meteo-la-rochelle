@@ -20,6 +20,7 @@ L’interface de test peut lire cette archive depuis son propre domaine.
 | Données | Fréquence | Source |
 | --- | --- | --- |
 | Observations de la station de La Rochelle | À l'ouverture, puis toutes les 6 minutes si la page est ouverte | API Météo-France appelée par Render |
+| Marée de La Rochelle-Pallice | Hauteur prévue recalculée chaque minute à partir des prévisions en cache | api-maree.fr appelée par Render |
 | Radar | Vérifié à l'ouverture, puis toutes les 10 minutes si la page est ouverte | Tuiles XYZ nationales générées à la demande par Render |
 | Prévisions AROME | Catalogue vérifié toutes les 30 minutes quand le service GRIB2 est actif | Paquets AROME de Météo-France sur Render, cache WCS en secours |
 
@@ -62,6 +63,8 @@ Dans **Render → Environment**, configurer les variables suivantes :
 | --- | --- |
 | `METEO_API_KEY` | Appels Météo-France pour les observations |
 | `METEO_RADAR_API_KEY` | Téléchargement de la mosaïque radar |
+| `API_MAREE_KEY` | Accès à api-maree.fr pour la carte de marée sur `station-meteo-lr-test` |
+| `API_MAREE_EXTREMA_KEY` | Facultative. Clé dédiée aux heures de pleine et basse mer si elles nécessitent une autre clé |
 | `GITHUB_ACTIONS_TOKEN` | Jeton GitHub avec l'autorisation Actions: write, utilisé uniquement pour AROME |
 
 Après un redémarrage de Render, le premier affichage du radar peut prendre plus

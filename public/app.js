@@ -1786,6 +1786,7 @@ selecteurStation.addEventListener("change", () => {
 });
 
 function demarrerApplication() {
+    window.initialiserMarees?.(URL_SERVEUR_RENDER + "/api/marees");
     // Afficher la carte et les données en cache sans attendre le serveur.
     initialiserCarteRadar();
     chargerDonnees();
