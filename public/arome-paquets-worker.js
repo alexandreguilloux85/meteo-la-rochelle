@@ -4,11 +4,14 @@ importScripts("arome-calcul-point.js");
 
 const URL_ARCHIVE = "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-paquets-cache.json.gz";
 const STOCKAGE = "meteo-lr-arome-paquets-v1";
+const VERSION_VERIFICATION = "2";
 const INTERVALLE = 30 * 60 * 1000;
 let actif = null;
 let restauration;
 let verification;
+let verificationEchouee = false;
 let prochainControle = 0;
+let minuteur;
 const stockage = self.caches ? caches.open(STOCKAGE).catch(() => null) : Promise.resolve(null);
 
 async function preparer(blob, modification) {
@@ -70,48 +73,63 @@ async function restaurer() {
     const copie = await disque?.match(URL_ARCHIVE);
     if (!copie || (actif && copie.headers.get("X-Signature") === actif.signature)) return;
     const candidat = await preparer(await copie.blob(), copie.headers.get("Last-Modified"));
+    candidat.aRevalider = copie.headers.get("X-Version-Verification") !== VERSION_VERIFICATION;
     installer(candidat);
 }
 
 function installer(candidat) {
     if (actif && (Date.parse(candidat.cache.modele) < Date.parse(actif.cache.modele) ||
         (candidat.cache.modele === actif.cache.modele && candidat.cache.date < actif.cache.date))) return false;
-    const changement = actif && actif.signature !== candidat.signature;
     actif = candidat;
-    if (changement) self.postMessage({ type: "nouveau-modele" });
     return true;
 }
 
-function requete(options = {}) {
-    return fetch(URL_ARCHIVE, { cache: "no-cache", signal: AbortSignal.timeout?.(60000), ...options });
+function requete(url, options = {}, delai = 60000) {
+    return fetch(url, { cache: "no-store", signal: AbortSignal.timeout?.(delai), ...options });
 }
 
-async function actualiser() {
-    // Un autre onglet a pu remplacer la copie pendant l'attente du verrou.
+async function sonderArchive() {
+    const entete = await requete(URL_ARCHIVE, { method: "HEAD" }, 5000);
+    if (!entete.ok || Number(entete.headers.get("Content-Length")) !== actif.taille) return {};
+
+    const modification = entete.headers.get("Last-Modified");
+    if (modification && modification === actif.modification) return { identique: true };
+
+    // Une republication de la page peut embarquer le même gzip.
+    const fin = await requete(URL_ARCHIVE, { headers: {
+        Range: `bytes=${actif.taille - 8}-${actif.taille - 1}`
+    } }, 5000);
+    if (fin.status === 206 && await signatureGzip(await fin.blob()) === actif.signature) {
+        actif.modification = modification;
+        return { identique: true };
+    }
+    if (fin.status === 200) return { reponse: fin };
+    return {};
+}
+
+async function actualiser(demande, sauvegarder = true) {
     await restaurer().catch(() => {});
     let reponse;
-    if (actif) {
-        const entete = await requete({ method: "HEAD" });
-        if (!entete.ok) throw new Error("GitHub Pages : HTTP " + entete.status);
-        const modification = entete.headers.get("Last-Modified");
-        if (Number(entete.headers.get("Content-Length")) === actif.taille) {
-            if (modification && modification === actif.modification) return;
-            // Pages peut republier le même gzip, par exemple pour une mise à jour AROME-PI.
-            const fin = await requete({ headers: { Range: `bytes=${actif.taille - 8}-${actif.taille - 1}` } });
-            if (fin.status === 206 && await signatureGzip(await fin.blob()) === actif.signature) {
-                actif.modification = modification;
-                return;
-            }
-            if (fin.status === 200) reponse = fin; // Serveur ignorant la requête partielle.
+    if (actif && !actif.aRevalider && !demande.forcee) {
+        const sondage = await sonderArchive().catch(() => null);
+        if (!demande.forcee) {
+            if (sondage?.identique) return;
+            reponse = sondage?.reponse;
         }
     }
-    reponse ||= await requete();
+    if (!reponse) {
+        const url = new URL(URL_ARCHIVE);
+        if (demande.forcee || actif?.aRevalider) {
+            url.searchParams.set("actualisation", String(Date.now()));
+        }
+        reponse = await requete(url);
+    }
     if (reponse.status !== 200) throw new Error("Archive GitHub Pages : HTTP " + reponse.status);
     const blob = await reponse.blob();
     if (blob.size > 16 * 1024 * 1024) throw new Error("Archive AROME trop volumineuse");
     const candidat = await preparer(blob, reponse.headers.get("Last-Modified"));
-    if (!installer(candidat)) return;
-    const entetes = { "X-Signature": candidat.signature };
+    if (!installer(candidat) || !sauvegarder) return;
+    const entetes = { "X-Signature": candidat.signature, "X-Version-Verification": VERSION_VERIFICATION };
     if (candidat.modification) entetes["Last-Modified"] = candidat.modification;
     try {
         const disque = await stockage;
@@ -121,38 +139,67 @@ async function actualiser() {
     }
 }
 
+function signalerVerification(signaturePrecedente, echec) {
+    const changement = (signaturePrecedente && signaturePrecedente !== actif?.signature) ||
+        verificationEchouee !== echec;
+    verificationEchouee = echec;
+    if (changement && actif) self.postMessage({ type: "cache-actualise" });
+}
+
 function verifier(forcer = false) {
-    if (verification) return verification;
+    if (verification) {
+        if (forcer) verification.forcee = true;
+        return verification.promesse;
+    }
     if (!forcer && Date.now() < prochainControle) return Promise.resolve();
+    clearTimeout(minuteur);
     prochainControle = Date.now() + INTERVALLE;
-    verification = (navigator.locks
-        ? navigator.locks.request(STOCKAGE, actualiser) : actualiser()
-    ).catch(erreur => {
+    const signaturePrecedente = actif?.signature;
+    const demande = { forcee: forcer };
+    // Un autre onglet peut retenir le verrou. La lecture réseau et le calcul
+    // local restent possibles, mais seul l'onglet qui l'obtient écrit le cache.
+    const chargement = navigator.locks
+        ? navigator.locks.request(STOCKAGE, { ifAvailable: true }, verrou => actualiser(demande, Boolean(verrou)))
+        : actualiser(demande);
+    demande.promesse = chargement.then(() => {
+        signalerVerification(signaturePrecedente, false);
+    }).catch(erreur => {
         prochainControle = Date.now() + 60000;
+        signalerVerification(signaturePrecedente, true);
         throw erreur;
-    }).finally(() => { verification = null; });
-    return verification;
+    }).finally(() => {
+        verification = null;
+        if (actif) minuteur = setTimeout(verifierEnArrierePlan, Math.max(0, prochainControle - Date.now()));
+    });
+    verification = demande;
+    return demande.promesse;
+}
+
+function verifierEnArrierePlan() {
+    void verifier().catch(e => console.warn("Copie AROME conservée :", e.message));
 }
 
 self.onmessage = async ({ data: { id, lat, lon, forcer } }) => {
     try {
         restauration ||= restaurer().catch(() => {});
         await restauration;
-        if (actif) {
-            void verifier(forcer).catch(e => console.warn("Copie AROME conservée :", e.message));
+        if (actif && !forcer) {
+            verifierEnArrierePlan();
         } else {
-            await verifier(forcer);
+            try {
+                await verifier(forcer);
+            } catch (erreur) {
+                if (!actif) throw erreur;
+                console.warn("Copie AROME conservée :", erreur.message);
+            }
         }
         if (!actif) throw new Error("Archive AROME indisponible");
         const { cache, valeursMeteo } = actif;
         const resultat = calculerPrevisionsAromeNavigateur(cache, lat, lon);
         ajouterChampsMeteo(cache, resultat, lat, lon, champ => valeursMeteo.get(champ));
+        if (verificationEchouee) resultat.actualisation_statut = "echec";
         self.postMessage({ id, resultat });
     } catch (erreur) {
         self.postMessage({ id, erreur: erreur.message });
     }
 };
-
-setInterval(() => {
-    if (actif) void verifier(true).catch(e => console.warn("Copie AROME conservée :", e.message));
-}, INTERVALLE);

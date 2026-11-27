@@ -552,9 +552,11 @@ function pointDansPaquets(lat, lon) {
 
 function obtenirPointLocal(lat, lon, forcer) {
     if (!workerPaquets) {
-        workerPaquets = new Worker(new URL("arome-paquets-worker.js", document.baseURI));
+        workerPaquets = new Worker(new URL("arome-paquets-worker.js?v=20261127-archive", document.baseURI));
         workerPaquets.onmessage = ({ data }) => {
-            if (data.type === "nouveau-modele") {
+            if (data.type === "cache-actualise") {
+                // Le point en attente utilisera déjà le cache que le worker vient de vérifier.
+                if (pointsLocauxEnAttente.size) return;
                 const p = positionCourante;
                 if (pointDansPaquets(p.lat, p.lon)) {
                     void chargerPrevisionsArome(p.lat, p.lon, { silencieux: true });
@@ -764,7 +766,7 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
         console.log("Nombre de prévisions :", resultat.previsions.length);
         console.log("Erreurs de téléchargement AROME :");
         console.table(resultat.erreurs || []);
-        return source;
+        return { source, resultat };
 
     } catch (erreur) {
 
@@ -1708,18 +1710,21 @@ async function actualiserDepuisInterface(action, bouton) {
         }
 
         const point = positionCourante;
-        const source = await chargerPrevisionsAuPoint(point, { relire: true });
+        const choix = await chargerPrevisionsAuPoint(point, { relire: true });
         if (point !== positionCourante) {
             statut.textContent = "Le point de prévision a changé.";
             return;
         }
 
-        if (!source) {
+        if (!choix) {
             statut.textContent = "Prévisions AROME indisponibles pour ce point.";
             return;
         }
+        const { source, resultat } = choix;
         if (source === "local") {
-            statut.textContent = "Prévisions calculées sur cet appareil. Vérification du modèle publié sur GitHub Pages.";
+            statut.textContent = resultat.actualisation_statut === "echec"
+                ? "Impossible de vérifier l’archive GitHub Pages. La copie locale est conservée."
+                : "Archive GitHub Pages vérifiée. Prévisions calculées sur cet appareil.";
             return;
         }
 
