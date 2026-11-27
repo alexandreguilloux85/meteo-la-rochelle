@@ -64,7 +64,7 @@ main {
 
 .cartes {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
     margin-bottom: 22px;
 }
@@ -219,17 +219,6 @@ main {
     padding: 0;
     list-style: none;
     color: #536579;
-}
-
-.maree-sources {
-    margin: 12px 0 0;
-    color: #536579;
-    font-size: 11px;
-    line-height: 1.5;
-}
-
-.maree-sources a {
-    color: #165d92;
 }
 
 /* legende du radar */
@@ -614,12 +603,35 @@ footer {
     padding: 10px 0 20px;
 }
 
-/* ADAPTATION TABLETTE */
+.maree-sources {
+    max-width: 720px;
+    margin: 8px auto 0;
+    color: #536579;
+    line-height: 1.5;
+}
 
-@media (max-width: 900px) {
+.maree-sources summary {
+    width: fit-content;
+    margin-inline: auto;
+    cursor: pointer;
+}
+
+.maree-sources a {
+    color: #165d92;
+}
+
+/* CARTES SUR GRAND ÉCRAN */
+
+@media (min-width: 901px) {
 
     .cartes {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, 2.5fr);
+        grid-template-rows: repeat(2, 1fr);
+    }
+
+    .bloc.carte-maree {
+        grid-column: 3;
+        grid-row: 1 / 3;
     }
 
 }
@@ -646,7 +658,6 @@ footer {
     }
 
     .cartes {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
     }
 

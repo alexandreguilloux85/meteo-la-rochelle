@@ -10,7 +10,7 @@
     <title>Météo La Rochelle</title>
 
     <link rel="icon" href="./favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="style.css?v=20261127-marees">
+    <link rel="stylesheet" href="style.css?v=20261127-cartes">
     <link rel="stylesheet" href="frise-meteo.css">
 
     <!-- Leaflet : bibliothèque cartographique -->
@@ -146,19 +146,6 @@
                             <ul id="mareeExtrema"></ul>
                         </div>
                     </div>
-                    <p class="maree-sources">
-                        Hauteur actuelle et heures de passage interpolées à partir des prévisions au pas de 10 min.
-                        Données de marée fournies par <a href="https://api-maree.fr/">api-maree.fr</a>
-                        sous licence <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>,
-                        calculées à partir des composantes harmoniques
-                        <a href="https://sextant.ifremer.fr/geonetwork/srv/api/records/1bc4a49d-d4cd-469e-827c-bd3bd0eeabba/formatters/xsl-view">Ifremer / PREVIMER</a>,
-                        elles-mêmes sous licence <a href="https://creativecommons.org/licenses/by/4.0/">CC BY</a>,
-                        et recalées sur les observations du réseau <a href="https://data.shom.fr/donnees/refmar">REFMAR</a>
-                        (Shom et producteurs partenaires,
-                        <a href="https://www.etalab.gouv.fr/licence-ouverte-open-licence">Licence Ouverte 2.0</a>, juil. 2026).
-                        Citations <a href="https://doi.org/10.17183/REFMAR#RONIM">REFMAR RONIM</a> et
-                        <a href="https://doi.org/10.17183/REFMAR#PARTENAIRES">REFMAR Partenaires</a>.
-                    </p>
                 </div>
             </article>
 
@@ -404,6 +391,22 @@
 
         <footer>
             Données issues de Météo-France · Station <span data-id-station>17300009</span>
+            <details class="maree-sources">
+                <summary>Sources des données de marée</summary>
+                <p>
+                    Données de marée fournies par <a href="https://api-maree.fr/">api-maree.fr</a>
+                    sous licence <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>,
+                    calculées à partir des composantes harmoniques
+                    <a href="https://sextant.ifremer.fr/geonetwork/srv/api/records/1bc4a49d-d4cd-469e-827c-bd3bd0eeabba/formatters/xsl-view">Ifremer / PREVIMER</a>,
+                    elles-mêmes sous licence <a href="https://creativecommons.org/licenses/by/4.0/">CC BY</a>,
+                    et recalées sur les observations du réseau <a href="https://data.shom.fr/donnees/refmar">REFMAR</a>
+                    (Shom et producteurs partenaires,
+                    <a href="https://www.etalab.gouv.fr/licence-ouverte-open-licence">Licence Ouverte 2.0</a>, juil. 2026).
+                    Citations <a href="https://doi.org/10.17183/REFMAR#RONIM">REFMAR RONIM</a> et
+                    <a href="https://doi.org/10.17183/REFMAR#PARTENAIRES">REFMAR Partenaires</a>.
+                    Le site interpole la hauteur actuelle et les heures de passage à 4,50 m.
+                </p>
+            </details>
         </footer>
 
     </main>
