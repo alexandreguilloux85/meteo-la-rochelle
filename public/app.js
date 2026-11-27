@@ -552,7 +552,7 @@ function pointDansPaquets(lat, lon) {
 
 function obtenirPointLocal(lat, lon, forcer) {
     if (!workerPaquets) {
-        workerPaquets = new Worker(new URL("arome-paquets-worker.js?v=20261127-archive", document.baseURI));
+        workerPaquets = new Worker(new URL("arome-paquets-worker.js?v=20261127-sauvegarde", document.baseURI));
         workerPaquets.onmessage = ({ data }) => {
             if (data.type === "cache-actualise") {
                 // Le point en attente utilisera déjà le cache que le worker vient de vérifier.
@@ -736,7 +736,9 @@ async function chargerPrevisionsArome(lat, lon, options = {}) {
             : "--";
 
         const origine = {
-            local: "AROME calculé sur cet appareil · Cache GitHub Pages",
+            local: resultat.cache_sauvegarde_github
+                ? "AROME calculé sur cet appareil · Sauvegarde GitHub"
+                : "AROME calculé sur cet appareil · Cache GitHub Pages",
             GRIB2: "Prévisions AROME GRIB2 depuis Render (secours)",
             WCS: "Prévisions WCS de secours au point sélectionné"
         }[source];
@@ -1722,9 +1724,13 @@ async function actualiserDepuisInterface(action, bouton) {
         }
         const { source, resultat } = choix;
         if (source === "local") {
-            statut.textContent = resultat.actualisation_statut === "echec"
-                ? "Impossible de vérifier l’archive GitHub Pages. La copie locale est conservée."
-                : "Archive GitHub Pages vérifiée. Prévisions calculées sur cet appareil.";
+            if (resultat.actualisation_statut === "echec") {
+                statut.textContent = "La copie locale est conservée. " + resultat.erreur_actualisation;
+            } else if (resultat.cache_sauvegarde_github) {
+                statut.textContent = "Prévisions calculées sur cet appareil depuis la sauvegarde GitHub.";
+            } else {
+                statut.textContent = "Archive GitHub Pages vérifiée. Prévisions calculées sur cet appareil.";
+            }
             return;
         }
 

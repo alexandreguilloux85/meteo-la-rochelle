@@ -3,13 +3,14 @@
 importScripts("arome-calcul-point.js");
 
 const URL_ARCHIVE = "https://alexandreguilloux85.github.io/meteo-la-rochelle/arome-paquets-cache.json.gz";
+const URL_SAUVEGARDE = "https://raw.githubusercontent.com/alexandreguilloux85/meteo-la-rochelle/arome-paquets-data/arome-paquets-cache.json.gz";
 const STOCKAGE = "meteo-lr-arome-paquets-v1";
 const VERSION_VERIFICATION = "2";
 const INTERVALLE = 30 * 60 * 1000;
 let actif = null;
 let restauration;
 let verification;
-let verificationEchouee = false;
+let erreurVerification = null;
 let prochainControle = 0;
 let minuteur;
 const stockage = self.caches ? caches.open(STOCKAGE).catch(() => null) : Promise.resolve(null);
@@ -74,6 +75,7 @@ async function restaurer() {
     if (!copie || (actif && copie.headers.get("X-Signature") === actif.signature)) return;
     const candidat = await preparer(await copie.blob(), copie.headers.get("Last-Modified"));
     candidat.aRevalider = copie.headers.get("X-Version-Verification") !== VERSION_VERIFICATION;
+    candidat.depuisSauvegarde = copie.headers.get("X-Origine-Archive") === "sauvegarde";
     installer(candidat);
 }
 
@@ -88,48 +90,77 @@ function requete(url, options = {}, delai = 60000) {
     return fetch(url, { cache: "no-store", signal: AbortSignal.timeout?.(delai), ...options });
 }
 
-async function sonderArchive() {
-    const entete = await requete(URL_ARCHIVE, { method: "HEAD" }, 5000);
+async function sonderArchive(url) {
+    const entete = await requete(url, { method: "HEAD" }, 5000);
     if (!entete.ok || Number(entete.headers.get("Content-Length")) !== actif.taille) return {};
 
+    const depuisSauvegarde = url === URL_SAUVEGARDE;
     const modification = entete.headers.get("Last-Modified");
-    if (modification && modification === actif.modification) return { identique: true };
+    if (modification && modification === actif.modification &&
+        depuisSauvegarde === actif.depuisSauvegarde) return { identique: true };
 
     // Une republication de la page peut embarquer le même gzip.
-    const fin = await requete(URL_ARCHIVE, { headers: {
+    const fin = await requete(url, { headers: {
         Range: `bytes=${actif.taille - 8}-${actif.taille - 1}`
     } }, 5000);
     if (fin.status === 206 && await signatureGzip(await fin.blob()) === actif.signature) {
         actif.modification = modification;
+        actif.depuisSauvegarde = depuisSauvegarde;
         return { identique: true };
     }
     if (fin.status === 200) return { reponse: fin };
     return {};
 }
 
-async function actualiser(demande, sauvegarder = true) {
-    await restaurer().catch(() => {});
+async function chargerArchive(url, demande) {
     let reponse;
     if (actif && !actif.aRevalider && !demande.forcee) {
-        const sondage = await sonderArchive().catch(() => null);
+        const sondage = await sonderArchive(url).catch(() => null);
         if (!demande.forcee) {
             if (sondage?.identique) return;
             reponse = sondage?.reponse;
         }
     }
     if (!reponse) {
-        const url = new URL(URL_ARCHIVE);
+        const adresse = new URL(url);
         if (demande.forcee || actif?.aRevalider) {
-            url.searchParams.set("actualisation", String(Date.now()));
+            adresse.searchParams.set("actualisation", String(Date.now()));
         }
-        reponse = await requete(url);
+        reponse = await requete(adresse).catch(erreur => {
+            if (url !== URL_ARCHIVE || !adresse.search || !(erreur instanceof TypeError)) throw erreur;
+            return requete(url);
+        });
     }
-    if (reponse.status !== 200) throw new Error("Archive GitHub Pages : HTTP " + reponse.status);
+    if (reponse.status !== 200) throw new Error("HTTP " + reponse.status);
     const blob = await reponse.blob();
     if (blob.size > 16 * 1024 * 1024) throw new Error("Archive AROME trop volumineuse");
     const candidat = await preparer(blob, reponse.headers.get("Last-Modified"));
-    if (!installer(candidat) || !sauvegarder) return;
+    candidat.depuisSauvegarde = url === URL_SAUVEGARDE;
+    return { candidat, blob };
+}
+
+async function actualiser(demande, sauvegarder = true) {
+    await restaurer().catch(() => {});
+    let archive;
+    try {
+        archive = await chargerArchive(URL_ARCHIVE, demande);
+    } catch (erreurPages) {
+        console.warn("GitHub Pages AROME :", erreurPages.message);
+        try {
+            archive = await chargerArchive(URL_SAUVEGARDE, demande);
+        } catch (erreurSauvegarde) {
+            throw new Error(`GitHub Pages (${erreurPages.message}) · Sauvegarde GitHub (${erreurSauvegarde.message})`);
+        }
+    }
+    if (!archive) return;
+    const { candidat, blob } = archive;
+    if (!installer(candidat)) {
+        if (candidat.depuisSauvegarde) throw new Error("La sauvegarde GitHub contient un cycle plus ancien");
+        return;
+    }
+    if (!sauvegarder) return;
     const entetes = { "X-Signature": candidat.signature, "X-Version-Verification": VERSION_VERIFICATION };
+    if (candidat.depuisSauvegarde) entetes["X-Origine-Archive"] = "sauvegarde";
     if (candidat.modification) entetes["Last-Modified"] = candidat.modification;
     try {
         const disque = await stockage;
@@ -139,10 +170,10 @@ async function actualiser(demande, sauvegarder = true) {
     }
 }
 
-function signalerVerification(signaturePrecedente, echec) {
-    const changement = (signaturePrecedente && signaturePrecedente !== actif?.signature) ||
-        verificationEchouee !== echec;
-    verificationEchouee = echec;
+function signalerVerification(signaturePrecedente, ancienneOrigine, erreur) {
+    const changement = signaturePrecedente !== actif?.signature ||
+        ancienneOrigine !== actif?.depuisSauvegarde || erreurVerification !== erreur;
+    erreurVerification = erreur;
     if (changement && actif) self.postMessage({ type: "cache-actualise" });
 }
 
@@ -155,6 +186,7 @@ function verifier(forcer = false) {
     clearTimeout(minuteur);
     prochainControle = Date.now() + INTERVALLE;
     const signaturePrecedente = actif?.signature;
+    const ancienneOrigine = actif?.depuisSauvegarde;
     const demande = { forcee: forcer };
     // Un autre onglet peut retenir le verrou. La lecture réseau et le calcul
     // local restent possibles, mais seul l'onglet qui l'obtient écrit le cache.
@@ -162,10 +194,10 @@ function verifier(forcer = false) {
         ? navigator.locks.request(STOCKAGE, { ifAvailable: true }, verrou => actualiser(demande, Boolean(verrou)))
         : actualiser(demande);
     demande.promesse = chargement.then(() => {
-        signalerVerification(signaturePrecedente, false);
+        signalerVerification(signaturePrecedente, ancienneOrigine, null);
     }).catch(erreur => {
         prochainControle = Date.now() + 60000;
-        signalerVerification(signaturePrecedente, true);
+        signalerVerification(signaturePrecedente, ancienneOrigine, erreur.message);
         throw erreur;
     }).finally(() => {
         verification = null;
@@ -197,7 +229,11 @@ self.onmessage = async ({ data: { id, lat, lon, forcer } }) => {
         const { cache, valeursMeteo } = actif;
         const resultat = calculerPrevisionsAromeNavigateur(cache, lat, lon);
         ajouterChampsMeteo(cache, resultat, lat, lon, champ => valeursMeteo.get(champ));
-        if (verificationEchouee) resultat.actualisation_statut = "echec";
+        resultat.cache_sauvegarde_github = actif.depuisSauvegarde;
+        if (erreurVerification) {
+            resultat.actualisation_statut = "echec";
+            resultat.erreur_actualisation = erreurVerification;
+        }
         self.postMessage({ id, resultat });
     } catch (erreur) {
         self.postMessage({ id, erreur: erreur.message });
